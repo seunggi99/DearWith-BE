@@ -5,10 +5,8 @@ services:
   - docker:dind
 
 variables:
-  # dind 와 TLS 충돌 방지
-  DOCKER_TLS_CERTDIR: ""
-  # 이미지 태그로 커밋 SHA 사용
-  TAG: $CI_COMMIT_SHA
+  DOCKER_TLS_CERTDIR: ""      # dind + TLS 충돌 방지
+  TAG: $CI_COMMIT_SHA         # 이미지 태그로 커밋 SHA 사용
 
 stages:
   - build
@@ -19,12 +17,8 @@ build:
   stage: build
   script:
     - echo "🛠️  Building Docker image..."
-    # 루트의 Dockerfile, 컨텍스트는 dearwith-backend/ 폴더
-    - docker build \
-        -t $CI_REGISTRY_IMAGE:$TAG \
-        -f Dockerfile \
-        dearwith-backend
-  # 다음 스테이지에서 같은 캐시 이미지 재사용
+    # 백슬래시 없이, 한 줄로 명령 작성
+    - docker build -t $CI_REGISTRY_IMAGE:$TAG -f Dockerfile dearwith-backend
   artifacts:
     paths:
       - /cache
@@ -34,23 +28,21 @@ push:
   stage: push
   script:
     - echo "🔐 Logging into GitLab Container Registry..."
-    - echo "$CI_REGISTRY_PASSWORD" \
-        | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
     - echo "📦 Pushing image $CI_REGISTRY_IMAGE:$TAG ..."
     - docker push $CI_REGISTRY_IMAGE:$TAG
 
 deploy:
   stage: deploy
   script:
-    # EC2 배포용 필수 패키지
+    - echo "🚀 Deploying to EC2..."
     - apk add --no-cache openssh-client docker-compose
     - mkdir -p ~/.ssh
-    # 개인키 설정
     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H $CI_DEPLOY_HOST >> ~/.ssh/known_hosts
 
-    # 원격 서버에 접속해서 docker-compose up
+    # 멀티라인 SSH 블록은 '|' 로 감싸기
     - |
       ssh -i ~/.ssh/id_rsa $CI_DEPLOY_USER@$CI_DEPLOY_HOST << 'EOF'
         cd ~/DearWith-BE
@@ -60,5 +52,6 @@ deploy:
         docker-compose pull
         docker-compose up -d
       EOF
+
   only:
     - main
