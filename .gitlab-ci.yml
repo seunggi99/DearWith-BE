@@ -31,10 +31,9 @@ push:
   needs:
     - build
   script:
-    - echo "🔐 [push] Logging into registry with built-in CI variables..."
-    # 기존 CI_REGISTRY_PASSWORD 대신 CI_JOB_TOKEN 사용
-    - echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-    - echo "📦 [push] Pushing image $CI_REGISTRY_IMAGE:$TAG ..."
+    - echo "🔐 [push] Logging into registry..."
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - echo "📦 [push] Pushing $CI_REGISTRY_IMAGE:$TAG ..."
     - docker push $CI_REGISTRY_IMAGE:$TAG
 
 deploy:
