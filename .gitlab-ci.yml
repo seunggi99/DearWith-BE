@@ -1,10 +1,8 @@
-# .gitlab-ci.yml (프로젝트 루트)
 image: docker:20.10
 
 services:
   - docker:dind
 
-# Docker-in-Docker 관련 설정
 variables:
   DOCKER_TLS_CERTDIR: ""      
   TAG: $CI_COMMIT_SHA         
@@ -20,8 +18,7 @@ build:
     - echo "🛠️  [build] Building image..."
     - cd dearwith-backend
     - docker build -t $CI_REGISTRY_IMAGE:$TAG .
-  # artifacts 로 남기진 않지만, 
-  # build 단계가 무조건 성공해야 뒤가 실행됩니다.
+    - docker tag $CI_REGISTRY_IMAGE:$TAG $CI_REGISTRY_IMAGE:latest
   artifacts:
     expire_in: 30m
     paths: [] 
@@ -35,6 +32,7 @@ push:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - echo "📦 [push] Pushing $CI_REGISTRY_IMAGE:$TAG ..."
     - docker push $CI_REGISTRY_IMAGE:$TAG
+    - docker push $CI_REGISTRY_IMAGE:latest
 
 deploy:
   stage: deploy
