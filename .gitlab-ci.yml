@@ -14,25 +14,29 @@ stages:
 
 build:
   stage: build
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - echo "🛠️  [build] Building image..."
     - cd dearwith-backend
     - docker build -t $CI_REGISTRY_IMAGE:$TAG .
     - docker tag $CI_REGISTRY_IMAGE:$TAG $CI_REGISTRY_IMAGE:latest
+  after_script:
+    - docker logout $CI_REGISTRY
   artifacts:
     expire_in: 30m
     paths: [] 
 
 push:
   stage: push
-  needs:
-    - build
-  script:
-    - echo "🔐 [push] Logging into registry..."
+  before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
     - echo "📦 [push] Pushing $CI_REGISTRY_IMAGE:$TAG ..."
     - docker push $CI_REGISTRY_IMAGE:$TAG
     - docker push $CI_REGISTRY_IMAGE:latest
+  after_script:
+    - docker logout $CI_REGISTRY
 
 deploy:
   stage: deploy
