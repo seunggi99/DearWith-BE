@@ -4,62 +4,61 @@ services:
   - docker:dind
 
 variables:
-  DOCKER_TLS_CERTDIR: ""      
-  TAG: $CI_COMMIT_SHA         
+  DOCKER_TLS_CERTDIR: ""       # Docker-in-Docker TLS 비활성화
+  TAG: $CI_COMMIT_SHA          # 이미지 태그로 커밋 SHA 사용
 
 stages:
-  - build_and_push
+  - build
   - deploy
 
-build_and_push:
-  stage: build_and_push
+build:
+  stage: build
   before_script:
-    - echo "🔐 Logging into registry..."
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    # registry.gitlab.com 로그인 (토큰 권한 필요)
+    - echo "$CI_JOB_TOKEN" | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
   script:
-    - echo "📦 Building image..."
     - cd dearwith-backend
-    - docker build --no-cache -t $CI_REGISTRY_IMAGE:$TAG .
+    - docker build -t $CI_REGISTRY_IMAGE:$TAG .
     - docker tag $CI_REGISTRY_IMAGE:$TAG $CI_REGISTRY_IMAGE:latest
     - docker push $CI_REGISTRY_IMAGE:$TAG
     - docker push $CI_REGISTRY_IMAGE:latest
-  after_script:
-    - docker logout $CI_REGISTRY
+  only:
+    - main
 
 deploy:
   stage: deploy
-  needs:
-    - build_and_push
+  image: alpine:latest
   before_script:
-    - echo "🚀 Prepare SSH..."
     - apk add --no-cache openssh-client
     - mkdir -p ~/.ssh
-    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - echo "$SSH_PRIVATE_KEY"         > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H $CI_DEPLOY_HOST >> ~/.ssh/known_hosts
   script:
-    - |
-      ssh -i ~/.ssh/id_rsa $CI_DEPLOY_USER@$CI_DEPLOY_HOST << 'EOF'
-        set -e
-
+    - ssh $CI_DEPLOY_USER@$CI_DEPLOY_HOST << 'EOF'
         cd ~/DearWith-BE/dearwith-backend
 
-        echo "TAG=$TAG"           > .env
+        # 환경 변수 파일 갱신
+        echo "TAG=$TAG"          > .env
         echo "MONGO_USER=$MONGO_USER" >> .env
         echo "MONGO_PASS=$MONGO_PASS" >> .env
 
+        # 컨테이너 재시작
+        docker pull $CI_REGISTRY_IMAGE:$TAG
         docker stop app mongodb || true
         docker rm  app mongodb || true
 
-        docker run -d --name mongodb \
+        docker run -d \
+          --name mongodb \
           -p 27017:27017 \
           -e MONGO_INITDB_ROOT_USERNAME=$MONGO_USER \
           -e MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASS \
-          mongo:6.0
+          mongo:latest
 
-        docker run -d --name app \
+        docker run -d \
+          --name app \
           -p 8080:8080 \
-          -e SPRING_DATA_MONGODB_URI=mongodb://$MONGO_USER:$MONGO_PASS@mongodb:27017/dearwith?authSource=admin \
+          -e SPRING_DATA_MONGODB_URI=mongodb://$MONGO_USER:$MONGO_PASS@mongodb:27017 \
           $CI_REGISTRY_IMAGE:$TAG
       EOF
   only:
