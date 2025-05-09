@@ -8,82 +8,51 @@ variables:
   TAG: $CI_COMMIT_SHA         
 
 stages:
-  - build
-  - push
+  - build_and_push
   - deploy
 
-build:
-  stage: build
-  before_script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+build_and_push:
+  stage: build_and_push
   script:
-    - echo "️  [build] Building image..."
-    - pwd  # 현재 디렉토리 확인
-    - ls -la  # 파일 목록 확인
+    - echo "🛠️  Building and Pushing image..."
     - cd dearwith-backend
-    - pwd  # dearwith-backend 디렉토리 확인
-    - ls -la  # dearwith-backend 파일 목록 확인
-    - docker build --no-cache -t registry.gitlab.com/kimsk5453/dearwith-be:$TAG .  # 캐시 없이 빌드
-    - docker tag registry.gitlab.com/kimsk5453/dearwith-be:$TAG registry.gitlab.com/kimsk5453/dearwith-be:latest
-    - docker images  # 이미지 확인
-  after_script:
-    - docker logout $CI_REGISTRY
-  artifacts:
-    expire_in: 30m
-    paths: [] 
-
-push:
-  stage: push
-  needs:
-    - build
-  before_script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-  script:
-    - echo "📦 [push] Pushing image..."
-    - docker images  # 푸시 전 이미지 확인
-    - docker push registry.gitlab.com/kimsk5453/dearwith-be:$TAG
-    - docker push registry.gitlab.com/kimsk5453/dearwith-be:latest
-  after_script:
-    - docker logout $CI_REGISTRY
+    # 1. 빌드
+    - docker build --no-cache -t $CI_REGISTRY_IMAGE:$TAG .
+    # 2. 레지스트리에 로그인 (CI_JOB_TOKEN 사용)
+    - echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    # 3. 푸시
+    - docker push $CI_REGISTRY_IMAGE:$TAG
+    - docker tag $CI_REGISTRY_IMAGE:$TAG $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
 
 deploy:
   stage: deploy
   needs:
-    - push
+    - build_and_push
   script:
-    - echo "🚀 [deploy] Deploying to EC2..."
+    - echo "🚀 Deploying to EC2…"
     - apk add --no-cache openssh-client
     - mkdir -p ~/.ssh
     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H $CI_DEPLOY_HOST >> ~/.ssh/known_hosts
-
     - |
       ssh -i ~/.ssh/id_rsa $CI_DEPLOY_USER@$CI_DEPLOY_HOST << 'EOF'
         cd ~/DearWith-BE/dearwith-backend
         echo "TAG=$TAG" > .env
         echo "MONGO_USER=$MONGO_USER" >> .env
         echo "MONGO_PASS=$MONGO_PASS" >> .env
-        
-        # 기존 컨테이너 중지 및 삭제
         docker stop app mongodb || true
         docker rm app mongodb || true
-        
-        # MongoDB 실행
-        docker run -d \
-          --name mongodb \
+        docker run -d --name mongodb \
           -p 27017:27017 \
           -e MONGO_INITDB_ROOT_USERNAME=$MONGO_USER \
           -e MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASS \
           mongo:latest
-        
-        # Spring Boot 애플리케이션 실행
-        docker run -d \
-          --name app \
+        docker run -d --name app \
           -p 8080:8080 \
           -e SPRING_DATA_MONGODB_URI=mongodb://$MONGO_USER:$MONGO_PASS@mongodb:27017 \
-          registry.gitlab.com/kimsk5453/dearwith-be:$TAG
+          $CI_REGISTRY_IMAGE:$TAG
       EOF
-
   only:
     - main
