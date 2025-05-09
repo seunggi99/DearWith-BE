@@ -4,10 +4,11 @@ image: docker:20.10
 services:
   - docker:dind
 
-# Docker-in-Docker 설정
 variables:
-  DOCKER_TLS_CERTDIR: ""        # dind와 TLS 충돌 방지
-  TAG: $CI_COMMIT_SHA           # 이미지 태그로 커밋 SHA 사용
+  # dind 와 TLS 충돌 방지
+  DOCKER_TLS_CERTDIR: ""
+  # 이미지 태그로 커밋 SHA 사용
+  TAG: $CI_COMMIT_SHA
 
 stages:
   - build
@@ -18,46 +19,44 @@ build:
   stage: build
   script:
     - echo "🛠️  Building Docker image..."
-    # 루트의 Dockerfile, 컨텍스트는 dearwith-backend/
+    # 루트의 Dockerfile, 컨텍스트는 dearwith-backend/ 폴더
     - docker build \
         -t $CI_REGISTRY_IMAGE:$TAG \
         -f Dockerfile \
         dearwith-backend
+  # 다음 스테이지에서 같은 캐시 이미지 재사용
   artifacts:
-    # 다음 스테이지(docker push)에서 캐시된 이미지를 그대로 사용
-    expire_in: 1h
     paths:
       - /cache
+    expire_in: 1h
 
 push:
   stage: push
   script:
     - echo "🔐 Logging into GitLab Container Registry..."
-    - echo "$CI_REGISTRY_PASSWORD" | docker login \
-        -u "$CI_REGISTRY_USER" \
-        --password-stdin $CI_REGISTRY
+    - echo "$CI_REGISTRY_PASSWORD" \
+        | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
     - echo "📦 Pushing image $CI_REGISTRY_IMAGE:$TAG ..."
     - docker push $CI_REGISTRY_IMAGE:$TAG
 
 deploy:
   stage: deploy
   script:
-    - echo "🚀 Deploying to EC2..."
-    # SSH 설정
+    # EC2 배포용 필수 패키지
     - apk add --no-cache openssh-client docker-compose
     - mkdir -p ~/.ssh
+    # 개인키 설정
     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H $CI_DEPLOY_HOST >> ~/.ssh/known_hosts
 
-    # EC2에 접속해서 도커 컴포즈로 배포
-    - ssh -i ~/.ssh/id_rsa $CI_DEPLOY_USER@$CI_DEPLOY_HOST << 'EOF'
+    # 원격 서버에 접속해서 docker-compose up
+    - |
+      ssh -i ~/.ssh/id_rsa $CI_DEPLOY_USER@$CI_DEPLOY_HOST << 'EOF'
         cd ~/DearWith-BE
-        # .env 파일 생성 (CI/CD 변수 주입)
         echo "TAG=$TAG" > .env
         echo "MONGO_USER=$MONGO_USER" >> .env
         echo "MONGO_PASS=$MONGO_PASS" >> .env
-        # 최신 이미지를 pull & 컨테이너 재시작
         docker-compose pull
         docker-compose up -d
       EOF
