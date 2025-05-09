@@ -1,3 +1,4 @@
+# .gitlab-ci.yml (프로젝트 루트)
 image: docker:20.10
 
 services:
