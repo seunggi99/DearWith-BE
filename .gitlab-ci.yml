@@ -1,0 +1,35 @@
+stages:
+  - build
+  - push
+  - deploy
+
+variables:
+  TAG: $CI_COMMIT_SHA
+
+build:
+  image: docker:20.10
+  services: [docker:dind]
+  stage: build
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$TAG .
+
+push:
+  image: docker:20.10
+  services: [docker:dind]
+  stage: push
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE:$TAG
+
+deploy:
+  image: alpine
+  stage: deploy
+  script:
+    - apk add --no-cache openssh-client docker-compose
+    - mkdir -p ~/dearwith && cd ~/dearwith
+    - echo "SPRING_DATA_MONGODB_URI=mongodb://admin:${MONGO_PASS}@mongodb:27017/dearwith?authSource=admin" > .env
+    - echo "TAG=$TAG" >> .env
+    - docker-compose pull
+    - docker-compose up -d
+  only:
+    - main
