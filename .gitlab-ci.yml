@@ -34,26 +34,25 @@ deploy:
     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H $CI_DEPLOY_HOST >> ~/.ssh/known_hosts
-    - |
-      ssh -i ~/.ssh/id_rsa $CI_DEPLOY_USER@$CI_DEPLOY_HOST << 'EOF'
-        cd ~/DearWith-BE/dearwith-backend
-        echo "TAG=$TAG"           > .env
-        echo "MONGO_USER=$MONGO_USER" >> .env
-        echo "MONGO_PASS=$MONGO_PASS" >> .env
+    - ssh -i ~/.ssh/id_rsa $CI_DEPLOY_USER@$CI_DEPLOY_HOST << 'EOF'
+      cd ~/DearWith-BE/dearwith-backend
+      echo "TAG=$TAG"           > .env
+      echo "MONGO_USER=$MONGO_USER" >> .env
+      echo "MONGO_PASS=$MONGO_PASS" >> .env
 
-        docker stop app mongodb || true
-        docker rm  app mongodb || true
+      docker stop app mongodb || true
+      docker rm  app mongodb || true
 
-        docker run -d --name mongodb \
-          -p 27017:27017 \
-          -e MONGO_INITDB_ROOT_USERNAME=$MONGO_USER \
-          -e MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASS \
-          mongo:latest
+      docker run -d --name mongodb \
+        -p 27017:27017 \
+        -e MONGO_INITDB_ROOT_USERNAME=$MONGO_USER \
+        -e MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASS \
+        mongo:latest
 
-        docker run -d --name app \
-          -p 8080:8080 \
-          -e SPRING_DATA_MONGODB_URI=mongodb://$MONGO_USER:$MONGO_PASS@mongodb:27017 \
-          $CI_REGISTRY_IMAGE:$TAG
+      docker run -d --name app \
+        -p 8080:8080 \
+        -e SPRING_DATA_MONGODB_URI=mongodb://$MONGO_USER:$MONGO_PASS@mongodb:27017 \
+        $CI_REGISTRY_IMAGE:$TAG
       EOF
   only:
     - main
