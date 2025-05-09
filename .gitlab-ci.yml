@@ -19,9 +19,11 @@ build:
   script:
     - echo "️  [build] Building image..."
     - cd dearwith-backend
+    - pwd  # 현재 디렉토리 확인
+    - ls -la  # 파일 목록 확인
     - docker build -t registry.gitlab.com/kimsk5453/dearwith-be:$TAG .
     - docker tag registry.gitlab.com/kimsk5453/dearwith-be:$TAG registry.gitlab.com/kimsk5453/dearwith-be:latest
-    - docker images  # 이미지가 제대로 빌드되었는지 확인
+    - docker images  # 이미지 확인
   after_script:
     - docker logout $CI_REGISTRY
   artifacts:
@@ -48,7 +50,7 @@ deploy:
     - push
   script:
     - echo "🚀 [deploy] Deploying to EC2..."
-    - apk add --no-cache openssh-client docker-compose
+    - apk add --no-cache openssh-client
     - mkdir -p ~/.ssh
     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
@@ -60,8 +62,25 @@ deploy:
         echo "TAG=$TAG" > .env
         echo "MONGO_USER=$MONGO_USER" >> .env
         echo "MONGO_PASS=$MONGO_PASS" >> .env
-        docker-compose pull
-        docker-compose up -d
+        
+        # 기존 컨테이너 중지 및 삭제
+        docker stop app mongodb || true
+        docker rm app mongodb || true
+        
+        # MongoDB 실행
+        docker run -d \
+          --name mongodb \
+          -p 27017:27017 \
+          -e MONGO_INITDB_ROOT_USERNAME=$MONGO_USER \
+          -e MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASS \
+          mongo:latest
+        
+        # Spring Boot 애플리케이션 실행
+        docker run -d \
+          --name app \
+          -p 8080:8080 \
+          -e SPRING_DATA_MONGODB_URI=mongodb://$MONGO_USER:$MONGO_PASS@mongodb:27017 \
+          registry.gitlab.com/kimsk5453/dearwith-be:$TAG
       EOF
 
   only:
