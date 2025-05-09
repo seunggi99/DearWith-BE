@@ -1,3 +1,4 @@
+# .gitlab-ci.yml
 image: docker:20.10
 
 services:
@@ -15,16 +16,9 @@ build_and_push:
   stage: build_and_push
   script:
     - cd dearwith-backend
-
-    # ── 디버그 출력 ────────────────────────────────────────────────
-    - echo ">> CI_REGISTRY_USER = '$CI_REGISTRY_USER'"
-    - echo ">> CI_REGISTRY_PASSWORD length = ${#CI_REGISTRY_PASSWORD}"
-    - echo ">> CI_REGISTRY = '$CI_REGISTRY'"
-    # ───────────────────────────────────────────────────────────────
-
     - docker build -t $CI_REGISTRY_IMAGE:$TAG .
-    - echo "$CI_REGISTRY_PASSWORD" \
-        | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - echo "🔐 Logging into registry with CI_JOB_TOKEN..."
+    - echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
     - docker push $CI_REGISTRY_IMAGE:$TAG
     - docker tag $CI_REGISTRY_IMAGE:$TAG $CI_REGISTRY_IMAGE:latest
     - docker push $CI_REGISTRY_IMAGE:latest
@@ -46,13 +40,16 @@ deploy:
         echo "TAG=$TAG" > .env
         echo "MONGO_USER=$MONGO_USER" >> .env
         echo "MONGO_PASS=$MONGO_PASS" >> .env
+
         docker stop app mongodb || true
-        docker rm app mongodb || true
+        docker rm app mongodb  || true
+
         docker run -d --name mongodb \
           -p 27017:27017 \
           -e MONGO_INITDB_ROOT_USERNAME=$MONGO_USER \
           -e MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASS \
           mongo:latest
+
         docker run -d --name app \
           -p 8080:8080 \
           -e SPRING_DATA_MONGODB_URI=mongodb://$MONGO_USER:$MONGO_PASS@mongodb:27017 \
