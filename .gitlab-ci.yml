@@ -1,12 +1,11 @@
 # .gitlab-ci.yml (프로젝트 루트)
 image: docker:20.10
-
 services:
   - docker:dind
 
 variables:
-  DOCKER_TLS_CERTDIR: ""      # dind + TLS 충돌 방지
-  TAG: $CI_COMMIT_SHA         # 이미지 태그로 커밋 SHA 사용
+  DOCKER_TLS_CERTDIR: ""
+  TAG: $CI_COMMIT_SHA
 
 stages:
   - build
@@ -16,42 +15,37 @@ stages:
 build:
   stage: build
   script:
-    - echo "🛠️  Building Docker image..."
-    # 백슬래시 없이, 한 줄로 명령 작성
-    - docker build -t $CI_REGISTRY_IMAGE:$TAG -f Dockerfile dearwith-backend
+    - echo "🛠️  Building Docker image from subfolder..."
+    - cd dearwith-backend
+    - docker build -t $CI_REGISTRY_IMAGE:$TAG .
   artifacts:
     paths:
       - /cache
     expire_in: 1h
 
+# 이하 push / deploy 스테이지는 변경 없이 그대로
 push:
   stage: push
   script:
-    - echo "🔐 Logging into GitLab Container Registry..."
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-    - echo "📦 Pushing image $CI_REGISTRY_IMAGE:$TAG ..."
     - docker push $CI_REGISTRY_IMAGE:$TAG
 
 deploy:
   stage: deploy
   script:
-    - echo "🚀 Deploying to EC2..."
     - apk add --no-cache openssh-client docker-compose
     - mkdir -p ~/.ssh
     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H $CI_DEPLOY_HOST >> ~/.ssh/known_hosts
-
-    # 멀티라인 SSH 블록은 '|' 로 감싸기
     - |
       ssh -i ~/.ssh/id_rsa $CI_DEPLOY_USER@$CI_DEPLOY_HOST << 'EOF'
-        cd ~/DearWith-BE
+        cd ~/DearWith-BE/dearwith-backend
         echo "TAG=$TAG" > .env
         echo "MONGO_USER=$MONGO_USER" >> .env
         echo "MONGO_PASS=$MONGO_PASS" >> .env
         docker-compose pull
         docker-compose up -d
       EOF
-
   only:
     - main
