@@ -18,7 +18,8 @@ build_and_push:
     - cd dearwith-backend
     - docker build -t $CI_REGISTRY_IMAGE:$TAG .
     - echo "🔐 Logging into registry with CI_JOB_TOKEN..."
-    - echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - echo "$CI_JOB_TOKEN" \
+        | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
     - docker push $CI_REGISTRY_IMAGE:$TAG
     - docker tag $CI_REGISTRY_IMAGE:$TAG $CI_REGISTRY_IMAGE:latest
     - docker push $CI_REGISTRY_IMAGE:latest
