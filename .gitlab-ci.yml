@@ -14,17 +14,15 @@ stages:
 build_and_push:
   stage: build_and_push
   script:
-    - echo "🛠️  Building and Pushing image..."
     - cd dearwith-backend
-    # 1. 빌드
-    - docker build --no-cache -t $CI_REGISTRY_IMAGE:$TAG .
-    # 2. 레지스트리에 로그인 (CI_JOB_TOKEN 사용)
-    - echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-    # 3. 푸시
+    - docker build -t $CI_REGISTRY_IMAGE:$TAG .
+    - echo "🔐 Logging into registry with Deploy Token..."
+    - echo "$CI_REGISTRY_PASSWORD" \
+        | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
     - docker push $CI_REGISTRY_IMAGE:$TAG
     - docker tag $CI_REGISTRY_IMAGE:$TAG $CI_REGISTRY_IMAGE:latest
     - docker push $CI_REGISTRY_IMAGE:latest
-
+    
 deploy:
   stage: deploy
   needs:
