@@ -15,14 +15,20 @@ build_and_push:
   stage: build_and_push
   script:
     - cd dearwith-backend
+
+    # ── 디버그 출력 ────────────────────────────────────────────────
+    - echo ">> CI_REGISTRY_USER = '$CI_REGISTRY_USER'"
+    - echo ">> CI_REGISTRY_PASSWORD length = ${#CI_REGISTRY_PASSWORD}"
+    - echo ">> CI_REGISTRY = '$CI_REGISTRY'"
+    # ───────────────────────────────────────────────────────────────
+
     - docker build -t $CI_REGISTRY_IMAGE:$TAG .
-    - echo "🔐 Logging into registry with Deploy Token..."
     - echo "$CI_REGISTRY_PASSWORD" \
         | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
     - docker push $CI_REGISTRY_IMAGE:$TAG
     - docker tag $CI_REGISTRY_IMAGE:$TAG $CI_REGISTRY_IMAGE:latest
     - docker push $CI_REGISTRY_IMAGE:latest
-    
+
 deploy:
   stage: deploy
   needs:
