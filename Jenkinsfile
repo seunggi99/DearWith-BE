@@ -25,29 +25,25 @@ pipeline {
       }
     }
 
-    stage('Build') {
-      tools {
-        jdk 'jdk-17'
-        gradle 'gradle-wrapper'
-      }
+    stage('Build & Test') {
       steps {
-        sh './gradlew clean bootJar -x test'
-      }
-    }
-
-    stage('Test') {
-      steps {
-        sh './gradlew test'
+        // dearwith-backend 폴더로 들어가서 gradlew 실행
+        dir('dearwith-backend') {
+          sh './gradlew clean bootJar -x test'
+          sh './gradlew test'
+        }
       }
     }
 
     stage('Docker Build & Push') {
       steps {
-        script {
-          docker.withRegistry('https://index.docker.io/v1/', env.DOCKER_CREDS) {
-            def img = docker.build("${IMAGE_NAME}:${TAG}", "-f docker/Dockerfile .")
-            img.push()
-            img.push('latest')
+        dir('dearwith-backend') {           // Dockerfile 도 이 안에 있으니
+          script {
+            docker.withRegistry('https://index.docker.io/v1/', env.DOCKER_CREDS) {
+              def img = docker.build("${IMAGE_NAME}:${TAG}", '.')
+              img.push()
+              img.push('latest')
+            }
           }
         }
       }
