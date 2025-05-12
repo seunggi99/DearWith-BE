@@ -48,8 +48,8 @@ pipeline {
       steps {
         dir('dearwith-backend') {
           sh '/usr/local/bin/docker build -t ninny9988/dearwith-be:latest .'
-          withCredentials([string(credentialsId: 'docker-hub-password', variable: 'DOCKER_PASSWORD')]) {
-            sh 'echo ${DOCKER_PASSWORD} | /usr/local/bin/docker login -u ninny9988 --password-stdin'
+          withCredentials([usernamePassword(credentialsId: 'docker-hub', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+            sh 'echo ${DOCKER_PASSWORD} | /usr/local/bin/docker login -u ${DOCKER_USERNAME} --password-stdin'
           }
           sh '/usr/local/bin/docker push ninny9988/dearwith-be:latest'
         }
