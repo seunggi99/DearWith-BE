@@ -1,4 +1,4 @@
-package com.dearwith.dearwith_backend;
+package com.dearwith.dearwith_backend.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
