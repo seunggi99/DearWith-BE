@@ -35,19 +35,26 @@ pipeline {
       }
     }
 
-    stage('Docker Build & Push') {
+    stage('Debug PATH') {
       steps {
-        dir('dearwith-backend') {           // Dockerfile 도 이 안에 있으니
-          script {
-            docker.withRegistry('https://index.docker.io/v1/', env.DOCKER_CREDS) {
-              def img = docker.build("${IMAGE_NAME}:${TAG}", '.')
-              img.push()
-              img.push('latest')
-            }
-          }
-        }
+        sh 'echo ">>>> PATH is: $PATH"'
       }
     }
+
+    stage('Docker Build & Push') {
+  	steps {
+	    dir('dearwith-backend') {
+	      sh '/usr/local/bin/docker --version'  // 확인용
+	      script {
+	        docker.withRegistry('', env.DOCKER_CREDS) {
+	          def img = docker.build("${IMAGE_NAME}:${TAG}", "-f docker/Dockerfile .")
+	          img.push()
+	          img.push('latest')
+        	}
+      	}
+    	}
+  	}
+}
 
     stage('Deploy') {
       steps {
