@@ -1,6 +1,10 @@
 pipeline {
   agent any
 
+    tools {
+    docker 'docker'    
+  }
+
   environment {
     GIT_CREDS    = 'github-ssh'
     DOCKER_CREDS = 'docker-hub'
