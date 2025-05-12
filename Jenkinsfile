@@ -47,7 +47,7 @@ pipeline {
     stage('Docker Build & Push') {
       steps {
         dir('dearwith-backend') {
-          sh '/usr/local/bin/docker build -t ninny9988/dearwith-be:latest .'
+          sh '/usr/local/bin/docker buildx build --platform linux/amd64 -t ninny9988/dearwith-be:latest --push .'
           withCredentials([usernamePassword(credentialsId: 'docker-hub', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
             sh 'echo ${DOCKER_PASSWORD} | /usr/local/bin/docker login -u ${DOCKER_USERNAME} --password-stdin'
           }
