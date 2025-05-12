@@ -31,7 +31,6 @@ pipeline {
 
     stage('Build & Test') {
       steps {
-        // dearwith-backend 폴더로 들어가서 gradlew 실행
         dir('dearwith-backend') {
           sh './gradlew clean bootJar -x test'
           sh './gradlew test'
@@ -46,31 +45,23 @@ pipeline {
     }
 
     stage('Docker Build & Push') {
-  	steps {
-	    dir('dearwith-backend') {
-	      sh '/usr/local/bin/docker --version'  // 확인용
-	      script {
-	        docker.withRegistry('', env.DOCKER_CREDS) {
-	          def img = docker.build("${IMAGE_NAME}:${TAG}", "-f docker/Dockerfile .")
-	          img.push()
-	          img.push('latest')
-        	}
-      	}
-    	}
-  	}
-}
+      steps {
+        dir('dearwith-backend') {
+          sh '/usr/local/bin/docker build -t ninny9988/dearwith-be:latest .'
+          sh '/usr/local/bin/docker login -u ninny9988 -p ${DOCKER_PASSWORD}'
+          sh '/usr/local/bin/docker push ninny9988/dearwith-be:latest'
+        }
+      }
+    }
 
     stage('Deploy') {
       steps {
-        sshagent (credentials: ['deploy-ssh']) {
+        sshagent(['ec2-ssh-key']) {
           sh '''
-            ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST << 'EOF'
+            ssh -o StrictHostKeyChecking=no ec2-user@${EC2_HOST} << 'EOF'
               cd ~/DearWith-BE/dearwith-backend
-              echo "TAG=${TAG}" > .env
-              echo "MONGO_USER=${MONGO_USER}" >> .env
-              echo "MONGO_PASS=${MONGO_PASS}" >> .env
-              docker-compose pull
-              docker-compose up -d --remove-orphans
+              docker pull ninny9988/dearwith-be:latest
+              docker-compose up -d
             EOF
           '''
         }
