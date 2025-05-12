@@ -60,7 +60,7 @@ pipeline {
       steps {
         sshagent(['ec2-ssh-key']) {
           sh '''
-            ssh -o StrictHostKeyChecking=no ec2-user@${EC2_HOST} << 'EOF'
+            ssh -o StrictHostKeyChecking=no ec2-user@${DEPLOY_HOST} << 'EOF'
               cd ~/DearWith-BE/dearwith-backend
               docker pull ninny9988/dearwith-be:latest
               docker-compose up -d
