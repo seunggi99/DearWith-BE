@@ -1,14 +1,14 @@
 pipeline {
   agent any
 
-    tools {
-    dockerTool 'docker'    
+  tools {
+    dockerTool 'docker'
   }
 
   environment {
     GIT_CREDS    = 'github-ssh'
     DOCKER_CREDS = 'docker-hub'
-    IMAGE_NAME   = 'seunggi99/dearwith-be'
+    IMAGE_NAME   = 'ninny9988/dearwith-be'
     TAG          = "${env.GIT_COMMIT}"
 
     DEPLOY_HOST  = 'ec2-3-37-184-199.ap-northeast-2.compute.amazonaws.com'
@@ -47,11 +47,18 @@ pipeline {
     stage('Docker Build & Push') {
       steps {
         dir('dearwith-backend') {
-          sh '/usr/local/bin/docker build -t ninny9988/dearwith-be:latest .'
-          withCredentials([usernamePassword(credentialsId: 'docker-hub', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-            sh 'echo ${DOCKER_PASSWORD} | /usr/local/bin/docker login -u ${DOCKER_USERNAME} --password-stdin'
+          // 플랫폼 명시하여 빌드
+          sh 'docker build --platform=linux/amd64 -t ${IMAGE_NAME}:latest .'
+
+          withCredentials([usernamePassword(
+            credentialsId: env.DOCKER_CREDS,
+            usernameVariable: 'DOCKER_USERNAME',
+            passwordVariable: 'DOCKER_PASSWORD'
+          )]) {
+            sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
           }
-          sh '/usr/local/bin/docker push ninny9988/dearwith-be:latest'
+
+          sh 'docker push ${IMAGE_NAME}:latest'
         }
       }
     }
@@ -59,13 +66,14 @@ pipeline {
     stage('Deploy') {
       steps {
         sshagent(['ec2-ssh-key']) {
-          sh '''
-            ssh -o StrictHostKeyChecking=no ec2-user@${DEPLOY_HOST} << 'EOF'
+          sh """
+            ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} << 'EOF'
               cd ~/DearWith-BE/dearwith-backend
-              docker pull ninny9988/dearwith-be:latest
+              docker pull ${IMAGE_NAME}:latest
+              docker-compose down
               docker-compose up -d
             EOF
-          '''
+          """
         }
       }
     }
