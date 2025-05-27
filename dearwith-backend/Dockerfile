@@ -16,6 +16,7 @@ RUN ./gradlew clean bootJar -x test
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
+
 # 빌드 산출물만 복사
 COPY --from=builder /app/build/libs/*.jar app.jar
 

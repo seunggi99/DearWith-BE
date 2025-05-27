@@ -1,0 +1,5 @@
+.opblock-summary-path {
+    white-space: nowrap !important;
+    overflow-x: auto !important;
+    word-break: normal !important;
+}
