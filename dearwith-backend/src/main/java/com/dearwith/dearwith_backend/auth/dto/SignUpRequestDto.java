@@ -13,10 +13,8 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
-public class SignupRequest {
+public class SignUpRequestDto {
     @NotBlank
     @Email
     private String email;
@@ -26,8 +24,9 @@ public class SignupRequest {
     private String password;
 
     @NotBlank
+    @Size(min = 2, message = "닉네임은 최소 2자 이상이어야 합니다.")
     private String nickname;
 
-    @Valid                             // Agreement 객체 내부(validations)도 검증
-    private List<Agreement> agreements;
+    @Valid
+    private List<AgreementDto> agreements;
 }

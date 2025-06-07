@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: dearwith-backend
+  config:
+    import: optional:dotenv:./.env
+  web:
+    encoding:
+      enabled: true
+      force: true
+      charset: UTF-8
+
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          ssl:
+            trust: ${MAIL_HOST}
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useSSL=false&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASS}
+    hikari:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+
+
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI}
+    redis:
+      host: ${SPRING_REDIS_HOST}
+      port: ${SPRING_REDIS_PORT}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,loggers
+  endpoint:
+    health:
+      show-details: always
+
+jwt:
+  secret: ${SECRET_KEY}
+  expiration-time: 3600000
+  refresh-expiration-time: 604800000

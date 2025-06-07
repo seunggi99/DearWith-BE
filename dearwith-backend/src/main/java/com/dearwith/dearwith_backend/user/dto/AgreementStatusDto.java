@@ -1,0 +1,15 @@
+package com.dearwith.dearwith_backend.user.dto;
+
+import com.dearwith.dearwith_backend.user.domain.enums.AgreementType;
+import lombok.Builder;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+public class AgreementStatusDto {
+    private AgreementType type;
+    private boolean agreed;
+    private LocalDateTime agreedAt;
+}

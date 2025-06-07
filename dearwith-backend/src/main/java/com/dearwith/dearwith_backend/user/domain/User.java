@@ -1,29 +1,31 @@
 package com.dearwith.dearwith_backend.user.domain;
 
+import com.dearwith.dearwith_backend.user.domain.enums.AgreementType;
+import com.dearwith.dearwith_backend.user.domain.enums.Role;
+import com.dearwith.dearwith_backend.user.domain.enums.UserStatus;
+import com.dearwith.dearwith_backend.user.dto.AgreementStatusDto;
+import jakarta.persistence.*;
 import lombok.*;
-import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.hibernate.annotations.GenericGenerator;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
-@Document(collection = "users")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class User implements UserDetails{
-    @Id // MongoDB _id 필드에 매핑
-    private String id;
+@Entity
+@Getter @NoArgsConstructor @AllArgsConstructor @Builder
+public class User {
+    @Id
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(name = "id", updatable = false, nullable = false, columnDefinition = "BINARY(16)")
+    private UUID id;
 
     private String email;
     private String password;
@@ -32,50 +34,86 @@ public class User implements UserDetails{
     private String nickname;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime lastLoginAt;
+
+    @Enumerated(EnumType.STRING)
     private Role role;
-    private List<Agreement> agreements; // <-- 이 필드를 추가합니다.
 
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        // 사용자의 권한(역할) 목록을 반환합니다.
-        // 예시: 모든 사용자에게 "ROLE_USER" 권한 부여
-        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
-        // TODO: 실제 애플리케이션 로직에 따라 사용자의 실제 역할을 로드하여 반환하도록 구현해야 합니다.
-        // 예: if (this.isAdmin) return Arrays.asList(new SimpleGrantedAuthority("ROLE_USER"), new SimpleGrantedAuthority("ROLE_ADMIN"));
+    @Enumerated(EnumType.STRING)
+    private UserStatus userStatus; // Enum (ACTIVE, SUSPENDED, DELETED)
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Agreement> agreements = new ArrayList<>();
+
+    public void updateNickname(String newNickname) {
+        this.nickname = newNickname;
+        this.updatedAt = LocalDateTime.now();
     }
 
-    @Override
-    public String getPassword() {
-        return password; // 암호화된 비밀번호 반환
+    // 연관관계 편의 메서드
+    public void addAgreement(Agreement agreement) {
+        agreements.add(agreement);
+        agreement.setUser(this);
     }
 
-    @Override
-    public String getUsername() {
-        // 사용자 식별자로 사용할 값을 반환합니다. 일반적으로 이메일 또는 사용자 이름을 사용합니다.
-        return email; // 여기서는 이메일을 사용자 이름으로 사용합니다.
+    // 동의 철회
+    public void removeAgreement(Agreement agreement) {
+        agreements.remove(agreement);
+        agreement.setUser(null);
     }
 
-    @Override
-    public boolean isAccountNonExpired() {
-        // 계정 만료 여부 (true: 만료되지 않음)
-        return true; // 필요에 따라 만료 로직 구현
+    // 약관타입으로 동의 여부 조회
+    public Optional<Agreement> findAgreement(AgreementType type) {
+        return agreements.stream()
+                .filter(a -> a.getType() == type)
+                .findFirst();
     }
 
-    @Override
-    public boolean isAccountNonLocked() {
-        // 계정 잠금 여부 (true: 잠겨있지 않음)
-        return true; // 필요에 따라 잠금 로직 구현
+    // 특정 약관 동의/철회 갱신
+    public void agreeOrUpdateAgreement(AgreementType type, boolean agreed, LocalDateTime agreedAt) {
+        Optional<Agreement> existing = findAgreement(type);
+
+        if (existing.isPresent()) {
+            Agreement agreement = existing.get();
+            agreement.updateAgreement(agreed, agreedAt);
+        } else {
+            Agreement newAgreement = Agreement.builder()
+                    .type(type)
+                    .agreed(agreed)
+                    .agreedAt(agreedAt)
+                    .build();
+            this.addAgreement(newAgreement);
+        }
     }
 
-    @Override
-    public boolean isCredentialsNonExpired() {
-        // 자격 증명(비밀번호) 만료 여부 (true: 만료되지 않음)
-        return true; // 필요에 따라 비밀번호 만료 로직 구현
+    // 모든 약관 동의 상태 조회
+    public List<AgreementStatusDto> getAgreementStatuses() {
+        return this.agreements.stream()
+                .map(agreement -> AgreementStatusDto.builder()
+                        .type(agreement.getType())
+                        .agreed(agreement.isAgreed())
+                        .agreedAt(agreement.getAgreedAt())
+                        .build()
+                )
+                .collect(Collectors.toList());
+    }
+    public void markActive() {
+        this.userStatus = UserStatus.ACTIVE;
+    }
+    public void markSuspended() {
+        this.userStatus = UserStatus.SUSPENDED;
     }
 
-    @Override
-    public boolean isEnabled() {
-        // 계정 활성화 여부 (true: 활성화됨)
-        return true; // 필요에 따라 활성화/비활성화 로직 구현
+    public void markDeleted() {
+        this.userStatus = UserStatus.DELETED;
+    }
+
+    public void updateLastLoginAt() {
+        this.lastLoginAt = LocalDateTime.now();
+    }
+
+    public void updateUpdatedAt() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

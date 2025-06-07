@@ -1,4 +1,4 @@
-package com.dearwith.dearwith_backend.user.domain;
+package com.dearwith.dearwith_backend.user.domain.enums;
 
 public enum AuthProvider {
     LOCAL,   // 이메일/비밀번호

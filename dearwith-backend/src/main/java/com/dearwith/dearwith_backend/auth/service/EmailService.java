@@ -1,4 +1,4 @@
-package com.dearwith.dearwith_backend.mail.service;
+package com.dearwith.dearwith_backend.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;

@@ -3,14 +3,12 @@ package com.dearwith.dearwith_backend.auth.controller;
 import com.dearwith.dearwith_backend.auth.dto.*;
 import com.dearwith.dearwith_backend.auth.service.AuthService;
 import com.dearwith.dearwith_backend.auth.service.EmailVerificationService;
+import com.dearwith.dearwith_backend.common.exception.ErrorCode;
+import com.dearwith.dearwith_backend.common.exception.ErrorResponse;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.net.URI;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
@@ -28,38 +26,41 @@ public class AuthController {
 
     // 1) 인증 코드 발송
     @PostMapping("/signup/email/send")
-    public ResponseEntity<Void> sendCode(@RequestBody EmailRequest dto) {
-        emailService.sendVerificationCode(dto.getEmail());
+    public ResponseEntity<Void> sendCode(@RequestBody @Valid EmailRequestDto request) {
+        emailService.sendVerificationCode(request.getEmail());
         return ResponseEntity.ok().build();
     }
 
     // 2) 인증 코드 검증
     @PostMapping("/signup/email/verify")
-    public ResponseEntity<Void> verifyCode(@RequestBody EmailVerifyRequest dto) {
-        emailService.verifyCode(dto.getEmail(), dto.getCode());
+    public ResponseEntity<Void> verifyCode(@RequestBody @Valid EmailVerifyRequestDto request) {
+        emailService.verifyCode(request.getEmail(), request.getCode());
         return ResponseEntity.noContent().build();
     }
 
-    // 3) 최종 회원가입
+    // 3) 회원가입
     @PostMapping("/signup")
-    public ResponseEntity<JwtResponse> signUp(@RequestBody SignupRequest signUpRequest){
-        return ResponseEntity.ok(authService.signup(signUpRequest));
+    public ResponseEntity<SignUpResponseDto> signUp(@RequestBody @Valid SignUpRequestDto request){
+        return ResponseEntity.ok(authService.signUp(request));
     }
 
     // 4) 로그인
     @PostMapping("/signin")
-    public ResponseEntity<JwtResponse> signIn(@RequestBody SigninRequestDto dto){
-        return ResponseEntity.ok(authService.signIn(dto));
+    public ResponseEntity<SignInResponseDto> signIn(@RequestBody @Valid SignInRequestDto request){
+        return ResponseEntity.ok(authService.signIn(request));
     }
 
-    @PostMapping("/refresh")
-    public ResponseEntity<JwtResponse> refreshToken(@RequestBody JwtRequest refreshTokenRequest){
-        return ResponseEntity.ok(authService.refreshToken(refreshTokenRequest));
-    }
-
+    // 토큰 유효 검사
     @PostMapping("/validate")
-    public ResponseEntity<JwtResponse> validateToken(@RequestBody JwtRequest validateTokenRequest){
-        return ResponseEntity.ok(authService.validateToken(validateTokenRequest));
+    public ResponseEntity<ErrorResponse> validateToken(@RequestBody @Valid JwtTokenDto tokenDto) {
+        authService.validateToken(tokenDto);
+        return ResponseEntity.ok(ErrorResponse.of(ErrorCode.TOKEN_SUCCESS));
+    }
+
+    // 토큰 재발급
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenReissueResponseDTO> refreshToken(@RequestBody @Valid JwtTokenDto tokenDto){
+        return ResponseEntity.ok(authService.reissueToken(tokenDto));
     }
 
 }

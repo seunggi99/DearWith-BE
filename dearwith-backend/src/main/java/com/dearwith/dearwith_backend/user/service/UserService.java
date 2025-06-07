@@ -1,6 +1,10 @@
 package com.dearwith.dearwith_backend.user.service;
 
+import com.dearwith.dearwith_backend.common.exception.BusinessException;
+import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.user.domain.User;
+import com.dearwith.dearwith_backend.user.domain.enums.UserStatus;
+import com.dearwith.dearwith_backend.user.dto.UserResponseDto;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,44 +14,53 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
-public class UserService implements UserDetailsService {
+public class UserService {
     private final UserRepository userRepository;
-
-
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다: " + email));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
     }
     public List<User> findAll() {
         return userRepository.findAll();
     }
-
-    public User findOne(String userId) {
+    public User findOne(UUID userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found for id: " + userId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
     }
 
-    public void updateNickname(String userId, String newNickname) {
-        User u = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다: " + userId));
-        u.setNickname(newNickname);
-        userRepository.save(u);
+    @Transactional
+    public void updateNickname(UUID userId, String newNickname) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+        user.updateNickname(newNickname);
+        userRepository.save(user);
     }
 
-    public void deleteById(String id) {
-        if (!userRepository.existsById(id)) {
-            throw new IllegalArgumentException("유저가 없습니다: " + id);
-        }
-        userRepository.deleteById(id);
+    @Transactional
+    public void deleteById(UUID id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+        user.markDeleted();
+        userRepository.save(user);
     }
 
-    @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + email));
+    // 회원 본인 정보 조회
+    public UserResponseDto getCurrentUser(UUID userId) {
+        User user = findOne(userId);
+        return new UserResponseDto(user);
     }
+
+    // 모든 회원 조회
+    public List<UserResponseDto> getAllUsers() {
+        return findAll().stream()
+                .map(UserResponseDto::new)
+                .collect(Collectors.toList());
+    }
+
 }
