@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.user.service;
 
+import com.dearwith.dearwith_backend.auth.service.AuthService;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.user.domain.User;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
+    private final AuthService authService;
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
@@ -38,6 +40,7 @@ public class UserService {
     public void updateNickname(UUID userId, String newNickname) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+        authService.validateDuplicateUserByNickname(newNickname);
         user.updateNickname(newNickname);
         userRepository.save(user);
     }

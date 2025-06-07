@@ -87,6 +87,9 @@ public class AuthService {
         User user = userRepo.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_EMAIL));
 
+        user.updateLastLoginAt();
+        userRepo.save(user);
+
         // 3. 토큰 발급 등 후처리
         TokenCreateRequestDTO tokenDTO = TokenCreateRequestDTO.builder()
                 .userId(user.getId())
