@@ -33,8 +33,6 @@ public class AuthService {
     @Autowired
     private final JwtTokenProvider jwtTokenProvider;
     @Autowired
-    private final UserService userService;
-    @Autowired
     private UserRepository userRepo;
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -65,7 +63,8 @@ public class AuthService {
                 ).collect(Collectors.toList());
 
         user.getAgreements().addAll(agreementEntities);
-        validateDuplicateUserByEmail(user);
+        validateDuplicateUserByEmail(user.getEmail());
+        validateDuplicateUserByNickname(user.getNickname());
 
         userRepo.save(user);
 
@@ -156,11 +155,16 @@ public class AuthService {
         }
         // 아무런 예외가 없으면 OK(200) 응답
     }
-    public void validateDuplicateUserByEmail(User user) {
-        userRepo.findByEmail(user.getEmail())
-                .ifPresent(existingUser -> {
-                    throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
-                });
+    public void validateDuplicateUserByEmail(String email) {
+        if (userRepo.existsByEmail(email)) {
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+    }
+
+    public void validateDuplicateUserByNickname(String nickname) {
+        if (userRepo.existsByNickname(nickname)) {
+            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
     }
 
     public void validateRequiredAgreements(List<AgreementDto> agreementDto) {
@@ -179,4 +183,6 @@ public class AuthService {
             throw new BusinessException(ErrorCode.REQUIRED_AGREEMENT_NOT_CHECKED);
         }
     }
+
+
 }

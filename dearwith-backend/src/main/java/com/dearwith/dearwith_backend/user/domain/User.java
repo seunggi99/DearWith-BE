@@ -27,10 +27,13 @@ public class User {
     @Column(name = "id", updatable = false, nullable = false, columnDefinition = "BINARY(16)")
     private UUID id;
 
+    @Column(unique = true)
     private String email;
     private String password;
     private String provider; // 예: 'email', 'kakao'
     private String kakaoId; // 카카오 로그인 사용 시
+
+    @Column(unique = true)
     private String nickname;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

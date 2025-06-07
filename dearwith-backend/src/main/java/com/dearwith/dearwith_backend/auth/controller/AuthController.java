@@ -63,4 +63,19 @@ public class AuthController {
         return ResponseEntity.ok(authService.reissueToken(tokenDto));
     }
 
+    // 이메일 중복 체크
+    @GetMapping("/check/email")
+    public ResponseEntity<Void> checkEmailDuplicate(@RequestParam String email) {
+        authService.validateDuplicateUserByEmail(email);
+        return ResponseEntity.ok().build();
+    }
+
+    // 닉네임 중복 체크
+    @GetMapping("/check/nickname")
+    public ResponseEntity<Void> checkNicknameDuplicate(@RequestParam String nickname) {
+        authService.validateDuplicateUserByNickname(nickname);
+        return ResponseEntity.ok().build();
+    }
+
+
 }

@@ -59,7 +59,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**", "/users/all").permitAll()  // 인증 관련 엔드포인트는 허용
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()  // Swagger UI 허용
-                        .anyRequest().authenticated()  // 나머지는 인증 필요
+                        .anyRequest().permitAll()  // 개발용 모두 허용
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)

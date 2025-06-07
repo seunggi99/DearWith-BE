@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 데이터입니다."),
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 가입된 이메일입니다."),
+    NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "권한이 없습니다."),
     TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "토큰이 유효하지 않습니다."),
     TOKEN_SUCCESS(HttpStatus.OK, "토큰이 유효합니다."),
