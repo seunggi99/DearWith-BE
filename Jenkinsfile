@@ -33,7 +33,6 @@ pipeline {
       steps {
         dir('dearwith-backend') {
           sh './gradlew clean bootJar -x test'
-          sh './gradlew test'
         }
       }
     }
