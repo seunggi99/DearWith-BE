@@ -25,11 +25,11 @@ public class Agreement {
     private AgreementType type;     // 어떤 약관에 동의했는지
 
     private boolean agreed;
-    private LocalDateTime agreedAt; // 동의 시각
+    private LocalDateTime updatedAt; // 동의/거부 시각
 
-    public void updateAgreement(boolean agreed, LocalDateTime agreedAt) {
+    public void updateAgreement(boolean agreed, LocalDateTime updatedAt) {
         this.agreed = agreed;
-        this.agreedAt = agreedAt;
+        this.updatedAt = updatedAt;
     }
 
     public void setUser(User user) {

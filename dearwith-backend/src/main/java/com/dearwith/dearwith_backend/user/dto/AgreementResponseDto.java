@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 
 @Data
 @Builder
-public class AgreementStatusDto {
+public class AgreementResponseDto {
     private AgreementType type;
     private boolean agreed;
-    private LocalDateTime agreedAt;
+    private LocalDateTime updatedAt;
 }

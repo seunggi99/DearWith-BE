@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.config;
 
 import com.dearwith.dearwith_backend.auth.JwtAuthenticationFilter;
 import com.dearwith.dearwith_backend.auth.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +22,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     @Autowired
@@ -61,6 +63,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()  // Swagger UI 허용
                         .anyRequest().permitAll()  // 개발용 모두 허용
                 )
+                .oauth2Login(oauth -> oauth.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
         ;

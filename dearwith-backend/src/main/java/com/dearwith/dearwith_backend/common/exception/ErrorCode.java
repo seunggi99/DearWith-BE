@@ -15,7 +15,9 @@ public enum ErrorCode {
     INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "비밀번호가 일치하지 않습니다."),
     INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "인증 코드가 유효하지 않습니다."),
     REQUIRED_AGREEMENT_NOT_CHECKED(HttpStatus.BAD_REQUEST, "필수 약관에 모두 동의해야 회원가입이 가능합니다."),
-    INVALID_AGREEMENT_TYPE(HttpStatus.BAD_REQUEST, "지원하지 않는 약관 타입입니다. 지원하는 타입: AGE_OVER_14, TERMS_OF_SERVICE, PERSONAL_INFORMATION, MARKETING_CONSENT, PUSH_NOTIFICATION")
+    INVALID_AGREEMENT_TYPE(HttpStatus.BAD_REQUEST, "지원하지 않는 약관 타입입니다. 지원하는 타입: AGE_OVER_14, TERMS_OF_SERVICE, PERSONAL_INFORMATION, MARKETING_CONSENT, PUSH_NOTIFICATION"),
+    DUPLICATE_SOCIAL_ACCOUNT(HttpStatus.CONFLICT, "이미 연결된 소셜 계정입니다."),
+    KAKAO_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "카카오 인증에 실패했습니다.")
     ;
 
     private final HttpStatus httpStatus;

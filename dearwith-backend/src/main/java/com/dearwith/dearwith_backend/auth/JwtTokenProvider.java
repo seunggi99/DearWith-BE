@@ -1,24 +1,18 @@
 package com.dearwith.dearwith_backend.auth;
 
-import com.dearwith.dearwith_backend.auth.dto.TokenCreateRequestDTO;
+import com.dearwith.dearwith_backend.auth.dto.TokenCreateRequestDto;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
 
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
 import java.util.*;
 import java.util.function.Function;
 
@@ -42,23 +36,23 @@ public class JwtTokenProvider {
 
 
     // 일반 토큰 생성
-    public String generateToken(TokenCreateRequestDTO requestDTO) {
+    public String generateToken(TokenCreateRequestDto request) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", requestDTO.getUserId());
-        claims.put("email", requestDTO.getEmail());
-        claims.put("role", requestDTO.getRole());
+        claims.put("userId", request.getUserId());
+        claims.put("email", request.getEmail());
+        claims.put("role", request.getRole());
 
-        return buildToken(claims, requestDTO.getEmail(), expirationTime);
+        return buildToken(claims, request.getEmail(), expirationTime);
     }
 
     // 리프레시 토큰 생성
-    public String generateRefreshToken(TokenCreateRequestDTO requestDTO) {
+    public String generateRefreshToken(TokenCreateRequestDto request) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", requestDTO.getUserId());
-        claims.put("email", requestDTO.getEmail());
-        claims.put("role", requestDTO.getRole());
+        claims.put("userId", request.getUserId());
+        claims.put("email", request.getEmail());
+        claims.put("role", request.getRole());
 
-        return buildToken(claims, requestDTO.getEmail(), refreshExpirationTime);
+        return buildToken(claims, request.getEmail(), refreshExpirationTime);
     }
 
     // 토큰 생성 내부 로직 (중복 제거)

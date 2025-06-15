@@ -1,4 +1,4 @@
-package com.dearwith.dearwith_backend.auth.dto;
+package com.dearwith.dearwith_backend.user.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

@@ -3,12 +3,10 @@ package com.dearwith.dearwith_backend.auth.dto;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.UUID;
-
 @Data
 @Builder
-public class TokenCreateRequestDTO {
-    private UUID userId;
+public class KakaoUserInfoDto {
+    private Long id;
     private String email;
-    private String role;
+    private String nickname;
 }

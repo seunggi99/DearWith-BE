@@ -5,10 +5,13 @@ import com.dearwith.dearwith_backend.auth.service.AuthService;
 import com.dearwith.dearwith_backend.auth.service.EmailVerificationService;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.common.exception.ErrorResponse;
+import com.dearwith.dearwith_backend.user.dto.SignInRequestDto;
+import com.dearwith.dearwith_backend.user.dto.SignInResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,43 +42,17 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "회원가입" , description = "회원 가입시 필요한 Request" +
-            "{\n" +
-            "  \"email\": \"test@example.com\",\n" +
-            "  \"password\": \"testPassword\",\n" +
-            "  \"nickname\": \"테스트 닉네임\",\n" +
-            "  \"agreements\": [\n" +
-            "    {\n" +
-            "      \"type\": \"AGE_OVER_14\",\n" +
-            "      \"agreed\": true\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"type\": \"TERMS_OF_SERVICE\",\n" +
-            "      \"agreed\": true\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"type\": \"PERSONAL_INFORMATION\",\n" +
-            "      \"agreed\": true\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"type\": \"MARKETING_CONSENT\",\n" +
-            "      \"agreed\": false\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"type\": \"PUSH_NOTIFICATION\",\n" +
-            "      \"agreed\": false\n" +
-            "    }\n" +
-            "  ]\n" +
-            "}")
-    @PostMapping("/signup")
-    public ResponseEntity<SignUpResponseDto> signUp(@RequestBody @Valid SignUpRequestDto request){
-        return ResponseEntity.ok(authService.signUp(request));
-    }
-
     @Operation(summary = "로그인")
     @PostMapping("/signin")
     public ResponseEntity<SignInResponseDto> signIn(@RequestBody @Valid SignInRequestDto request){
         return ResponseEntity.ok(authService.signIn(request));
+    }
+
+    @PostMapping("/oauth/kakao")
+    public ResponseEntity<SignInResponseDto> kakaoSignIn(@RequestBody KakaoSignInRequestDto request) {
+        System.out.println("컨트롤러 진입 : " + request);
+        SignInResponseDto response = authService.kakaoSignIn(request.getCode());
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "토큰 유효 검사")
@@ -87,23 +64,8 @@ public class AuthController {
 
     @Operation(summary = "토큰 재발급")
     @PostMapping("/refresh")
-    public ResponseEntity<TokenReissueResponseDTO> refreshToken(@RequestBody @Valid JwtTokenDto tokenDto){
+    public ResponseEntity<TokenReissueResponseDto> refreshToken(@RequestBody @Valid JwtTokenDto tokenDto){
         return ResponseEntity.ok(authService.reissueToken(tokenDto));
     }
-
-    @Operation(summary = "이메일 중복 검사")
-    @GetMapping("/check/email")
-    public ResponseEntity<Void> checkEmailDuplicate(@RequestParam String email) {
-        authService.validateDuplicateUserByEmail(email);
-        return ResponseEntity.ok().build();
-    }
-
-    @Operation(summary = "닉네임 중복 검사")
-    @GetMapping("/check/nickname")
-    public ResponseEntity<Void> checkNicknameDuplicate(@RequestParam String nickname) {
-        authService.validateDuplicateUserByNickname(nickname);
-        return ResponseEntity.ok().build();
-    }
-
 
 }

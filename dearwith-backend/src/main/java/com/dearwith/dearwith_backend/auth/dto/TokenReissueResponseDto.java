@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class TokenReissueResponseDTO {
+public class TokenReissueResponseDto {
     private String token;
     private String refreshToken;
     private String expirationTime;

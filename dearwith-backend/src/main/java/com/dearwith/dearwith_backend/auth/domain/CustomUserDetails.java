@@ -23,8 +23,6 @@ public class CustomUserDetails implements UserDetails {
     private final String password;
     private final Role role;
     private final UserStatus userStatus;
-    private final String provider;
-    private final String kakaoId;
 
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singletonList(new SimpleGrantedAuthority(role.name()));
@@ -65,8 +63,6 @@ public class CustomUserDetails implements UserDetails {
         this.password = user.getPassword();
         this.role = user.getRole();
         this.userStatus = user.getUserStatus();
-        this.provider = user.getProvider();
-        this.kakaoId = user.getKakaoId();
     }
 
 }

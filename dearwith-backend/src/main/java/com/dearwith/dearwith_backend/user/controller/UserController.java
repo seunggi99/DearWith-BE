@@ -2,6 +2,8 @@ package com.dearwith.dearwith_backend.user.controller;
 
 
 import com.dearwith.dearwith_backend.auth.domain.CustomUserDetails;
+import com.dearwith.dearwith_backend.auth.dto.SignUpRequestDto;
+import com.dearwith.dearwith_backend.auth.dto.SignUpResponseDto;
 import com.dearwith.dearwith_backend.user.domain.User;
 import com.dearwith.dearwith_backend.user.dto.UpdateNicknameRequestDto;
 import com.dearwith.dearwith_backend.user.dto.UserResponseDto;
@@ -22,6 +24,39 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+
+    @Operation(summary = "회원가입" , description = "회원 가입시 필요한 Request" +
+            "{\n" +
+            "  \"email\": \"test@example.com\",\n" +
+            "  \"password\": \"testPassword\",\n" +
+            "  \"nickname\": \"테스트 닉네임\",\n" +
+            "  \"agreements\": [\n" +
+            "    {\n" +
+            "      \"type\": \"AGE_OVER_14\",\n" +
+            "      \"agreed\": true\n" +
+            "    },\n" +
+            "    {\n" +
+            "      \"type\": \"TERMS_OF_SERVICE\",\n" +
+            "      \"agreed\": true\n" +
+            "    },\n" +
+            "    {\n" +
+            "      \"type\": \"PERSONAL_INFORMATION\",\n" +
+            "      \"agreed\": true\n" +
+            "    },\n" +
+            "    {\n" +
+            "      \"type\": \"MARKETING_CONSENT\",\n" +
+            "      \"agreed\": false\n" +
+            "    },\n" +
+            "    {\n" +
+            "      \"type\": \"PUSH_NOTIFICATION\",\n" +
+            "      \"agreed\": false\n" +
+            "    }\n" +
+            "  ]\n" +
+            "}")
+    @PostMapping("/signup")
+    public ResponseEntity<SignUpResponseDto> signUp(@RequestBody @Valid SignUpRequestDto request){
+        return ResponseEntity.ok(userService.signUp(request));
+    }
 
     @Operation(summary = "현재 로그인 회원 정보 조회", description = "JWT 토큰으로 받은 현재 로그인한 회원 정보 조회")
     @GetMapping("/me")
@@ -48,6 +83,20 @@ public class UserController {
     public ResponseEntity<Void> deleteUser(@AuthenticationPrincipal CustomUserDetails principal) {
         userService.deleteById(principal.getId());
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "이메일 중복 검사")
+    @GetMapping("/check/email")
+    public ResponseEntity<Void> checkEmailDuplicate(@RequestParam String email) {
+        userService.validateDuplicateUserByEmail(email);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "닉네임 중복 검사")
+    @GetMapping("/check/nickname")
+    public ResponseEntity<Void> checkNicknameDuplicate(@RequestParam String nickname) {
+        userService.validateDuplicateUserByNickname(nickname);
+        return ResponseEntity.ok().build();
     }
 
 }

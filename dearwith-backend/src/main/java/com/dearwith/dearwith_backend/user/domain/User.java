@@ -3,15 +3,12 @@ package com.dearwith.dearwith_backend.user.domain;
 import com.dearwith.dearwith_backend.user.domain.enums.AgreementType;
 import com.dearwith.dearwith_backend.user.domain.enums.Role;
 import com.dearwith.dearwith_backend.user.domain.enums.UserStatus;
-import com.dearwith.dearwith_backend.user.dto.AgreementStatusDto;
+import com.dearwith.dearwith_backend.user.dto.AgreementResponseDto;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -30,13 +27,12 @@ public class User {
     @Column(unique = true)
     private String email;
     private String password;
-    private String provider; // 예: 'email', 'kakao'
-    private String kakaoId; // 카카오 로그인 사용 시
 
     @Column(unique = true)
     private String nickname;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime deletedAt;
     private LocalDateTime lastLoginAt;
 
     @Enumerated(EnumType.STRING)
@@ -48,6 +44,9 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Agreement> agreements = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<SocialAccount> socialAccounts;
 
     public void updateNickname(String newNickname) {
         this.nickname = newNickname;
@@ -74,29 +73,29 @@ public class User {
     }
 
     // 특정 약관 동의/철회 갱신
-    public void agreeOrUpdateAgreement(AgreementType type, boolean agreed, LocalDateTime agreedAt) {
+    public void agreeOrUpdateAgreement(AgreementType type, boolean agreed, LocalDateTime updatedAt) {
         Optional<Agreement> existing = findAgreement(type);
 
         if (existing.isPresent()) {
             Agreement agreement = existing.get();
-            agreement.updateAgreement(agreed, agreedAt);
+            agreement.updateAgreement(agreed, updatedAt);
         } else {
             Agreement newAgreement = Agreement.builder()
                     .type(type)
                     .agreed(agreed)
-                    .agreedAt(agreedAt)
+                    .updatedAt(updatedAt)
                     .build();
             this.addAgreement(newAgreement);
         }
     }
 
     // 모든 약관 동의 상태 조회
-    public List<AgreementStatusDto> getAgreementStatuses() {
+    public List<AgreementResponseDto> getAgreementStatuses() {
         return this.agreements.stream()
-                .map(agreement -> AgreementStatusDto.builder()
+                .map(agreement -> AgreementResponseDto.builder()
                         .type(agreement.getType())
                         .agreed(agreement.isAgreed())
-                        .agreedAt(agreement.getAgreedAt())
+                        .updatedAt(agreement.getUpdatedAt())
                         .build()
                 )
                 .collect(Collectors.toList());
