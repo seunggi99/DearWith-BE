@@ -2,7 +2,7 @@ package com.dearwith.dearwith_backend.user.repository;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.dearwith.dearwith_backend.user.domain.User;
+import com.dearwith.dearwith_backend.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRepository extends JpaRepository<User, UUID> {

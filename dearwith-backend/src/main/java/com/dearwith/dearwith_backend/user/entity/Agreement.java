@@ -1,6 +1,6 @@
-package com.dearwith.dearwith_backend.user.domain;
+package com.dearwith.dearwith_backend.user.entity;
 
-import com.dearwith.dearwith_backend.user.domain.enums.AgreementType;
+import com.dearwith.dearwith_backend.user.enums.AgreementType;
 import jakarta.persistence.*;
 import lombok.*;
 

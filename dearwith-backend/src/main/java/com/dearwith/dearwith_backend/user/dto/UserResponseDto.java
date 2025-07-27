@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.user.dto;
 
-import com.dearwith.dearwith_backend.user.domain.User;
+import com.dearwith.dearwith_backend.user.entity.User;
 import lombok.Getter;
 import lombok.AllArgsConstructor;
 

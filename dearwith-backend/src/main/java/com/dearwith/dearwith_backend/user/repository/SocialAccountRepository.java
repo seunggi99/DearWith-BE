@@ -1,7 +1,7 @@
 package com.dearwith.dearwith_backend.user.repository;
 
-import com.dearwith.dearwith_backend.user.domain.SocialAccount;
-import com.dearwith.dearwith_backend.user.domain.enums.AuthProvider;
+import com.dearwith.dearwith_backend.user.entity.SocialAccount;
+import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

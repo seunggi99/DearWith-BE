@@ -1,8 +1,8 @@
-package com.dearwith.dearwith_backend.auth.domain;
+package com.dearwith.dearwith_backend.auth.entity;
 
-import com.dearwith.dearwith_backend.user.domain.User;
-import com.dearwith.dearwith_backend.user.domain.enums.Role;
-import com.dearwith.dearwith_backend.user.domain.enums.UserStatus;
+import com.dearwith.dearwith_backend.user.entity.User;
+import com.dearwith.dearwith_backend.user.enums.Role;
+import com.dearwith.dearwith_backend.user.enums.UserStatus;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;

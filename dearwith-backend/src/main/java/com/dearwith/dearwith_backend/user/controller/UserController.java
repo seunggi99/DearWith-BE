@@ -1,10 +1,9 @@
 package com.dearwith.dearwith_backend.user.controller;
 
 
-import com.dearwith.dearwith_backend.auth.domain.CustomUserDetails;
+import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.auth.dto.SignUpRequestDto;
 import com.dearwith.dearwith_backend.auth.dto.SignUpResponseDto;
-import com.dearwith.dearwith_backend.user.domain.User;
 import com.dearwith.dearwith_backend.user.dto.UpdateNicknameRequestDto;
 import com.dearwith.dearwith_backend.user.dto.UserResponseDto;
 import com.dearwith.dearwith_backend.user.service.UserService;
@@ -16,7 +15,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 
 @RestController

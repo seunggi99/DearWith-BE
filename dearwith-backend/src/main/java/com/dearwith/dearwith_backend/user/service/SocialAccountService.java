@@ -2,13 +2,12 @@ package com.dearwith.dearwith_backend.user.service;
 
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
-import com.dearwith.dearwith_backend.user.domain.SocialAccount;
-import com.dearwith.dearwith_backend.user.domain.User;
-import com.dearwith.dearwith_backend.user.domain.enums.AuthProvider;
+import com.dearwith.dearwith_backend.user.entity.SocialAccount;
+import com.dearwith.dearwith_backend.user.entity.User;
+import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import com.dearwith.dearwith_backend.user.repository.SocialAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;

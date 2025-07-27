@@ -45,7 +45,6 @@ public class EmailVerificationService {
         if (saved == null || !saved.equals(code)) {
             throw new BusinessException(ErrorCode.INVALID_VERIFICATION_CODE);
         }
-        // 한 번만 사용
         redis.delete(key);
     }
 }

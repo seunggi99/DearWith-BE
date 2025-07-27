@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.auth.dto;
 
-import com.dearwith.dearwith_backend.user.domain.enums.AgreementType;
+import com.dearwith.dearwith_backend.user.enums.AgreementType;
 import lombok.Builder;
 import lombok.Data;
 

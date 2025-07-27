@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.user.dto;
 
-import com.dearwith.dearwith_backend.user.domain.enums.Role;
+import com.dearwith.dearwith_backend.user.enums.Role;
 import lombok.Builder;
 import lombok.Data;
 

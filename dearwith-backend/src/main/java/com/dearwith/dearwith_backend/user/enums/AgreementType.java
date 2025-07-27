@@ -1,4 +1,4 @@
-package com.dearwith.dearwith_backend.user.domain.enums;
+package com.dearwith.dearwith_backend.user.enums;
 
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;

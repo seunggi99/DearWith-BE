@@ -1,9 +1,8 @@
-package com.dearwith.dearwith_backend.user.domain;
+package com.dearwith.dearwith_backend.user.entity;
 
-import com.dearwith.dearwith_backend.user.domain.enums.AuthProvider;
+import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 

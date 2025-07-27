@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.auth.service;
 
-import com.dearwith.dearwith_backend.auth.domain.CustomUserDetails;
+import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
