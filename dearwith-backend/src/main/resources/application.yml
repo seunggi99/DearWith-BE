@@ -23,9 +23,12 @@ spring:
           ssl:
             trust: ${MAIL_HOST}
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useSSL=false&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
-    username: ${MYSQL_USER}
-    password: ${MYSQL_PASS}
+    url: jdbc:mysql://localhost:3306/dearwith?useSSL=false&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    ##url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useSSL=false&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    ##username: ${MYSQL_USER}
+    ##password: ${MYSQL_PASS}
+    username: root
+    password: 12345678
     hikari:
       driver-class-name: com.mysql.cj.jdbc.Driver
 
@@ -39,8 +42,7 @@ spring:
 
 
   data:
-    mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI}
+    uri: ${SPRING_DATA_MONGODB_URI}
     redis:
       host: ${SPRING_REDIS_HOST}
       port: ${SPRING_REDIS_PORT}
@@ -76,3 +78,21 @@ jwt:
   secret: ${SECRET_KEY}
   expiration-time: 3600000
   refresh-expiration-time: 604800000
+
+kakao:
+  api-base: https://dapi.kakao.com
+  rest-api-key: ${KAKAO_REST_API_KEY}
+
+app:
+  aws:
+    region: ap-northeast-2
+    s3:
+      bucket: dearwith-prod-assets-apne2
+      prefix:
+        tmp: tmp/
+        inline: inline/
+        original: original/
+  upload:
+    max-bytes: 10485760   # 10MB
+    allowed-mime: "image/jpeg,image/png,image/webp"
+    presign-ttl-seconds: 60
