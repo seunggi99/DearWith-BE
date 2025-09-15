@@ -23,12 +23,9 @@ spring:
           ssl:
             trust: ${MAIL_HOST}
   datasource:
-    url: jdbc:mysql://localhost:3306/dearwith?useSSL=false&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
-    ##url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useSSL=false&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
-    ##username: ${MYSQL_USER}
-    ##password: ${MYSQL_PASS}
-    username: root
-    password: 12345678
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useSSL=false&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASS}
     hikari:
       driver-class-name: com.mysql.cj.jdbc.Driver
 
