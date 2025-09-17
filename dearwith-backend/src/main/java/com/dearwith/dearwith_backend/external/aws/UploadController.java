@@ -3,6 +3,7 @@ package com.dearwith.dearwith_backend.external.aws;
 
 import com.dearwith.dearwith_backend.image.Image;
 import com.dearwith.dearwith_backend.image.ImageService;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,8 +22,16 @@ public class UploadController {
     private final ImageService imageService;
 
     @PostMapping("/presign")
-    public PresignRes presign(@RequestBody PresignReq req,
-                              @AuthenticationPrincipal(expression = "id") UUID ownerId) {
+    @Operation(
+            summary = "이미지 등록 s3 presign URL 발급",
+            description = """
+            예시)
+            {
+              "filename": "example.png",
+              "contentType": "image/png"
+            }
+            """)
+    public PresignRes presign(@RequestBody PresignReq req) {
         var presigned = s3UploadService.createPresignedPut("tmp/" + req.filename(), req.contentType());
         return new PresignRes(presigned.url().toString(), "tmp/" + req.filename(), 300);
     }
