@@ -64,7 +64,7 @@ public class EventController {
             - /api/artists/search?query=... API로 검색한 아티스트 Id를 입력합니다.
             
             ## 이미지 업로드 플로우
-            1) 프론트가 `POST /images/presign` API로 S3 업로드용 pre-signed URL을 발급받습니다. (응답: {url, key, ttl})
+            1) 프론트가 `POST /api/uploads/presign` API로 S3 업로드용 pre-signed URL을 발급받습니다. (응답: {url, key, ttl})
             2) 프론트가 해당 URL에 `PUT`으로 원본 이미지를 업로드합니다.
             3) 본 API 호출 시, `images[].tmpKey`에 위 단계에서 받은 **S3 object key**(예: `tmp/cat.jpg`)를 전달하면 서버가 tmp → inline으로 **커밋**합니다.
             
