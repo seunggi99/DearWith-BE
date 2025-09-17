@@ -1,10 +1,21 @@
 package com.dearwith.dearwith_backend.event.service;
 
+import com.dearwith.dearwith_backend.artist.entity.Artist;
+import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
+import com.dearwith.dearwith_backend.artist.service.ArtistService;
+import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
-import com.dearwith.dearwith_backend.event.entity.Event;
-import com.dearwith.dearwith_backend.event.entity.EventBookmark;
-import com.dearwith.dearwith_backend.event.repository.EventBookmarkRepository;
-import com.dearwith.dearwith_backend.event.repository.EventRepository;
+import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
+import com.dearwith.dearwith_backend.event.entity.*;
+import com.dearwith.dearwith_backend.event.enums.BenefitType;
+import com.dearwith.dearwith_backend.event.enums.EventStatus;
+import com.dearwith.dearwith_backend.event.enums.EventType;
+import com.dearwith.dearwith_backend.event.mapper.EventMapper;
+import com.dearwith.dearwith_backend.event.repository.*;
+import com.dearwith.dearwith_backend.external.aws.S3UploadService;
+import com.dearwith.dearwith_backend.image.Image;
+import com.dearwith.dearwith_backend.image.ImageRepository;
+import com.dearwith.dearwith_backend.image.ImageService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -12,8 +23,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.UUID;
+import java.time.LocalDate;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,6 +34,13 @@ public class EventService {
     private final EventRepository eventRepository;
     private final EventBookmarkRepository eventBookmarkRepository;
     private final UserRepository userRepository;
+    private final EventImageMappingRepository mappingRepository;
+    private final EventBenefitRepository benefitRepository;
+    private final EventMapper mapper;
+    private final ImageService imageService;
+    private final EventArtistMappingRepository artistMappingRepository;
+    private final ArtistRepository artistRepository;
+    private final ArtistService artistService;
 
     public List<EventInfoDto> getRecommendedEvents(UUID userId) {
         return eventRepository.findTop10ByOrderByCreatedAtDesc()
@@ -30,7 +48,7 @@ public class EventService {
                 .map(event -> EventInfoDto.builder()
                         .id(event.getId())
                         .title(event.getTitle())
-                        .imageUrl(event.getImageUrl())
+                       // .imageUrl(event.getImageUrl())
                         .artistNamesKr(
                                 event.getArtists().stream()
                                         .map(mapping -> mapping.getArtist().getNameKr())
@@ -58,7 +76,7 @@ public class EventService {
                 .map(event -> EventInfoDto.builder()
                         .id(event.getId())
                         .title(event.getTitle())
-                        .imageUrl(event.getImageUrl())
+                      //  .imageUrl(event.getImageUrl())
                         .artistNamesKr(
                                 event.getArtists().stream()
                                         .map(mapping -> mapping.getArtist().getNameKr())
@@ -86,7 +104,7 @@ public class EventService {
                 .map(event -> EventInfoDto.builder()
                         .id(event.getId())
                         .title(event.getTitle())
-                        .imageUrl(event.getImageUrl())
+                      //  .imageUrl(event.getImageUrl())
                         .artistNamesKr(
                                 event.getArtists().stream()
                                         .map(mapping -> mapping.getArtist().getNameKr())
@@ -106,6 +124,116 @@ public class EventService {
                         )
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public EventResponseDto createEvent(UUID userId, EventCreateRequestDto req) {
+        // 1. Event 기본 정보 매핑
+        Event event = mapper.toEvent(userId, req);
+        if (event.getStatus() == null) {
+            event.setStatus(EventStatus.SCHEDULED);
+        }
+
+        // 2. 이미지 매핑 (tmp → inline 커밋)
+        if (req.images() != null) {
+            for (var dto : req.images()) {
+                Image image = imageService.commitImage(dto.tmpKey(), userId);
+                EventImageMapping m = EventImageMapping.builder()
+                        .event(event)
+                        .image(image)
+                        .displayOrder(dto.displayOrder())
+                        .build();
+                event.addImageMapping(m);
+            }
+        }
+
+        // 3. 특전 매핑
+        if (req.benefits() != null) {
+            LocalDate eventStart = event.getStartDate(); // 이벤트 시작일이 null이면 예외
+            if (eventStart == null) {
+                throw new IllegalStateException("이벤트 시작일이 설정되지 않았습니다.");
+            }
+
+            for (var b : req.benefits()) {
+                int displayOrder = (b.displayOrder() != null) ? b.displayOrder() : 0;
+
+                Integer dayIndex = b.dayIndex();
+                LocalDate visibleFrom = null;
+
+                if (b.benefitType() == BenefitType.LIMITED) {
+                    if (dayIndex == null) {
+                        dayIndex = 1;
+                    }
+                    if (dayIndex < 1) {
+                        throw new IllegalArgumentException("LIMITED 특전의 dayIndex는 1 이상이어야 합니다. 입력값: " + dayIndex);
+                    }
+                    visibleFrom = eventStart.plusDays(dayIndex - 1L);
+                }
+
+                EventBenefit benefit = EventBenefit.builder()
+                        .event(event)
+                        .name(b.name())
+                        .description(b.description())
+                        .benefitType(b.benefitType())
+                        .dayIndex(dayIndex)
+                        .visibleFrom(visibleFrom)
+                        .displayOrder(displayOrder)
+                        .active(true)
+                        .build();
+
+                event.addBenefit(benefit);
+            }
+        }
+
+        // 4. 아티스트 매핑
+        if (req.artistIds() != null && !req.artistIds().isEmpty()) {
+            List<Artist> artists = artistService.findAllByIds(req.artistIds());
+            // 존재하지 않는 ID 필터링 체크(선택)
+            Set<Long> foundIds = artists.stream().map(Artist::getId).collect(Collectors.toSet());
+            List<Long> missing = req.artistIds().stream().filter(id -> !foundIds.contains(id)).toList();
+            if (!missing.isEmpty()) {
+                throw new IllegalArgumentException("존재하지 않는 아티스트 ID: " + missing);
+            }
+
+            for (Artist artist : artists) {
+                EventArtistMapping mapping = EventArtistMapping.builder()
+                        .event(event)
+                        .artist(artist)
+                        .build();
+                event.addArtistMapping(mapping);
+            }
+        }
+
+        // 5. 저장
+        Event saved = eventRepository.save(event);
+
+        // 6. 응답 DTO 구성
+        List<EventImageMapping> mappings =
+                mappingRepository.findByEvent_IdOrderByDisplayOrderAsc(saved.getId());
+        List<EventBenefit> benefits =
+                benefitRepository.findByEvent_IdOrderByDayIndexAscDisplayOrderAsc(saved.getId());
+        List<EventArtistMapping> artists =
+                artistMappingRepository.findByEventId(saved.getId());
+
+        return mapper.toResponse(saved, mappings, benefits, artists);
+    }
+
+
+    @Transactional(readOnly = true)
+    public EventResponseDto getEvent(Long eventId) {
+        Event e = eventRepository.findById(eventId)
+                .orElseThrow(() -> new NoSuchElementException("Event not found"));
+
+        List<EventImageMapping> mappings =
+                mappingRepository.findByEvent_IdOrderByDisplayOrderAsc(eventId);
+
+        List<EventBenefit> benefits =
+                benefitRepository.findByEvent_IdOrderByDayIndexAscDisplayOrderAsc(eventId);
+
+        List<EventArtistMapping> artists =
+                artistMappingRepository.findByEventId(eventId);
+
+        return mapper.toResponse(e, mappings, benefits, artists);
     }
 
     @Transactional

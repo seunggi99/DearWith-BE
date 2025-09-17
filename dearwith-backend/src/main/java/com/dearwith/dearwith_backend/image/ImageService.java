@@ -23,7 +23,7 @@ public class ImageService {
 
         Image image = Image.builder()
                 .s3Key(finalKey)
-                .url(url)
+                .ImageUrl(url)
                 .status(ImageStatus.COMMITTED)
                 .user(user)
                 .build();

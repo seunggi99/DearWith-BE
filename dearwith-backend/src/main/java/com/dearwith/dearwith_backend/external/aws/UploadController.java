@@ -31,7 +31,7 @@ public class UploadController {
     public CommitRes commit(@RequestBody CommitReq req,
                             @AuthenticationPrincipal(expression = "id") UUID userId) {
         Image saved = imageService.commitImage(req.tmpKey(), userId);
-        return new CommitRes(saved.getId(), saved.getUrl());
+        return new CommitRes(saved.getId(), saved.getImageUrl());
     }
 
     public record PresignReq(String filename, String contentType) {}

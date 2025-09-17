@@ -3,6 +3,7 @@ package com.dearwith.dearwith_backend.event.dto;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,8 +15,8 @@ public class EventInfoDto {
     private String imageUrl;
     private List<String> artistNamesEn;
     private List<String> artistNamesKr;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private LocalDate startDate;
+    private LocalDate endDate;
     private Long bookmarkCount;
     private Boolean bookmarked;
 }
