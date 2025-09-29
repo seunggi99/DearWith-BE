@@ -1,11 +1,10 @@
 package com.dearwith.dearwith_backend.common.config;
 
 import com.dearwith.dearwith_backend.auth.JwtAuthenticationFilter;
-import com.dearwith.dearwith_backend.auth.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -19,20 +18,43 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import java.time.OffsetDateTime;
 
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Autowired
-    private JwtTokenProvider jwtTokenProvider;
-    @Autowired
-    private UserDetailsService userDetailsService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    private final AuthenticationEntryPoint jwtAuthEntryPoint = null;
+    private final UserDetailsService userDetailsService;
 
+    @Bean
+    public AuthenticationEntryPoint jwtAuthEntryPoint() {
+        return (req, res, ex) -> {
+            res.setStatus(401);
+            res.setContentType("application/json;charset=UTF-8");
+            String body = """
+                {"timestamp":"%s","status":401,"error":"Unauthorized","message":"로그인이 필요합니다.","path":"%s"}
+                """.formatted(OffsetDateTime.now(), req.getRequestURI());
+            res.getWriter().write(body);
+        };
+    }
+
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (req, res, ex) -> {
+            res.setStatus(403);
+            res.setContentType("application/json;charset=UTF-8");
+            String body = """
+                {"timestamp":"%s","status":403,"error":"Forbidden","message":"접근 권한이 없습니다.","path":"%s"}
+                """.formatted(OffsetDateTime.now(), req.getRequestURI());
+            res.getWriter().write(body);
+        };
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -40,18 +62,13 @@ public class SecurityConfig {
     }
 
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService);
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
+        return cfg.getAuthenticationManager();
     }
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        var provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
@@ -62,29 +79,42 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .oauth2Login(oauth -> oauth.disable())
-                .exceptionHandling(ex -> {
-                    if (jwtAuthEntryPoint != null) {
-                        ex.authenticationEntryPoint(jwtAuthEntryPoint); // 인증 실패 → 401 JSON
-                    }
-                })
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/users/all").permitAll()  // 인증 관련 엔드포인트는 허용
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()  // Swagger UI 허용
-                        .requestMatchers(
-                                "/oauth2/x/authorize",
-                                "/oauth2/callback/x",
-                                "/api/events/organizer/verify-x"
-                        ).permitAll()
-                        .anyRequest().permitAll()  // 개발용 모두 허용
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .oauth2Login(oa -> oa.disable())
+
+                // 미인증은 무조건 401로 깔끔히: 익명 비활성화(선택이지만 권장)
+                .anonymous(anon -> anon.disable())
+
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthEntryPoint()) // 401 JSON
+                        .accessDeniedHandler(accessDeniedHandler())    // 403 JSON
                 )
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-        ;
+
+                .authorizeHttpRequests(auth -> auth
+                        // ===== 공개 =====
+                        .requestMatchers(
+                                "/auth/**",
+                                "/users/all",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
+                        // ===== 로그인 필수 (X 인증 플로우 등) =====
+                        .requestMatchers(
+                                "/users/me",
+                                "/api/main"
+                            //    "/oauth2/x/authorize",
+                            //    "/oauth2/callback/x",
+                            //    "/api/events/organizer/verify-x"
+                        ).authenticated()
+
+                        // 개발 중 나머지
+                        .anyRequest().permitAll()
+                )
+
+                // UsernamePasswordAuthenticationFilter 앞에 JWT 필터 삽입
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-
-
-
 }
