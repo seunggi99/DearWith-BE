@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.event.entity;
 
 import com.dearwith.dearwith_backend.event.enums.EventStatus;
 import com.dearwith.dearwith_backend.event.enums.EventType;
+import com.dearwith.dearwith_backend.image.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,6 +25,10 @@ public class Event {
     @OrderBy("displayOrder ASC")
     @Builder.Default
     private List<EventImageMapping> images = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cover_image_id")
+    private Image coverImage;
 
     @Embedded
     private PlaceInfo placeInfo; // 장소 정보 (예: 좌표, 상세 주소 등)

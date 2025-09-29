@@ -2,12 +2,17 @@ package com.dearwith.dearwith_backend.event.controller;
 
 import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
+import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.event.service.EventService;
 import io.swagger.v3.oas.annotations.Operation;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -88,6 +93,20 @@ public class EventController {
     @Operation(summary = "이벤트 상세 조회")
     public ResponseEntity<EventResponseDto> getEvent(@PathVariable Long eventId) {
         return ResponseEntity.ok(eventService.getEvent(eventId));
+    }
+
+    @GetMapping
+    @Operation(summary = "이벤트 검색")
+    public Page<EventInfoDto> searchEvents(
+            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @RequestParam(name = "query") String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by("title").ascending());
+
+        return eventService.search(userId,query, pageable);
     }
 }
 

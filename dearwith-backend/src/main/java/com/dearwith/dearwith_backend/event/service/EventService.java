@@ -20,6 +20,8 @@ import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,7 +50,7 @@ public class EventService {
                 .map(event -> EventInfoDto.builder()
                         .id(event.getId())
                         .title(event.getTitle())
-                       // .imageUrl(event.getImageUrl())
+                        .imageUrl(event.getCoverImage().getImageUrl())
                         .artistNamesKr(
                                 event.getArtists().stream()
                                         .map(mapping -> mapping.getArtist().getNameKr())
@@ -76,7 +78,7 @@ public class EventService {
                 .map(event -> EventInfoDto.builder()
                         .id(event.getId())
                         .title(event.getTitle())
-                      //  .imageUrl(event.getImageUrl())
+                        .imageUrl(event.getCoverImage().getImageUrl())
                         .artistNamesKr(
                                 event.getArtists().stream()
                                         .map(mapping -> mapping.getArtist().getNameKr())
@@ -104,7 +106,7 @@ public class EventService {
                 .map(event -> EventInfoDto.builder()
                         .id(event.getId())
                         .title(event.getTitle())
-                      //  .imageUrl(event.getImageUrl())
+                        .imageUrl(event.getCoverImage().getImageUrl())
                         .artistNamesKr(
                                 event.getArtists().stream()
                                         .map(mapping -> mapping.getArtist().getNameKr())
@@ -135,16 +137,29 @@ public class EventService {
         }
 
         // 2. 이미지 매핑 (tmp → inline 커밋)
-        if (req.images() != null) {
+        Image coverCandidate = null;
+        if (req.images() != null && !req.images().isEmpty()) {
+            boolean coverSet = (event.getCoverImage() != null);
+
             for (var dto : req.images()) {
                 Image image = imageService.commitImage(dto.tmpKey(), userId);
+
                 EventImageMapping m = EventImageMapping.builder()
                         .event(event)
                         .image(image)
                         .displayOrder(dto.displayOrder())
                         .build();
                 event.addImageMapping(m);
+
+                // 첫 번째 것만 커버로 세팅
+                if (!coverSet) {
+                    coverCandidate = image;
+                    coverSet = true;
+                }
             }
+        }
+        if (coverCandidate != null) {
+            event.setCoverImage(coverCandidate);
         }
 
         // 3. 특전 매핑
@@ -264,5 +279,40 @@ public class EventService {
                 .orElseThrow(() -> new EntityNotFoundException("북마크가 존재하지 않습니다."));
 
         eventBookmarkRepository.delete(bookmark);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<EventInfoDto> search(UUID userId, String query, Pageable pageable) {
+        return eventRepository.searchByTitle(query, pageable)
+                .map(event -> EventInfoDto.builder()
+                        .id(event.getId())
+                        .title(event.getTitle())
+                        .imageUrl(
+                                event.getCoverImage() != null
+                                        ? event.getCoverImage().getImageUrl()
+                                        : null
+                        )
+                        .artistNamesKr(
+                                event.getArtists().stream()
+                                        .map(m -> m.getArtist().getNameKr())
+                                        .filter(Objects::nonNull)
+                                        .toList()
+                        )
+                        .artistNamesEn(
+                                event.getArtists().stream()
+                                        .map(m -> m.getArtist().getNameEn())
+                                        .filter(Objects::nonNull)
+                                        .toList()
+                        )
+                        .startDate(event.getStartDate())
+                        .endDate(event.getEndDate())
+                        .bookmarkCount(event.getBookmarkCount())
+                        .bookmarked(
+                                userId != null &&
+                                        eventBookmarkRepository.existsByEventIdAndUserId(event.getId(), userId)
+                        )
+                        .bookmarked(false)
+                        .build()
+                );
     }
 }
