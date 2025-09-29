@@ -1,7 +1,6 @@
 package com.dearwith.dearwith_backend.event.service;
 
 import com.dearwith.dearwith_backend.artist.entity.Artist;
-import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
@@ -9,12 +8,11 @@ import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.enums.BenefitType;
 import com.dearwith.dearwith_backend.event.enums.EventStatus;
-import com.dearwith.dearwith_backend.event.enums.EventType;
 import com.dearwith.dearwith_backend.event.mapper.EventMapper;
 import com.dearwith.dearwith_backend.event.repository.*;
-import com.dearwith.dearwith_backend.external.aws.S3UploadService;
+import com.dearwith.dearwith_backend.external.x.XVerifyPayload;
+import com.dearwith.dearwith_backend.external.x.XVerifyTicketService;
 import com.dearwith.dearwith_backend.image.Image;
-import com.dearwith.dearwith_backend.image.ImageRepository;
 import com.dearwith.dearwith_backend.image.ImageService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
@@ -41,8 +39,8 @@ public class EventService {
     private final EventMapper mapper;
     private final ImageService imageService;
     private final EventArtistMappingRepository artistMappingRepository;
-    private final ArtistRepository artistRepository;
     private final ArtistService artistService;
+    private final XVerifyTicketService xVerifyTicketService;
 
     public List<EventInfoDto> getRecommendedEvents(UUID userId) {
         return eventRepository.findTop10ByOrderByCreatedAtDesc()
@@ -130,10 +128,31 @@ public class EventService {
 
     @Transactional
     public EventResponseDto createEvent(UUID userId, EventCreateRequestDto req) {
-        // 1. Event 기본 정보 매핑
+        // 0) X 인증 티켓 확인/소모 (있을 때만)
+        XVerifyPayload xPayload = null;
+        if (req.organizer().xTicket() != null && !req.organizer().xTicket().isBlank()) {
+            xPayload = xVerifyTicketService.confirmAndConsume(req.organizer().xTicket(), userId);
+        }
+
+        // 1) Event 기본 매핑
         Event event = mapper.toEvent(userId, req);
         if (event.getStatus() == null) {
             event.setStatus(EventStatus.SCHEDULED);
+        }
+
+        // 1-1) X 인증 정보 바인딩
+        if (xPayload != null) {
+            event.setOrganizer(OrganizerInfo.builder()
+                    .xId(xPayload.xId())
+                    .xHandle(xPayload.xHandle())
+                    .xName(xPayload.xName())
+                    .verified(xPayload.verified())
+                    .build());
+        } else {
+            event.setOrganizer(OrganizerInfo.builder()
+                    .xHandle(req.organizer().xHandle())
+                    .verified(false)
+                    .build());
         }
 
         // 2. 이미지 매핑 (tmp → inline 커밋)

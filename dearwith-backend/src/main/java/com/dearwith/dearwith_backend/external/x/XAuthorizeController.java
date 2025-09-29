@@ -3,7 +3,9 @@ package com.dearwith.dearwith_backend.external.x;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -14,6 +16,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
@@ -22,7 +25,12 @@ public class XAuthorizeController {
 
     private final XAuthProps props;
     private final XAuthService xAuthService;
+    private final XVerifyTicketService ticketService;
+
     private final Map<String, String> verifierStore = new ConcurrentHashMap<>();
+
+    @Value("${app.frontend.base-url:http://localhost:3000}")
+    private String FRONT;
 
     @GetMapping("/oauth2/x/authorize")
     @Operation(summary = "X(트위터) 인증")
@@ -39,7 +47,8 @@ public class XAuthorizeController {
                 .queryParam("response_type", "code")
                 .queryParam("client_id", props.getClientId())
                 .queryParam("redirect_uri", redirectUri)
-                .queryParam("scope", "users.read%20tweet.read%20offline.access")                .queryParam("state", state)
+                .queryParam("scope", "users.read%20tweet.read%20offline.access")
+                .queryParam("state", state)
                 .queryParam("code_challenge", codeChallenge)
                 .queryParam("code_challenge_method", "S256")
                 .build(true).toUriString();
@@ -49,6 +58,7 @@ public class XAuthorizeController {
 
     @GetMapping("/oauth2/callback/x")
     public ResponseEntity<Map<String, Object>> callback(
+            @AuthenticationPrincipal(expression = "id") UUID userId,
             @RequestParam String code,
             @RequestParam String state,
             HttpServletRequest req
@@ -57,20 +67,49 @@ public class XAuthorizeController {
 
         String codeVerifier = verifierStore.remove(state);
         if (codeVerifier == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid state or expired session"));
+            return ResponseEntity.status(302)
+                    .location(URI.create(FRONT + "/organizer/verify?result=error&reason=state"))
+                    .build();
         }
 
         var me = xAuthService.verifyWithCode(redirectUri, code, codeVerifier);
 
-        return ResponseEntity.ok(Map.of(
-                "verified", true,
-                "twitterId", me.data().id(),
-                "twitterHandle", me.data().username(),
-                "twitterName", me.data().name()
-        ));
+        String ticket = ticketService.issueTicket(
+                userId,
+                me.data().id(),
+                me.data().username(),
+                me.data().name(),
+                true
+        );
+
+        String url = UriComponentsBuilder.fromHttpUrl(FRONT + "/organizer/verify")
+                .queryParam("result", "success")
+                .queryParam("ticket", ticket)
+                .queryParam("handle", me.data().username())
+                .build(true).toUriString();
+
+        return ResponseEntity.status(302).location(URI.create(url)).build();
     }
 
-
+    @GetMapping("/api/debug/x-ticket/{ticket}")
+    @Operation(summary = "X(트위터) 인증 티켓 테스트용")
+    public ResponseEntity<?> checkTicket(@PathVariable String ticket) {
+        var payload = ticketService.peek(ticket);
+        if (payload == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "valid", false,
+                    "message", "티켓이 없거나 만료됨"
+            ));
+        }
+        return ResponseEntity.ok(Map.of(
+                "valid", true,
+                "xId", payload.xId(),
+                "xHandle", payload.xHandle(),
+                "xName", payload.xName(),
+                "verified", payload.verified(),
+                "issuedAt", payload.issuedAt().toString()
+        ));
+    }
 
     private String resolveRedirectUri(HttpServletRequest req) {
         String scheme = Optional.ofNullable(req.getHeader("X-Forwarded-Proto")).orElse(req.getScheme());

@@ -44,8 +44,7 @@ public record EventCreateRequestDto(
 
     public record OrganizerDto(
             boolean verified,
-            String twitterHandle,
-            String twitterId,
-            String twitterName
+            String xHandle,
+            String xTicket
     ) {}
 }

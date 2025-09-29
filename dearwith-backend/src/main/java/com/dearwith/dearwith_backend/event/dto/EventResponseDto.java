@@ -52,8 +52,8 @@ public record EventResponseDto(
 
     public record OrganizerDto(
             boolean verified,
-            String twitterHandle,
-            String twitterId,
-            String twitterName
+            String xHandle,
+            String xId,
+            String xName
     ) {}
 }

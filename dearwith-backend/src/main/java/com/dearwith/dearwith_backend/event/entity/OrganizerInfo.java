@@ -16,22 +16,22 @@ public class OrganizerInfo {
     private boolean verified;
 
     @Column(name = "organizer_twitter_handle", length = 50)
-    private String twitterHandle;
+    private String xHandle;
 
     @Column(name = "organizer_twitter_id", length = 32)
-    private String twitterId;
+    private String xId;
 
     @Column(name = "organizer_twitter_name", length = 60)
-    private String twitterName;
+    private String xName;
 
     public void normalize() {
         if (verified) {
-            if (isBlank(twitterHandle) || isBlank(twitterId)) {
+            if (isBlank(xHandle) || isBlank(xId)) {
                 throw new IllegalStateException("인증된 주최자는 handle과 id가 필요합니다.");
             }
         } else {
-            twitterId = null;
-            twitterName = null;
+            xId = null;
+            xName = null;
         }
     }
 

@@ -60,7 +60,7 @@ public class EventController {
             이벤트 기본정보 + X(트위터) 계정 정보 + 장소 + 이미지 + 특전 정보를 함께 등록합니다.
             
             ## X(트위터) 계정 정보(organizer)
-            - /oath2/x/authorization/twitter API로 X(트위터) 인증 후 얻은 정보를 입력합니다.
+            - /oath2/x/authorization/twitter API로 X(트위터) 인증 후 얻은 티켓(제한 30분)을 입력합니다.
             
             ## 장소(place) 정보
             - /api/places/search?query=... API로 검색한 장소 정보를 입력합니다.
@@ -78,6 +78,9 @@ public class EventController {
             - `LIMITED`인 경우에만 `dayIndex`가 의미 있으며, 
             - `visibleFrom = 이벤트 시작일 + (dayIndex - 1)` 로 계산되어 저장됩니다.
             - `dayIndex`가 null이면 1로 간주(= 시작일 당일부터 노출), 1 미만이면 400 에러.
+            
+            ## 참고 사항
+            - 아티스트 ID 유효 확인, 로그인, 이미지 tmpKey 키 중복 불가, 효 티켓 유효 시간 30분
             """)
     public ResponseEntity<EventResponseDto> createEvent(
             @AuthenticationPrincipal(expression = "id") UUID userId,
