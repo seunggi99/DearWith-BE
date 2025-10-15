@@ -103,3 +103,5 @@ app:
     max-bytes: 10485760   # 10MB
     allowed-mime: "image/jpeg,image/png,image/webp"
     presign-ttl-seconds: 60
+  assets:
+    public-base-url: "https://%s.s3.%s.amazonaws.com"

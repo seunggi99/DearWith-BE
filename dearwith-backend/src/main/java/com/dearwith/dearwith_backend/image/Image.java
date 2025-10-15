@@ -23,7 +23,7 @@ public class Image {
     private String s3Key;
 
     @Column(nullable = false, length = 500)
-    private String ImageUrl;
+    private String imageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

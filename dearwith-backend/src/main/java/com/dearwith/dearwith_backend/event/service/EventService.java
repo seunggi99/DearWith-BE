@@ -161,7 +161,7 @@ public class EventService {
             boolean coverSet = (event.getCoverImage() != null);
 
             for (var dto : req.images()) {
-                Image image = imageService.commitImage(dto.tmpKey(), userId);
+                Image image = imageService.registerCommittedImage(dto.tmpKey(), userId);
 
                 EventImageMapping m = EventImageMapping.builder()
                         .event(event)
