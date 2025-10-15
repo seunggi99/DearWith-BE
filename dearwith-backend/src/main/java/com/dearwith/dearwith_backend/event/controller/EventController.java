@@ -80,7 +80,7 @@ public class EventController {
             - `dayIndex`가 null이면 1로 간주(= 시작일 당일부터 노출), 1 미만이면 400 에러.
             
             ## 참고 사항
-            - 아티스트 ID 유효 확인, 로그인, 이미지 tmpKey 키 중복 불가, 효 티켓 유효 시간 30분
+            - 아티스트 ID 유효 확인, 로그인, 이미지 tmpKey 키 중복 불가, 티켓 유효 시간 30분
             """)
     public ResponseEntity<EventResponseDto> createEvent(
             @AuthenticationPrincipal(expression = "id") UUID userId,

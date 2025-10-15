@@ -101,18 +101,18 @@ public class SecurityConfig {
 
                         // ===== 로그인 필수 (X 인증 플로우 등) =====
                         .requestMatchers(
-                                "/users/me",
-                                "/api/main"
+                                "/users/me/**",
+                                "/api/main",
+                                "/api/events/*/bookmark",
+                                "/api/uploads/**"
                             //    "/oauth2/x/authorize",
                             //    "/oauth2/callback/x",
                             //    "/api/events/organizer/verify-x"
                         ).authenticated()
-
+                        .requestMatchers(HttpMethod.POST, "/api/events").authenticated()
                         // 개발 중 나머지
                         .anyRequest().permitAll()
                 )
-
-                // UsernamePasswordAuthenticationFilter 앞에 JWT 필터 삽입
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

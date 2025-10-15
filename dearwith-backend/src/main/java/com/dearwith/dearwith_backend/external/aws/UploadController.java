@@ -28,7 +28,7 @@ public class UploadController {
             description = """
         업로드 전 S3에 직접 PUT할 수 있는 Presigned URL을 발급합니다.
         도메인별로 tmp/{domain}/{filename} 경로에 저장됩니다.
-        
+        도메인 : "event", "review", "artist", "profile"
         예시 요청:
         {
           "filename": "example.png",

@@ -1,12 +1,15 @@
 package com.dearwith.dearwith_backend.event.dto;
 
 import com.dearwith.dearwith_backend.event.enums.BenefitType;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
 public record EventCreateRequestDto(
+        @NotNull
         String title,
         String description,
         LocalDate startDate,

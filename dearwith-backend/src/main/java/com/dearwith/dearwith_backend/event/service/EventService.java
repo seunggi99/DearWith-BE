@@ -2,6 +2,8 @@ package com.dearwith.dearwith_backend.event.service;
 
 import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
+import com.dearwith.dearwith_backend.common.exception.BusinessException;
+import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
@@ -10,6 +12,7 @@ import com.dearwith.dearwith_backend.event.enums.BenefitType;
 import com.dearwith.dearwith_backend.event.enums.EventStatus;
 import com.dearwith.dearwith_backend.event.mapper.EventMapper;
 import com.dearwith.dearwith_backend.event.repository.*;
+import com.dearwith.dearwith_backend.external.aws.S3UploadService;
 import com.dearwith.dearwith_backend.external.x.XVerifyPayload;
 import com.dearwith.dearwith_backend.external.x.XVerifyTicketService;
 import com.dearwith.dearwith_backend.image.Image;
@@ -41,6 +44,7 @@ public class EventService {
     private final EventArtistMappingRepository artistMappingRepository;
     private final ArtistService artistService;
     private final XVerifyTicketService xVerifyTicketService;
+    private final S3UploadService s3UploadService;
 
     public List<EventInfoDto> getRecommendedEvents(UUID userId) {
         return eventRepository.findTop10ByOrderByCreatedAtDesc()
@@ -128,19 +132,29 @@ public class EventService {
 
     @Transactional
     public EventResponseDto createEvent(UUID userId, EventCreateRequestDto req) {
-        // 0) X 인증 티켓 확인/소모 (있을 때만)
+        // 0) Organizer 필수 확인
+        if (req.organizer() == null) {
+            throw new BusinessException(ErrorCode.ORGANIZER_REQUIRED);
+        }
+
+        // 0-1) X 인증 티켓 확인/소모
         XVerifyPayload xPayload = null;
         if (req.organizer().xTicket() != null && !req.organizer().xTicket().isBlank()) {
-            xPayload = xVerifyTicketService.confirmAndConsume(req.organizer().xTicket(), userId);
+            try {
+                xPayload = xVerifyTicketService.confirmAndConsume(req.organizer().xTicket(), userId);
+            } catch (Exception e) {
+                throw new BusinessException(ErrorCode.X_TICKET_EXPIRED, e.getMessage());
+            }
         }
 
-        // 1) Event 기본 매핑
+        // 1) Event 매핑 + 날짜 검증
         Event event = mapper.toEvent(userId, req);
-        if (event.getStatus() == null) {
-            event.setStatus(EventStatus.SCHEDULED);
-        }
+        if (event.getStartDate() == null) throw new BusinessException(ErrorCode.EVENT_START_REQUIRED);
+        if (event.getEndDate() != null && event.getEndDate().isBefore(event.getStartDate()))
+            throw new BusinessException(ErrorCode.EVENT_DATE_RANGE_INVALID);
+        if (event.getStatus() == null) event.setStatus(EventStatus.SCHEDULED);
 
-        // 1-1) X 인증 정보 바인딩
+        // 1-1) Organizer X 인증 정보
         if (xPayload != null) {
             event.setOrganizer(OrganizerInfo.builder()
                     .xId(xPayload.xId())
@@ -155,35 +169,53 @@ public class EventService {
                     .build());
         }
 
-        // 2. 이미지 매핑 (tmp → inline 커밋)
-        Image coverCandidate = null;
+        // 2) 이미지 매핑
         if (req.images() != null && !req.images().isEmpty()) {
+            Set<String> tmpKeys = new HashSet<>();
             boolean coverSet = (event.getCoverImage() != null);
+            Image coverCandidate = null;
 
             for (var dto : req.images()) {
-                Image image = imageService.registerCommittedImage(dto.tmpKey(), userId);
+                String tmpKey = dto.tmpKey();
+                if (tmpKey == null || !tmpKey.startsWith("tmp/")) {
+                    throw new BusinessException(ErrorCode.INVALID_TMP_KEY, "tmpKey=" + tmpKey);
+                }
+                if (!tmpKeys.add(tmpKey)) {
+                    throw new BusinessException(ErrorCode.DUPLICATE_IMAGE_KEY, tmpKey);
+                }
 
-                EventImageMapping m = EventImageMapping.builder()
+                final String inlineKey;
+                try {
+                    inlineKey = s3UploadService.promoteTmpToInline(tmpKey);
+                } catch (IllegalArgumentException e) {
+                    if (e.getMessage().contains("size"))
+                        throw new BusinessException(ErrorCode.IMAGE_TOO_LARGE, e.getMessage());
+                    else if (e.getMessage().contains("content type"))
+                        throw new BusinessException(ErrorCode.UNSUPPORTED_IMAGE_TYPE, e.getMessage());
+                    else
+                        throw new BusinessException(ErrorCode.S3_COMMIT_FAILED, e.getMessage());
+                } catch (Exception e) {
+                    throw new BusinessException(ErrorCode.S3_COMMIT_FAILED, e.getMessage());
+                }
+
+                Image image = imageService.registerCommittedImage(inlineKey, userId);
+                event.addImageMapping(EventImageMapping.builder()
                         .event(event)
                         .image(image)
                         .displayOrder(dto.displayOrder())
-                        .build();
-                event.addImageMapping(m);
+                        .build());
 
-                // 첫 번째 것만 커버로 세팅
                 if (!coverSet) {
                     coverCandidate = image;
                     coverSet = true;
                 }
             }
-        }
-        if (coverCandidate != null) {
-            event.setCoverImage(coverCandidate);
+            if (coverCandidate != null) event.setCoverImage(coverCandidate);
         }
 
         // 3. 특전 매핑
         if (req.benefits() != null) {
-            LocalDate eventStart = event.getStartDate(); // 이벤트 시작일이 null이면 예외
+            LocalDate eventStart = event.getStartDate();
             if (eventStart == null) {
                 throw new IllegalStateException("이벤트 시작일이 설정되지 않았습니다.");
             }
