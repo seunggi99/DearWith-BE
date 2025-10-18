@@ -25,6 +25,7 @@ public record EventResponseDto(
     ) {}
 
     public record ImageDto(
+            Long id,
             String imageUrl,
             Integer displayOrder
     ) {}

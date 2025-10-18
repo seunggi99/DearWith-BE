@@ -20,6 +20,7 @@ public interface EventMapper {
     @Mapping(target = "benefits", ignore = true)
     @Mapping(target = "bookmarkCount", constant = "0L")
     @Mapping(target = "placeInfo", source = "req.place")
+    @Mapping(target = "organizer", source = "req.organizer")
     @Mapping(target = "user", source = "userId")
     Event toEvent(UUID userId, EventCreateRequestDto req);
 
@@ -39,8 +40,15 @@ public interface EventMapper {
     @Mapping(target = "placeUrl", source = "placeUrl")
     PlaceInfo toPlaceInfo(EventCreateRequestDto.PlaceDto dto);
 
+    @Mapping(target = "verified", source = "verified")
+    @Mapping(target = "xHandle",  source = "XHandle")
+    @Mapping(target = "xId",      source = "XId")
+    @Mapping(target = "xName",    source = "XName")
+    EventResponseDto.OrganizerDto toOrganizerDto(OrganizerInfo info);
+
     // ---- Entity -> Response ----
     @Mapping(target = "place", source = "event.placeInfo")
+    @Mapping(target = "organizer", source = "event.organizer")
     @Mapping(target = "images", source = "mappings")              // List<EventImageMapping> -> List<ImageDto>
     @Mapping(target = "artists", source = "artistMappings")       // List<EventArtistMapping> -> List<ArtistDto>
     @Mapping(target = "benefits", source = "benefits")            // List<EventBenefit> -> List<BenefitDto>
@@ -76,15 +84,16 @@ public interface EventMapper {
     @Mapping(target = "id", source = "artist.id")
     @Mapping(target = "nameKr", source = "artist.nameKr")
     @Mapping(target = "nameEn", source = "artist.nameEn")
+    @Mapping(target = "profileImageUrl", source = "artist.imageUrl")
     EventResponseDto.ArtistDto toArtistDto(EventArtistMapping mapping);
     List<EventResponseDto.ArtistDto> toArtistDtos(List<EventArtistMapping> mappings);
 
     // ---- Image 매핑 ----
-//    @Mapping(target = "imageId", source = "image.id")
-//    @Mapping(target = "imageUrl", source = "image.url")
-//    @Mapping(target = "displayOrder", source = "displayOrder")
-//    EventResponseDto.ImageDto toImageDto(EventImageMapping mapping);
-//    List<EventResponseDto.ImageDto> toImageDtos(List<EventImageMapping> mappings);
+    @Mapping(target = "id",           source = "image.id")
+    @Mapping(target = "imageUrl",     source = "image.imageUrl")
+    @Mapping(target = "displayOrder", source = "displayOrder")
+    EventResponseDto.ImageDto toImageDto(EventImageMapping mapping);
+    List<EventResponseDto.ImageDto> toImageDtos(List<EventImageMapping> mappings);
 
     // (예전 단순 URL 리스트가 필요하면 유지)
     default List<String> mapImageUrls(List<EventImageMapping> mappings) {
