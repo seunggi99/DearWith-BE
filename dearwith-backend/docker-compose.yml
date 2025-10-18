@@ -16,8 +16,18 @@ services:
     image: redis:7-alpine
     container_name: dearwith-backend-redis
     restart: always
-    ports:
-      - "6379:6379"
+    command: [
+      "redis-server",
+      "--appendonly", "yes",
+      "--requirepass", "${SPRING_REDIS_PASSWORD}"
+    ]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${SPRING_REDIS_PASSWORD}", "PING"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   app:
     image: ninny9988/dearwith-be:latest
@@ -32,6 +42,7 @@ services:
       SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD}
     depends_on:
       - mongodb
       - redis
