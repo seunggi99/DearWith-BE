@@ -36,4 +36,14 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
     """)
     Page<Artist> searchByName(@Param("query") String query, Pageable pageable);
 
+    @Query("""
+        SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END
+        FROM Artist a
+        WHERE (LOWER(a.nameKr) = LOWER(:name)
+            OR LOWER(a.nameEn) = LOWER(:name))
+          AND a.birthDate = :birthDate
+    """)
+    boolean existsByNameKrOrEnIgnoreCaseAndBirthDate(@Param("name") String name,
+                                                     @Param("birthDate") LocalDate birthDate);
+
 }

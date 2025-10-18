@@ -27,12 +27,14 @@ public enum ErrorCode {
     EVENT_DATE_RANGE_INVALID(HttpStatus.BAD_REQUEST, "이벤트 종료일은 시작일 이후여야 합니다."),
     BENEFIT_DAYINDEX_INVALID(HttpStatus.BAD_REQUEST, "LIMITED 특전의 dayIndex는 1 이상이어야 합니다."),
     ARTIST_NOT_FOUND(HttpStatus.BAD_REQUEST, "존재하지 않는 아티스트 ID가 포함되어 있습니다."),
-
     X_TICKET_EXPIRED(HttpStatus.UNAUTHORIZED, "X(트위터) 인증 티켓이 만료되었거나 유효하지 않습니다."),
     ORGANIZER_REQUIRED(HttpStatus.BAD_REQUEST, "주최자 정보는 필수입니다."),
     DUPLICATE_IMAGE_KEY(HttpStatus.BAD_REQUEST, "중복된 이미지 키가 포함되어 있습니다."),
     ARTIST_REQUIRED(HttpStatus.BAD_REQUEST, "최소 1명의 아티스트가 필요합니다."),
-   ;
+    ARTIST_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "이미 존재하는 아티스트입니다."),
+    INVALID_INPUT(HttpStatus.BAD_REQUEST, "잘못된 입력값입니다."),
+    GROUP_NOT_FOUND(HttpStatus.BAD_REQUEST, "존재하지 않는 그룹입니다.")
+    ;
 
     private final HttpStatus httpStatus;
     private final String message;

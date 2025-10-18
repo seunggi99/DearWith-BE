@@ -6,7 +6,6 @@ public record ArtistDto(
         Long id,
         String nameKr,
         String nameEn,
-        String groupName,
         String imageUrl,
         LocalDate birthDate,
         LocalDate debutDate

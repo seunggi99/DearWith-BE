@@ -46,13 +46,22 @@ public class EventService {
     private final XVerifyTicketService xVerifyTicketService;
     private final S3UploadService s3UploadService;
 
+    private String toImageUrl(Image img) {
+        if (img == null) return null;
+        if (img.getImageUrl() != null && !img.getImageUrl().isBlank()) return img.getImageUrl();
+        if (img.getS3Key() != null && !img.getS3Key().isBlank()) {
+            return "https://dearwith-prod-assets-apne2.s3.ap-northeast-2.amazonaws.com/" + img.getS3Key();
+        }
+        return null;
+    }
+
     public List<EventInfoDto> getRecommendedEvents(UUID userId) {
         return eventRepository.findTop10ByOrderByCreatedAtDesc()
                 .stream()
                 .map(event -> EventInfoDto.builder()
                         .id(event.getId())
                         .title(event.getTitle())
-                        .imageUrl(event.getCoverImage().getImageUrl())
+                        .imageUrl( toImageUrl(event.getCoverImage()) )
                         .artistNamesKr(
                                 event.getArtists().stream()
                                         .map(mapping -> mapping.getArtist().getNameKr())
@@ -80,7 +89,7 @@ public class EventService {
                 .map(event -> EventInfoDto.builder()
                         .id(event.getId())
                         .title(event.getTitle())
-                        .imageUrl(event.getCoverImage().getImageUrl())
+                        .imageUrl( toImageUrl(event.getCoverImage()) )
                         .artistNamesKr(
                                 event.getArtists().stream()
                                         .map(mapping -> mapping.getArtist().getNameKr())
@@ -108,7 +117,7 @@ public class EventService {
                 .map(event -> EventInfoDto.builder()
                         .id(event.getId())
                         .title(event.getTitle())
-                        .imageUrl(event.getCoverImage().getImageUrl())
+                        .imageUrl( toImageUrl(event.getCoverImage()) )
                         .artistNamesKr(
                                 event.getArtists().stream()
                                         .map(mapping -> mapping.getArtist().getNameKr())
@@ -254,7 +263,7 @@ public class EventService {
         // 4. 아티스트 매핑
         if (req.artistIds() != null && !req.artistIds().isEmpty()) {
             List<Artist> artists = artistService.findAllByIds(req.artistIds());
-            // 존재하지 않는 ID 필터링 체크(선택)
+            // 존재하지 않는 ID 필터링
             Set<Long> foundIds = artists.stream().map(Artist::getId).collect(Collectors.toSet());
             List<Long> missing = req.artistIds().stream().filter(id -> !foundIds.contains(id)).toList();
             if (!missing.isEmpty()) {

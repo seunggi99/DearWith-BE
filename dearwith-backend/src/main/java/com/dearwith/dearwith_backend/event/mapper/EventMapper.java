@@ -84,7 +84,7 @@ public interface EventMapper {
     @Mapping(target = "id", source = "artist.id")
     @Mapping(target = "nameKr", source = "artist.nameKr")
     @Mapping(target = "nameEn", source = "artist.nameEn")
-    @Mapping(target = "profileImageUrl", source = "artist.imageUrl")
+    @Mapping(target = "profileImageUrl", source = "artist.profileImage.imageUrl")
     EventResponseDto.ArtistDto toArtistDto(EventArtistMapping mapping);
     List<EventResponseDto.ArtistDto> toArtistDtos(List<EventArtistMapping> mappings);
 
