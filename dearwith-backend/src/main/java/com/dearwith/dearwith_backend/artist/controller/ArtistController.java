@@ -37,6 +37,9 @@ public class ArtistController {
     }
 
     @PostMapping
+    @Operation(summary = "아티스트 등록",
+            description = "그룹 검색 API를 통해 그룹을 선택하고, 아티스트 기본정보와 함께 아티스트를 등록합니다." +
+                    "그룹 ID가 Null이고 groupName이 존재하는 경우, 새로운 그룹이 생성되어 매핑됩니다.")
     public ResponseEntity<ArtistDto> createArtist(
             @Valid @RequestBody ArtistCreateRequestDto req,
             @AuthenticationPrincipal(expression = "id") UUID userId
