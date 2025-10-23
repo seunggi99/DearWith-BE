@@ -11,7 +11,6 @@ import java.util.List;
 public record EventCreateRequestDto(
         @NotNull
         String title,
-        String description,
         LocalDate startDate,
         LocalDate endDate,
         List<Long> artistIds,
@@ -39,7 +38,6 @@ public record EventCreateRequestDto(
 
     public record BenefitDto(
             String name,
-            String description,
             BenefitType benefitType,
             Integer dayIndex,
             Integer displayOrder

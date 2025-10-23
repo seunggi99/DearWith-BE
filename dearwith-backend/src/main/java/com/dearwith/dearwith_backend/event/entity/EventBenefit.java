@@ -30,8 +30,8 @@ public class EventBenefit {
     @Column(length = 100, nullable = false)
     private String name;
 
-    @Column(columnDefinition = "text")
-    private String description;
+//    @Column(columnDefinition = "text")
+//    private String description;
 
 //    @Column(length = 300)
 //    private String imageUrl;

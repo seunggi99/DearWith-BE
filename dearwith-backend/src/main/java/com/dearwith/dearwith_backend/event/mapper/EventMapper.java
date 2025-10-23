@@ -73,7 +73,6 @@ public interface EventMapper {
     // EventBenefit -> Response.BenefitDto
     @Mapping(target = "id", source = "id")
     @Mapping(target = "name", source = "name")
-    @Mapping(target = "description", source = "description")
     @Mapping(target = "benefitType", source = "benefitType")
     @Mapping(target = "dayIndex", source = "dayIndex")
     @Mapping(target = "displayOrder", source = "displayOrder")
@@ -95,7 +94,6 @@ public interface EventMapper {
     EventResponseDto.ImageDto toImageDto(EventImageMapping mapping);
     List<EventResponseDto.ImageDto> toImageDtos(List<EventImageMapping> mappings);
 
-    // (예전 단순 URL 리스트가 필요하면 유지)
     default List<String> mapImageUrls(List<EventImageMapping> mappings) {
         return mappings.stream()
                 .map(EventImageMapping::getImage)

@@ -248,7 +248,6 @@ public class EventService {
                 EventBenefit benefit = EventBenefit.builder()
                         .event(event)
                         .name(b.name())
-                        .description(b.description())
                         .benefitType(b.benefitType())
                         .dayIndex(dayIndex)
                         .visibleFrom(visibleFrom)
