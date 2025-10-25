@@ -108,7 +108,6 @@ public class UserService {
                 .map(dto -> Agreement.builder()
                         .type(dto.getType())
                         .agreed(dto.isAgreed())
-                        .updatedAt(LocalDateTime.now())
                         .user(user)
                         .build())
                 .collect(Collectors.toList());

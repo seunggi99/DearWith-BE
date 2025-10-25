@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.user.entity;
 
+import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
 import com.dearwith.dearwith_backend.user.enums.AgreementType;
 import com.dearwith.dearwith_backend.user.enums.Role;
 import com.dearwith.dearwith_backend.user.enums.UserStatus;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 
 @Entity
 @Getter @NoArgsConstructor @AllArgsConstructor @Builder
-public class User {
+public class User extends BaseDeletableEntity {
     @Id
     @GeneratedValue(generator = "UUID")
     @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
@@ -73,17 +74,16 @@ public class User {
     }
 
     // 특정 약관 동의/철회 갱신
-    public void agreeOrUpdateAgreement(AgreementType type, boolean agreed, LocalDateTime updatedAt) {
+    public void agreeOrUpdateAgreement(AgreementType type, boolean agreed) {
         Optional<Agreement> existing = findAgreement(type);
 
         if (existing.isPresent()) {
             Agreement agreement = existing.get();
-            agreement.updateAgreement(agreed, updatedAt);
+            agreement.updateAgreement(agreed);
         } else {
             Agreement newAgreement = Agreement.builder()
                     .type(type)
                     .agreed(agreed)
-                    .updatedAt(updatedAt)
                     .build();
             this.addAgreement(newAgreement);
         }

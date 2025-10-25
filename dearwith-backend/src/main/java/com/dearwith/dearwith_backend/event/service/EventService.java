@@ -278,6 +278,8 @@ public class EventService {
             }
         }
 
+        validateAndNormalize(event);
+
         // 5. 저장
         Event saved = eventRepository.save(event);
 
@@ -292,6 +294,21 @@ public class EventService {
         return mapper.toResponse(saved, mappings, benefits, artists);
     }
 
+    private void validateAndNormalize(Event event) {
+        if (event.getStartDate() != null && event.getEndDate() != null
+                && event.getEndDate().isBefore(event.getStartDate())) {
+            throw new BusinessException(ErrorCode.EVENT_DATE_RANGE_INVALID);
+        }
+
+        if (event.getOrganizer() == null) {
+            event.setOrganizer(new OrganizerInfo());
+        }
+        event.getOrganizer().normalize();
+
+        if (event.getTitle() != null) {
+            event.setTitle(event.getTitle().trim());
+        }
+    }
 
     @Transactional(readOnly = true)
     public EventResponseDto getEvent(Long eventId) {

@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.user.entity;
 
+import com.dearwith.dearwith_backend.common.jpa.BaseTimeEntity;
 import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import jakarta.persistence.*;
 import lombok.*;
@@ -11,7 +12,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Getter @NoArgsConstructor @AllArgsConstructor @Builder
-public class SocialAccount {
+public class SocialAccount extends BaseTimeEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.event.entity;
 
+import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
 import com.dearwith.dearwith_backend.event.enums.EventStatus;
 import com.dearwith.dearwith_backend.event.enums.EventType;
 import com.dearwith.dearwith_backend.image.Image;
@@ -14,7 +15,7 @@ import java.util.List;
 @Entity
 @Setter
 @Getter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Event {
+public class Event extends BaseDeletableEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -81,12 +82,4 @@ public class Event {
     @Builder.Default
     private OrganizerInfo organizer = new OrganizerInfo();
 
-    @PrePersist @PreUpdate
-    private void prePersistUpdate() {
-        if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
-            throw new IllegalStateException("endDate는 startDate보다 빠를 수 없습니다.");
-        }
-        if (organizer == null) organizer = new OrganizerInfo();
-        organizer.normalize();
-    }
 }

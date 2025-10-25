@@ -1,7 +1,6 @@
 package com.dearwith.dearwith_backend.event.entity;
 
-import com.dearwith.dearwith_backend.artist.entity.Artist;
-import com.dearwith.dearwith_backend.artist.entity.ArtistGenre;
+import com.dearwith.dearwith_backend.common.jpa.BaseTimeEntity;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -14,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class EventBookmark {
+public class EventBookmark extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

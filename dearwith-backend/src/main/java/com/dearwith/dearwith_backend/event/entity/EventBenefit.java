@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.event.entity;
 
+import com.dearwith.dearwith_backend.common.jpa.BaseTimeEntity;
 import com.dearwith.dearwith_backend.event.enums.BenefitType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -17,7 +18,7 @@ import java.time.LocalDate;
                 @Index(name = "ix_event_benefit_type",  columnList = "benefit_type")
         }
 )
-public class EventBenefit {
+public class EventBenefit extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

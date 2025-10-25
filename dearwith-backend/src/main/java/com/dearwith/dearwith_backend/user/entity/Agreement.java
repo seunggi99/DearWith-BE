@@ -1,18 +1,16 @@
 package com.dearwith.dearwith_backend.user.entity;
 
+import com.dearwith.dearwith_backend.common.jpa.BaseTimeEntity;
 import com.dearwith.dearwith_backend.user.enums.AgreementType;
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.time.LocalDateTime;
-
 
 /**
  * 약관 동의 정보
  */
 @Entity
 @Getter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Agreement {
+public class Agreement extends BaseTimeEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -24,12 +22,11 @@ public class Agreement {
     @Enumerated(EnumType.STRING)
     private AgreementType type;     // 어떤 약관에 동의했는지
 
+    @Column(nullable = false)
     private boolean agreed;
-    private LocalDateTime updatedAt; // 동의/거부 시각
 
-    public void updateAgreement(boolean agreed, LocalDateTime updatedAt) {
+    public void updateAgreement(boolean agreed) {
         this.agreed = agreed;
-        this.updatedAt = updatedAt;
     }
 
     public void setUser(User user) {

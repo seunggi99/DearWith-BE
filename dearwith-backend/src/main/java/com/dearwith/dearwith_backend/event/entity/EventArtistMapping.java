@@ -1,7 +1,7 @@
 package com.dearwith.dearwith_backend.event.entity;
 
 import com.dearwith.dearwith_backend.artist.entity.Artist;
-import com.dearwith.dearwith_backend.artist.entity.ArtistGenre;
+import com.dearwith.dearwith_backend.common.jpa.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -14,7 +14,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class EventArtistMapping {
+public class EventArtistMapping extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
