@@ -1,5 +1,7 @@
 package com.dearwith.dearwith_backend.image;
 
+import com.dearwith.dearwith_backend.common.exception.BusinessException;
+import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.external.aws.S3UploadService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
@@ -19,7 +21,7 @@ public class ImageService {
     @Transactional
     public Image registerCommittedImage(String finalKey, UUID userId) {
         var user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
 
         String url = s3UploadService.generatePublicUrl(finalKey);
 

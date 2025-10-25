@@ -19,7 +19,6 @@ import com.dearwith.dearwith_backend.image.Image;
 import com.dearwith.dearwith_backend.image.ImageService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -240,7 +239,7 @@ public class EventService {
                         dayIndex = 1;
                     }
                     if (dayIndex < 1) {
-                        throw new IllegalArgumentException("LIMITED 특전의 dayIndex는 1 이상이어야 합니다. 입력값: " + dayIndex);
+                        throw new BusinessException(ErrorCode.BENEFIT_DAYINDEX_INVALID);
                     }
                     visibleFrom = eventStart.plusDays(dayIndex - 1L);
                 }
@@ -266,7 +265,7 @@ public class EventService {
             Set<Long> foundIds = artists.stream().map(Artist::getId).collect(Collectors.toSet());
             List<Long> missing = req.artistIds().stream().filter(id -> !foundIds.contains(id)).toList();
             if (!missing.isEmpty()) {
-                throw new IllegalArgumentException("존재하지 않는 아티스트 ID: " + missing);
+                throw new BusinessException(ErrorCode.ARTIST_NOT_FOUND, "존재하지 않는 아티스트 ID: " + missing);
             }
 
             for (Artist artist : artists) {
@@ -331,14 +330,14 @@ public class EventService {
     public void addBookmark(Long eventId, UUID userId) {
         // 이미 북마크했는지 체크
         if (eventBookmarkRepository.existsByEventIdAndUserId(eventId, userId)) {
-            throw new IllegalStateException("이미 북마크된 이벤트입니다.");
+            throw new BusinessException(ErrorCode.ALREADY_BOOKMARKED_EVENT);
         }
 
         // 이벤트, 유저 존재 확인
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new EntityNotFoundException("이벤트를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("유저를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
 
         EventBookmark bookmark = EventBookmark.builder()
                 .event(event)
@@ -352,7 +351,7 @@ public class EventService {
     public void removeBookmark(Long eventId, UUID userId) {
         EventBookmark bookmark = eventBookmarkRepository
                 .findByEventIdAndUserId(eventId, userId)
-                .orElseThrow(() -> new EntityNotFoundException("북마크가 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOOKMARK_NOT_FOUND));
 
         eventBookmarkRepository.delete(bookmark);
     }

@@ -33,7 +33,13 @@ public enum ErrorCode {
     ARTIST_REQUIRED(HttpStatus.BAD_REQUEST, "최소 1명의 아티스트가 필요합니다."),
     ARTIST_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "이미 존재하는 아티스트입니다."),
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "잘못된 입력값입니다."),
-    GROUP_NOT_FOUND(HttpStatus.BAD_REQUEST, "존재하지 않는 그룹입니다.")
+    GROUP_NOT_FOUND(HttpStatus.BAD_REQUEST, "존재하지 않는 그룹입니다."),
+    INVALID_EVENT_STATUS(HttpStatus.BAD_REQUEST, "유효하지 않은 이벤트 상태입니다."),
+    ALREADY_BOOKMARKED_EVENT(HttpStatus.CONFLICT, "이미 북마크된 이벤트입니다."),
+    BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "북마크가 존재하지 않습니다."),
+    INVALID_FILE_SIZE(HttpStatus.BAD_REQUEST, "허용되지 않은 파일 크기입니다."),
+    UNSUPPORTED_CONTENT_TYPE(HttpStatus.BAD_REQUEST, "지원하지 않는 파일 형식입니다."),
+    UNSUPPORTED_DOMAIN(HttpStatus.BAD_REQUEST, "허용되지 않은 업로드 도메인입니다.")
     ;
 
     private final HttpStatus httpStatus;

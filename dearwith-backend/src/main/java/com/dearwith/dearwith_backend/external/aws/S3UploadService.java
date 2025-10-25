@@ -1,5 +1,7 @@
 package com.dearwith.dearwith_backend.external.aws;
 
+import com.dearwith.dearwith_backend.common.exception.BusinessException;
+import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -8,7 +10,6 @@ import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.MetadataDirective;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
-import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
@@ -56,7 +57,7 @@ public class S3UploadService {
                 safeName);
 
         if (!ALLOWED_MIME.contains(contentType)) {
-            throw new IllegalArgumentException("Unsupported contentType: " + contentType);
+            throw new BusinessException(ErrorCode.UNSUPPORTED_CONTENT_TYPE, "contentType=" + contentType);
         }
 
         PutObjectRequest objectRequest = PutObjectRequest.builder()
@@ -77,16 +78,16 @@ public class S3UploadService {
      */
     public String promoteTmpToInline(String tmpKey) {
         if (tmpKey.startsWith("inline/")) return tmpKey;
-        if (!tmpKey.startsWith("tmp/")) throw new IllegalArgumentException("tmpKey must start with 'tmp/': " + tmpKey);
+        if (!tmpKey.startsWith("tmp/"))     throw new BusinessException(ErrorCode.INVALID_TMP_KEY, "tmpKey=" + tmpKey);
 
         HeadObjectResponse head = s3.headObject(b -> b.bucket(bucket).key(tmpKey));
 
         long size = head.contentLength();
         String mime = head.contentType();
         if (size <= 0 || size > 10 * 1024 * 1024L)
-            throw new IllegalArgumentException("Invalid file size");
+            throw new BusinessException(ErrorCode.INVALID_FILE_SIZE, "size=" + size);
         if (!ALLOWED_MIME.contains(mime))
-            throw new IllegalArgumentException("Invalid content type");
+            throw new BusinessException(ErrorCode.UNSUPPORTED_CONTENT_TYPE, "mime=" + mime);
 
         String finalKey = tmpKey.replaceFirst("^tmp/", "inline/");
 
@@ -128,7 +129,7 @@ public class S3UploadService {
     private String normalizeDomain(String domain) {
         String d = Objects.requireNonNullElse(domain, "").toLowerCase(Locale.ROOT);
         if (!ALLOWED_DOMAINS.contains(d)) {
-            throw new IllegalArgumentException("Unsupported domain: " + domain);
+            throw new BusinessException(ErrorCode.UNSUPPORTED_DOMAIN, "domain=" + domain);
         }
         return d;
     }
