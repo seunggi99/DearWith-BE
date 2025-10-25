@@ -31,9 +31,7 @@ public class User extends BaseDeletableEntity {
 
     @Column(unique = true)
     private String nickname;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private LocalDateTime deletedAt;
+
     private LocalDateTime lastLoginAt;
 
     @Enumerated(EnumType.STRING)

@@ -88,8 +88,6 @@ public class AuthService {
               //      .email(kakaoUser.getEmail()) // 없으면 null 가능
                     .role(Role.USER)
                     .userStatus(UserStatus.ACTIVE)
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
                     .build();
 
             userService.save(user);

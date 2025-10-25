@@ -46,8 +46,6 @@ public class UserService {
                 .nickname(request.getNickname())
                 .role(Role.USER)
                 .userStatus(UserStatus.ACTIVE)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .lastLoginAt(null)
                 .build();
 

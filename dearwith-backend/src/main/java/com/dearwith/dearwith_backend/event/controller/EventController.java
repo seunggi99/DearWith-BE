@@ -53,6 +53,24 @@ public class EventController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "북마크힌 이벤트 조회",
+            description = "사용자가 북마크한 이벤트들을 조회합니다. `state` 파라미터로 필터링이 가능합니다. \n\n" +
+                    "- `SCHEDULED`: 시작 전 이벤트\n" +
+                    "- `IN_PROGRESS`: 진행 중 이벤트\n" +
+                    "- `ENDED`: 종료 된 이벤트")
+    @GetMapping("/{eventId}/bookmark")
+    public Page<EventInfoDto> getBookmarkedEvents(
+            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @RequestParam String state,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        return eventService.getBookmarkedEvents(userId, state, pageable);
+    }
+
     @PostMapping
     @Operation(
             summary = "이벤트 등록",

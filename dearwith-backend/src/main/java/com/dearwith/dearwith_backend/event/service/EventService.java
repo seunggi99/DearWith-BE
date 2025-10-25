@@ -21,7 +21,9 @@ import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -390,4 +392,59 @@ public class EventService {
                         .build()
                 );
     }
+
+    @Transactional(readOnly = true)
+    public Page<EventInfoDto> getBookmarkedEvents(UUID userId, String state, Pageable pageable) {
+
+        EventStatus statusFilter = null;
+
+        if (state != null) {
+            try {
+                statusFilter = EventStatus.valueOf(state.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException(ErrorCode.INVALID_EVENT_STATUS);
+            }
+        }
+
+        Pageable sortedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+        Page<EventBookmark> bookmarks =
+                (statusFilter != null)
+                        ? eventBookmarkRepository.findByUserIdAndEvent_Status(userId, statusFilter, pageable)
+                        : eventBookmarkRepository.findByUserId(userId, pageable);
+
+        return bookmarks.map(bookmark -> {
+            Event event = bookmark.getEvent();
+            return EventInfoDto.builder()
+                    .id(event.getId())
+                    .title(event.getTitle())
+                    .imageUrl(
+                            event.getCoverImage() != null
+                                    ? event.getCoverImage().getImageUrl()
+                                    : null
+                    )
+                    .artistNamesKr(
+                            event.getArtists().stream()
+                                    .map(m -> m.getArtist().getNameKr())
+                                    .filter(Objects::nonNull)
+                                    .toList()
+                    )
+                    .artistNamesEn(
+                            event.getArtists().stream()
+                                    .map(m -> m.getArtist().getNameEn())
+                                    .filter(Objects::nonNull)
+                                    .toList()
+                    )
+                    .startDate(event.getStartDate())
+                    .endDate(event.getEndDate())
+                    .bookmarkCount(event.getBookmarkCount())
+                    .bookmarked(true)
+                    .build();
+        });
+    }
+
 }
