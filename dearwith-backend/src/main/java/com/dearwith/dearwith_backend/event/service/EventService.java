@@ -12,11 +12,11 @@ import com.dearwith.dearwith_backend.event.enums.BenefitType;
 import com.dearwith.dearwith_backend.event.enums.EventStatus;
 import com.dearwith.dearwith_backend.event.mapper.EventMapper;
 import com.dearwith.dearwith_backend.event.repository.*;
-import com.dearwith.dearwith_backend.external.aws.S3UploadService;
 import com.dearwith.dearwith_backend.external.x.XVerifyPayload;
 import com.dearwith.dearwith_backend.external.x.XVerifyTicketService;
 import com.dearwith.dearwith_backend.image.Image;
-import com.dearwith.dearwith_backend.image.ImageService;
+import com.dearwith.dearwith_backend.image.ImageAttachmentRequest;
+import com.dearwith.dearwith_backend.image.ImageAttachmentService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,11 +41,10 @@ public class EventService {
     private final EventImageMappingRepository mappingRepository;
     private final EventBenefitRepository benefitRepository;
     private final EventMapper mapper;
-    private final ImageService imageService;
     private final EventArtistMappingRepository artistMappingRepository;
     private final ArtistService artistService;
     private final XVerifyTicketService xVerifyTicketService;
-    private final S3UploadService s3UploadService;
+    private final ImageAttachmentService imageAttachmentService;
 
     private String toImageUrl(Image img) {
         if (img == null) return null;
@@ -181,46 +180,10 @@ public class EventService {
 
         // 2) 이미지 매핑
         if (req.images() != null && !req.images().isEmpty()) {
-            Set<String> tmpKeys = new HashSet<>();
-            boolean coverSet = (event.getCoverImage() != null);
-            Image coverCandidate = null;
-
-            for (var dto : req.images()) {
-                String tmpKey = dto.tmpKey();
-                if (tmpKey == null || !tmpKey.startsWith("tmp/")) {
-                    throw new BusinessException(ErrorCode.INVALID_TMP_KEY, "tmpKey=" + tmpKey);
-                }
-                if (!tmpKeys.add(tmpKey)) {
-                    throw new BusinessException(ErrorCode.DUPLICATE_IMAGE_KEY, tmpKey);
-                }
-
-                final String inlineKey;
-                try {
-                    inlineKey = s3UploadService.promoteTmpToInline(tmpKey);
-                } catch (IllegalArgumentException e) {
-                    if (e.getMessage().contains("size"))
-                        throw new BusinessException(ErrorCode.IMAGE_TOO_LARGE, e.getMessage());
-                    else if (e.getMessage().contains("content type"))
-                        throw new BusinessException(ErrorCode.UNSUPPORTED_IMAGE_TYPE, e.getMessage());
-                    else
-                        throw new BusinessException(ErrorCode.S3_COMMIT_FAILED, e.getMessage());
-                } catch (Exception e) {
-                    throw new BusinessException(ErrorCode.S3_COMMIT_FAILED, e.getMessage());
-                }
-
-                Image image = imageService.registerCommittedImage(inlineKey, userId);
-                event.addImageMapping(EventImageMapping.builder()
-                        .event(event)
-                        .image(image)
-                        .displayOrder(dto.displayOrder())
-                        .build());
-
-                if (!coverSet) {
-                    coverCandidate = image;
-                    coverSet = true;
-                }
-            }
-            if (coverCandidate != null) event.setCoverImage(coverCandidate);
+            var imageDtos = req.images().stream()
+                    .map(d -> new ImageAttachmentRequest(d.tmpKey(), d.displayOrder()))
+                    .toList();
+            imageAttachmentService.setEventImages(event, imageDtos, userId);
         }
 
         // 3. 특전 매핑

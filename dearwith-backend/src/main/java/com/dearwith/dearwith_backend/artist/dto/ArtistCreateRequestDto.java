@@ -9,6 +9,6 @@ public record ArtistCreateRequestDto (
         @NotBlank String nameKr,
         String groupId,
         String groupName,
-        String ImageTmpKey,
+        String imageTmpKey,
         LocalDate birthDate
 ){}
