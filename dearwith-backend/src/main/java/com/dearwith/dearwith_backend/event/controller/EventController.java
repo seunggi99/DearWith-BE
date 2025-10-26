@@ -58,7 +58,7 @@ public class EventController {
                     "- `SCHEDULED`: 시작 전 이벤트\n" +
                     "- `IN_PROGRESS`: 진행 중 이벤트\n" +
                     "- `ENDED`: 종료 된 이벤트")
-    @GetMapping("/{eventId}/bookmark")
+    @GetMapping("/bookmark")
     public Page<EventInfoDto> getBookmarkedEvents(
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @RequestParam String state,
