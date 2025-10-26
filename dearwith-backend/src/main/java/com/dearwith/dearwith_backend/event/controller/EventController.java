@@ -41,7 +41,7 @@ public class EventController {
     }
 
     @Operation(summary = "북마크 추가")
-    @PostMapping("/{eventId}/bookmark")
+    @PostMapping("/bookmark")
     public ResponseEntity<Void> addBookmark(
             @PathVariable Long eventId,
             @AuthenticationPrincipal CustomUserDetails principal
