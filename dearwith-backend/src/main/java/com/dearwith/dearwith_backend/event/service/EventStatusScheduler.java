@@ -16,7 +16,7 @@ public class EventStatusScheduler {
     private final EventRepository eventRepository;
 
     @Transactional
-    @Scheduled(cron = "0 43 23 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
     public void updateStatusesAtMidnight() {
         LocalDate now = LocalDate.now(ZoneId.of("Asia/Seoul"));
         eventRepository.bulkMarkInProgress(now);

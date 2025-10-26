@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -161,7 +162,22 @@ public class EventService {
         if (event.getStartDate() == null) throw new BusinessException(ErrorCode.EVENT_START_REQUIRED);
         if (event.getEndDate() != null && event.getEndDate().isBefore(event.getStartDate()))
             throw new BusinessException(ErrorCode.EVENT_DATE_RANGE_INVALID);
-        if (event.getStatus() == null) event.setStatus(EventStatus.SCHEDULED);
+
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate start = event.getStartDate();
+        LocalDate end   = event.getEndDate();
+
+        EventStatus status;
+        if (end == null) {
+            status = (today.isBefore(start)) ? EventStatus.SCHEDULED : EventStatus.IN_PROGRESS;
+        } else if (today.isBefore(start)) {
+            status = EventStatus.SCHEDULED;
+        } else if (!today.isAfter(end)) {
+            status = EventStatus.IN_PROGRESS;
+        } else {
+            status = EventStatus.ENDED;
+        }
+        event.setStatus(status);
 
         // 1-1) Organizer X 인증 정보
         if (xPayload != null) {
