@@ -71,6 +71,19 @@ public class EventController {
         return eventService.getBookmarkedEvents(userId, state, pageable);
     }
 
+//    @GetMapping("/{eventId}/bookmark")
+//    @Operation(summary = "단일 이벤트 북마크 여부 조회")
+//    public ResponseEntity<Map<String, Boolean>> getBookmarkStatus(
+//            @PathVariable Long eventId,
+//            @AuthenticationPrincipal(expression = "id") UUID userId
+//    ) {
+//        boolean bookmarked = eventService.isBookmarked(eventId, userId);
+//
+//        return ResponseEntity.ok()
+//                .cacheControl(org.springframework.http.CacheControl.noStore())
+//                .body(Map.of("bookmarked", bookmarked));
+//    }
+
     @PostMapping
     @Operation(
             summary = "이벤트 등록",
@@ -112,8 +125,11 @@ public class EventController {
 
     @GetMapping("/{eventId}")
     @Operation(summary = "이벤트 상세 조회")
-    public ResponseEntity<EventResponseDto> getEvent(@PathVariable Long eventId) {
-        return ResponseEntity.ok(eventService.getEvent(eventId));
+    public ResponseEntity<EventResponseDto> getEvent(
+            @PathVariable Long eventId,
+            @AuthenticationPrincipal(expression = "id", errorOnInvalidType = false) UUID userId
+    ) {
+        return ResponseEntity.ok(eventService.getEvent(eventId, userId));
     }
 
     @GetMapping

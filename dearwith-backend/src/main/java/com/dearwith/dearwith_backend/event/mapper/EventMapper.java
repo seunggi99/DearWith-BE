@@ -52,6 +52,22 @@ public interface EventMapper {
     @Mapping(target = "images", source = "mappings")              // List<EventImageMapping> -> List<ImageDto>
     @Mapping(target = "artists", source = "artistMappings")       // List<EventArtistMapping> -> List<ArtistDto>
     @Mapping(target = "benefits", source = "benefits")            // List<EventBenefit> -> List<BenefitDto>
+    @Mapping(target = "bookmarked", expression = "java(bookmarked)")
+    EventResponseDto toResponse(
+            Event event,
+            List<EventImageMapping> mappings,
+            List<EventBenefit> benefits,
+            List<EventArtistMapping> artistMappings,
+            boolean bookmarked
+    );
+
+    // ---- Entity -> Response ----
+    @Mapping(target = "place", source = "event.placeInfo")
+    @Mapping(target = "organizer", source = "event.organizer")
+    @Mapping(target = "images", source = "mappings")              // List<EventImageMapping> -> List<ImageDto>
+    @Mapping(target = "artists", source = "artistMappings")       // List<EventArtistMapping> -> List<ArtistDto>
+    @Mapping(target = "benefits", source = "benefits")            // List<EventBenefit> -> List<BenefitDto>
+    @Mapping(target = "bookmarked", constant = "false")
     EventResponseDto toResponse(
             Event event,
             List<EventImageMapping> mappings,

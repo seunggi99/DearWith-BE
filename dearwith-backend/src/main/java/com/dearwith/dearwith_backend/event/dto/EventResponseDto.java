@@ -15,7 +15,9 @@ public record EventResponseDto(
         List<ImageDto> images,
         List<ArtistDto> artists,
         List<BenefitDto> benefits,
-        OrganizerDto organizer
+        OrganizerDto organizer,
+        Long bookmarkCount,
+        boolean bookmarked
 ) {
     public record ArtistDto(
             Long id,

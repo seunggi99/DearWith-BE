@@ -20,6 +20,7 @@ import com.dearwith.dearwith_backend.image.ImageAttachmentService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -291,7 +292,7 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
-    public EventResponseDto getEvent(Long eventId) {
+    public EventResponseDto getEvent(Long eventId, UUID userId) {
         Event e = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NoSuchElementException("Event not found"));
 
@@ -304,28 +305,25 @@ public class EventService {
         List<EventArtistMapping> artists =
                 artistMappingRepository.findByEventId(eventId);
 
-        return mapper.toResponse(e, mappings, benefits, artists);
+        return mapper.toResponse(e, mappings, benefits, artists, isBookmarked(eventId, userId));
     }
 
     @Transactional
     public void addBookmark(Long eventId, UUID userId) {
-        // 이미 북마크했는지 체크
-        if (eventBookmarkRepository.existsByEventIdAndUserId(eventId, userId)) {
-            throw new BusinessException(ErrorCode.ALREADY_BOOKMARKED_EVENT);
-        }
 
-        // 이벤트, 유저 존재 확인
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
 
-        EventBookmark bookmark = EventBookmark.builder()
-                .event(event)
-                .user(user)
-                .build();
+        try {
+            eventBookmarkRepository.save(EventBookmark.builder()
+                    .event(event).user(user).build());
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(ErrorCode.ALREADY_BOOKMARKED_EVENT);
+        }
 
-        eventBookmarkRepository.save(bookmark);
+        eventRepository.incrementBookmark(eventId);
     }
 
     @Transactional
@@ -335,6 +333,7 @@ public class EventService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOOKMARK_NOT_FOUND));
 
         eventBookmarkRepository.delete(bookmark);
+        eventRepository.decrementBookmark(bookmark.getEvent().getId());
     }
 
     @Transactional(readOnly = true)
@@ -364,10 +363,8 @@ public class EventService {
                         .endDate(event.getEndDate())
                         .bookmarkCount(event.getBookmarkCount())
                         .bookmarked(
-                                userId != null &&
-                                        eventBookmarkRepository.existsByEventIdAndUserId(event.getId(), userId)
+                            isBookmarked(event.getId(), userId)
                         )
-                        .bookmarked(false)
                         .build()
                 );
     }
@@ -424,6 +421,13 @@ public class EventService {
                     .bookmarked(true)
                     .build();
         });
+    }
+
+    public boolean isBookmarked(Long eventId, UUID userId) {
+        if (userId == null) {
+            return false;
+        }
+        return eventBookmarkRepository.existsByEventIdAndUserId(eventId, userId);
     }
 
 }

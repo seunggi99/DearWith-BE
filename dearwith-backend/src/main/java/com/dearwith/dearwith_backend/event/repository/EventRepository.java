@@ -20,6 +20,18 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     List<Event> findByStatus(EventStatus status);
     List<Event> findByUser_Id(UUID userId);
 
+    @Modifying
+    @Query("update Event e set e.bookmarkCount = e.bookmarkCount + 1 where e.id = :eventId")
+    int incrementBookmark(@Param("eventId") Long eventId);
+
+    @Modifying
+    @Query("""
+           update Event e
+           set e.bookmarkCount = case when e.bookmarkCount > 0 then e.bookmarkCount - 1 else 0 end
+           where e.id = :eventId
+           """)
+    int decrementBookmark(@Param("eventId") Long eventId);
+
     @Query("""
     SELECT e FROM Event e
     WHERE LOWER(e.title) LIKE LOWER(CONCAT('%', :query, '%'))
