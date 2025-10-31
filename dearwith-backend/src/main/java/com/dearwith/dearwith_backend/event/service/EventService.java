@@ -393,8 +393,8 @@ public class EventService {
 
         Page<EventBookmark> bookmarks =
                 (statusFilter != null)
-                        ? eventBookmarkRepository.findByUserIdAndEvent_Status(userId, statusFilter, pageable)
-                        : eventBookmarkRepository.findByUserId(userId, pageable);
+                        ? eventBookmarkRepository.findByUserIdAndEvent_Status(userId, statusFilter, sortedPageable)
+                        : eventBookmarkRepository.findByUserId(userId, sortedPageable);
 
         return bookmarks.map(bookmark -> {
             Event event = bookmark.getEvent();
