@@ -16,7 +16,7 @@ public class SearchController {
 
     private final RecentSearchService recentSearchService;
     @PostMapping("/recent/add")
-    @Operation(summary = "최근 검색어 추가(테스트용)")
+    @Operation(summary = "최근 검색어 추가")
     public void add(@AuthenticationPrincipal(expression = "id") UUID userId,
                     @RequestBody String query) {
         recentSearchService.add(userId, query);
