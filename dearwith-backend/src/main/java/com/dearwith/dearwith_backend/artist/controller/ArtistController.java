@@ -3,6 +3,10 @@ package com.dearwith.dearwith_backend.artist.controller;
 import com.dearwith.dearwith_backend.artist.dto.ArtistCreateRequestDto;
 import com.dearwith.dearwith_backend.artist.dto.ArtistDto;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
+import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
+import com.dearwith.dearwith_backend.event.enums.EventSort;
+import com.dearwith.dearwith_backend.event.service.EventService;
+import com.dearwith.dearwith_backend.search.service.RecentSearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,14 +26,21 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ArtistController {
     private final ArtistService artistService;
+    private final EventService eventService;
+    private final RecentSearchService recentSearchService;
 
     @GetMapping
     @Operation(summary = "아티스트 검색")
     public Page<ArtistDto> search(
+            @AuthenticationPrincipal(expression = "id") UUID userId,
             @RequestParam(name = "query") String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
+        if (userId != null && query != null && !query.isBlank()) {
+            recentSearchService.add(userId, query);
+        }
+
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by("nameKr").ascending().and(Sort.by("nameEn").ascending()));
 

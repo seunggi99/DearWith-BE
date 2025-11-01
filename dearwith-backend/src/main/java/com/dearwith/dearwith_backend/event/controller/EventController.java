@@ -5,6 +5,7 @@ import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.event.service.EventService;
+import com.dearwith.dearwith_backend.search.service.RecentSearchService;
 import io.swagger.v3.oas.annotations.Operation;
 
 import jakarta.validation.Valid;
@@ -26,6 +27,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class EventController {
     private final EventService eventService;
+    private final RecentSearchService recentSearchService;
 
     @Operation(summary = "북마크 해제")
     @DeleteMapping("/{eventId}/bookmark")
@@ -140,6 +142,10 @@ public class EventController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
+        if (userId != null && query != null && !query.isBlank()) {
+            recentSearchService.add(userId, query);
+        }
+
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by("title").ascending());
 

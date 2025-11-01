@@ -45,6 +45,9 @@ spring:
       host: ${SPRING_REDIS_HOST}
       port: ${SPRING_REDIS_PORT}
       password: ${SPRING_REDIS_PASSWORD:}
+      timeout: 2000ms
+  cache:
+    type: none
 
   security:
     oauth2:
@@ -107,3 +110,6 @@ app:
     presign-ttl-seconds: 60
   assets:
     public-base-url: "https://%s.s3.%s.amazonaws.com"
+  search:
+    recent:
+      ttl-days: 7
