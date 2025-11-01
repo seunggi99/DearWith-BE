@@ -43,10 +43,6 @@ public class ArtistController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        if (userId != null && query != null && !query.isBlank()) {
-            recentSearchService.add(userId, query);
-        }
-
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by("nameKr").ascending().and(Sort.by("nameEn").ascending()));
 
