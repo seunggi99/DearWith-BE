@@ -2,7 +2,12 @@ package com.dearwith.dearwith_backend.artist.controller;
 
 import com.dearwith.dearwith_backend.artist.dto.ArtistCreateRequestDto;
 import com.dearwith.dearwith_backend.artist.dto.ArtistDto;
+import com.dearwith.dearwith_backend.artist.dto.ArtistEventsResponseDto;
+import com.dearwith.dearwith_backend.artist.entity.Artist;
+import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
+import com.dearwith.dearwith_backend.common.exception.BusinessException;
+import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.enums.EventSort;
 import com.dearwith.dearwith_backend.event.service.EventService;
@@ -28,6 +33,7 @@ public class ArtistController {
     private final ArtistService artistService;
     private final EventService eventService;
     private final RecentSearchService recentSearchService;
+    private final ArtistRepository artistRepository;
 
     @GetMapping
     @Operation(summary = "아티스트 검색")
@@ -59,6 +65,34 @@ public class ArtistController {
         return ResponseEntity
                 .created(URI.create("/api/artists/" + response.id()))
                 .body(response);
+    }
+
+    @GetMapping("/{artistId}/events")
+    @Operation(summary = "특정 아티스트의 이벤트 목록")
+    public ArtistEventsResponseDto getArtistEvents(
+            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @PathVariable Long artistId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "LATEST") EventSort sort
+    ) {
+        Pageable pageable = PageRequest.of(page, size, switch (sort) {
+            case POPULAR -> Sort.by(Sort.Order.desc("bookmarkCount"), Sort.Order.desc("id"));
+            case UPCOMING -> Sort.by(Sort.Order.asc("startDate"), Sort.Order.asc("id"));
+            case LATEST -> Sort.by(Sort.Order.desc("id"));
+        });
+
+        Page<EventInfoDto> eventPage = eventService.getEventsByArtist(artistId, userId, pageable);
+
+        Artist artist = artistRepository.findById(artistId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+
+        return ArtistEventsResponseDto.builder()
+                .artistId(artist.getId())
+                .artistNameKr(artist.getNameKr())
+                .artistNameEn(artist.getNameEn())
+                .page(eventPage)
+                .build();
     }
 
 }

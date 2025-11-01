@@ -20,4 +20,18 @@ public interface EventArtistMappingRepository extends JpaRepository<EventArtistM
     boolean existsByEvent_IdAndArtist_Id(Long eventId, Long artistId);
 
     void deleteByEvent_Id(Long eventId);
+
+    interface EventArtistNamesRow {
+        Long getEventId();
+        String getNameEn();
+        String getNameKr();
+    }
+
+    @Query("""
+        select eam.event.id as eventId, a.nameEn as nameEn, a.nameKr as nameKr
+          from EventArtistMapping eam
+          join eam.artist a
+         where eam.event.id in :eventIds
+    """)
+    List<EventArtistNamesRow> findArtistNamesByEventIds(@Param("eventIds") List<Long> eventIds);
 }

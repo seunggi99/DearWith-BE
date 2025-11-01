@@ -69,4 +69,13 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     """)
     int bulkMarkScheduled(@Param("now") LocalDate now);
 
+    @Query("""
+        select distinct e
+          from Event e
+          join e.artists eam
+         where eam.artist.id = :artistId
+           and e.deletedAt is null
+    """)
+    Page<Event> findPageByArtistId(@Param("artistId") Long artistId, Pageable pageable);
+
 }

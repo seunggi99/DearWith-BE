@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.event.service;
 
 import com.dearwith.dearwith_backend.artist.entity.Artist;
+import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
@@ -21,10 +22,7 @@ import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +37,9 @@ public class EventService {
 
     private final EventRepository eventRepository;
     private final EventBookmarkRepository eventBookmarkRepository;
+    private final ArtistRepository artistRepository;
     private final UserRepository userRepository;
+    private final EventArtistMappingRepository eventArtistMappingRepository;
     private final EventImageMappingRepository mappingRepository;
     private final EventBenefitRepository benefitRepository;
     private final EventMapper mapper;
@@ -338,35 +338,25 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public Page<EventInfoDto> search(UUID userId, String query, Pageable pageable) {
-        return eventRepository.searchByTitle(query, pageable)
-                .map(event -> EventInfoDto.builder()
-                        .id(event.getId())
-                        .title(event.getTitle())
-                        .imageUrl(
-                                event.getCoverImage() != null
-                                        ? event.getCoverImage().getImageUrl()
-                                        : null
-                        )
-                        .artistNamesKr(
-                                event.getArtists().stream()
-                                        .map(m -> m.getArtist().getNameKr())
-                                        .filter(Objects::nonNull)
-                                        .toList()
-                        )
-                        .artistNamesEn(
-                                event.getArtists().stream()
-                                        .map(m -> m.getArtist().getNameEn())
-                                        .filter(Objects::nonNull)
-                                        .toList()
-                        )
-                        .startDate(event.getStartDate())
-                        .endDate(event.getEndDate())
-                        .bookmarkCount(event.getBookmarkCount())
-                        .bookmarked(
-                            isBookmarked(event.getId(), userId)
-                        )
-                        .build()
-                );
+        Page<Event> page = eventRepository.searchByTitle(query, pageable);
+        Set<Long> bookmarked = bookmarkedIds(userId, page);
+        return page.map(event -> EventInfoDto.builder()
+                .id(event.getId())
+                .title(event.getTitle())
+                .imageUrl(event.getCoverImage() != null ? event.getCoverImage().getImageUrl() : null)
+                .artistNamesKr(event.getArtists().stream()
+                        .map(m -> m.getArtist().getNameKr())
+                        .filter(Objects::nonNull)
+                        .toList())
+                .artistNamesEn(event.getArtists().stream()
+                        .map(m -> m.getArtist().getNameEn())
+                        .filter(Objects::nonNull)
+                        .toList())
+                .startDate(event.getStartDate())
+                .endDate(event.getEndDate())
+                .bookmarkCount(event.getBookmarkCount())
+                .bookmarked(userId == null ? null : bookmarked.contains(event.getId()))
+                .build());
     }
 
     @Transactional(readOnly = true)
@@ -423,11 +413,81 @@ public class EventService {
         });
     }
 
+    /**
+     * 목록 API에서 북마크 여부를 한 번에 조회하기 위한 배치 메서드.
+     */
+    private Set<Long> bookmarkedIds(UUID userId, Collection<Long> eventIds) {
+        if (userId == null || eventIds == null || eventIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+        List<Long> ids = eventBookmarkRepository.findBookmarkedEventIds(userId, eventIds);
+        return new HashSet<>(ids);
+    }
+
+    /**
+     * Page<Event> 바로 넣어 쓰는 편의 오버로드.
+     */
+    private Set<Long> bookmarkedIds(UUID userId, Page<Event> page) {
+        if (page == null || page.isEmpty()) return Collections.emptySet();
+        List<Long> eventIds = page.getContent().stream().map(Event::getId).toList();
+        return bookmarkedIds(userId, eventIds);
+    }
+
+    /**
+     * 단건 상세용: exists 체크
+     */
     public boolean isBookmarked(Long eventId, UUID userId) {
         if (userId == null) {
             return false;
         }
         return eventBookmarkRepository.existsByEventIdAndUserId(eventId, userId);
+    }
+
+
+    public Page<EventInfoDto> getEventsByArtist(Long artistId, UUID userId, Pageable pageable) {
+
+        if (!artistRepository.existsById(artistId)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+
+        // 1) 이벤트 페이지 조회
+        Page<Event> page = eventRepository.findPageByArtistId(artistId, pageable);
+
+        if (page.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, 0);
+        }
+
+        // 2) 배치로 이벤트ID 수집
+        List<Long> eventIds = page.getContent().stream().map(Event::getId).toList();
+
+        // 3) 배치로 이벤트별 모든 아티스트 이름 조회
+        List<EventArtistMappingRepository.EventArtistNamesRow> names = eventArtistMappingRepository.findArtistNamesByEventIds(eventIds);
+        Map<Long, List<String>> namesEnMap = new HashMap<>();
+        Map<Long, List<String>> namesKrMap = new HashMap<>();
+        for (EventArtistMappingRepository.EventArtistNamesRow row : names) {
+            namesEnMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>()).add(row.getNameEn());
+            namesKrMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>()).add(row.getNameKr());
+        }
+
+        // 4) (로그인 시) 북마크 여부 일괄 조회
+        Set<Long> bookmarked = bookmarkedIds(userId, eventIds);
+
+        // 5) DTO 매핑
+        List<EventInfoDto> dtoList = page.getContent().stream().map(e ->
+                EventInfoDto.builder()
+                        .id(e.getId())
+                        .title(e.getTitle())
+                        .imageUrl(e.getCoverImage() != null ? e.getCoverImage().getImageUrl() : null)
+                        .artistNamesEn(namesEnMap.getOrDefault(e.getId(), List.of()))
+                        .artistNamesKr(namesKrMap.getOrDefault(e.getId(), List.of()))
+                        .startDate(e.getStartDate())
+                        .endDate(e.getEndDate())
+                        .bookmarkCount(e.getBookmarkCount())
+                        .bookmarked(userId == null ? null : bookmarked.contains(e.getId()))
+                        .build()
+        ).toList();
+
+        return new PageImpl<>(dtoList, pageable, page.getTotalElements());
     }
 
 }
