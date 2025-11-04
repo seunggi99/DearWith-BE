@@ -13,10 +13,10 @@ import static jakarta.persistence.FetchType.LAZY;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "review_like",
-        uniqueConstraints = @UniqueConstraint(name = "uk_review_like_once",
-                columnNames = {"review_id", "user_id"}),
-        indexes = @Index(name = "ix_review_like_review", columnList = "review_id"))
+@Table(
+        name = "review_like",
+        uniqueConstraints = @UniqueConstraint(name = "uk_review_like_review_user", columnNames = {"review_id", "user_id"})
+)
 public class ReviewLike extends BaseTimeEntity {
 
     @Id

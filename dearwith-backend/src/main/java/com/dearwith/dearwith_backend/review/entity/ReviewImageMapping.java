@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.review.entity;
 
 import com.dearwith.dearwith_backend.common.jpa.BaseTimeEntity;
 import com.dearwith.dearwith_backend.image.Image;
+import com.dearwith.dearwith_backend.review.enums.ReviewStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -38,12 +39,19 @@ public class ReviewImageMapping extends BaseTimeEntity {
     @Column(name = "event_id", nullable = false)
     private Long eventId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "review_status", length = 20, nullable = false)
+    private ReviewStatus reviewStatus;
+
     @Column(nullable=false) private int displayOrder;
     @PrePersist
     @PreUpdate
-    private void syncEventId() {
-        if (eventId == null && review != null && review.getEvent() != null) {
-            this.eventId = review.getEvent().getId();
+    private void syncFromReview() {
+        if (review != null) {
+            if (eventId == null && review.getEvent() != null) {
+                this.eventId = review.getEvent().getId();
+            }
+            this.reviewStatus = review.getStatus();
         }
     }
 }

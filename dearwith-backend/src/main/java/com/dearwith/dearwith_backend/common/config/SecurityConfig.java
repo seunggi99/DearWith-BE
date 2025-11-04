@@ -104,12 +104,16 @@ public class SecurityConfig {
                                 "/users/me/**",
                                 "/api/main",
                                 "/api/events/*/bookmark",
-                                "/api/uploads/**"
+                                "/api/uploads/*",
+                                "/api/reviews/*/like",
+                                "/api/search/recent/**"
                             //    "/oauth2/x/authorize",
                             //    "/oauth2/callback/x",
                             //    "/api/events/organizer/verify-x"
                         ).authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/events").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/events/*/reviews").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/artists").authenticated()
                         // 개발 중 나머지
                         .anyRequest().permitAll()
                 )

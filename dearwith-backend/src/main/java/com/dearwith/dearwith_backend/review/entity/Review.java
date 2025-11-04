@@ -36,11 +36,11 @@ public class Review extends BaseDeletableEntity {
 
     @Column(nullable = false)
     @Builder.Default
-    private int likeCount = 0;
+    private Integer likeCount = 0;
 
     @Column(nullable = false)
     @Builder.Default
-    private int reportCount = 0;
+    private Integer reportCount = 0;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 30, nullable = false)
