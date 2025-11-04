@@ -29,44 +29,28 @@ public class ImageAttachmentService {
     @Transactional
     public void setReviewImages(Review review, List<ImageAttachmentRequest> images, UUID userId) {
 
-        if (images == null || images.isEmpty()) return;
+        review.clearImages();
 
-        // displayOrder 정렬 & 중복 tmpKey 방지
-        var sorted = images.stream()
-                .sorted(Comparator.comparing(
-                        ImageAttachmentRequest::displayOrder,
-                        Comparator.nullsLast(Integer::compare)))
-                .toList();
 
-        Set<String> dedup = new HashSet<>();
-        int seq = 0;
-
-        for (var dto : sorted) {
+        for (ImageAttachmentRequest dto : images) {
             String tmpKey = dto.tmpKey();
             if (tmpKey == null || !tmpKey.startsWith("tmp/")) {
                 throw new BusinessException(ErrorCode.INVALID_TMP_KEY, "tmpKey=" + tmpKey);
             }
-            if (!dedup.add(tmpKey)) {
-                throw new BusinessException(ErrorCode.DUPLICATE_IMAGE_KEY, tmpKey);
-            }
 
-            // 1) tmp → inline 원본 커밋
-            String originalKey = commitTmpToInline(tmpKey);
-
-            // 2) 원본 등록 + 파생 버전 생성 (리뷰 프리셋 적용)
-            Image img = imageService.registerCommittedImageWithVariants(
-                    originalKey,
+            // tmp -> inline 승격 + 이미지 엔티티 등록 + (리뷰용) 버전 생성
+            Image image = imageService.registerCommittedImageWithVariants(
+                    s3UploadService.promoteTmpToInline(tmpKey),
                     userId,
-                    ReviewVariantPresets.reviewImageSet() // 160/320, 122/244, large(2048) 등
+                    ReviewVariantPresets.reviewImageSet() // 리뷰용 프리셋
             );
 
-            // 3) 매핑 추가
-            int order = (dto.displayOrder() != null) ? dto.displayOrder() : seq++;
-            review.addImageMapping(ReviewImageMapping.builder()
-                    .review(review)
-                    .image(img)
-                    .displayOrder(order)
-                    .build());
+            ReviewImageMapping mapping = ReviewImageMapping.builder()
+                    .image(image)
+                    .displayOrder(dto.displayOrder() != null ? dto.displayOrder() : 0)
+                    .build();
+
+            review.addImageMapping(mapping); // 내부에서 review/eventId 세팅 + 리스트 add
         }
     }
 

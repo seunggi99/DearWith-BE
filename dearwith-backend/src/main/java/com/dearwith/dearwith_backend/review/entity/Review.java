@@ -57,18 +57,23 @@ public class Review extends BaseDeletableEntity {
     @OrderColumn(name = "display_order")
     private List<String> tags = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     private List<ReviewImageMapping> images = new ArrayList<>();
 
 
     public void addImageMapping(ReviewImageMapping mapping) {
-        images.add(mapping);
+        if (images == null) images = new ArrayList<>();
         mapping.setReview(this);
+        if (this.event != null) {
+            mapping.setEventId(this.event.getId());
+        }
+        images.add(mapping);
     }
 
     public void clearImages() {
-        for (var m : images) m.setReview(null);
+        if (images == null) { images = new ArrayList<>(); return; }
         images.clear();
     }
 

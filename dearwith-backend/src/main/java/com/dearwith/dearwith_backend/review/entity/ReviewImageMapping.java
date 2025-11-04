@@ -39,9 +39,10 @@ public class ReviewImageMapping extends BaseTimeEntity {
     private Long eventId;
 
     @Column(nullable=false) private int displayOrder;
+    @PrePersist
     @PreUpdate
     private void syncEventId() {
-        if (review != null && review.getEvent() != null) {
+        if (eventId == null && review != null && review.getEvent() != null) {
             this.eventId = review.getEvent().getId();
         }
     }
