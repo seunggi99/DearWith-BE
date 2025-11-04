@@ -130,37 +130,38 @@ public class S3UploadService {
 
         try (var in = s3.getObject(getReq)) {
             BufferedImage src = ImageIO.read(in);
-            if (src == null) {
-                throw new BusinessException(ErrorCode.UNSUPPORTED_IMAGE_TYPE, "cannot read source image");
-            }
+            if (src == null) throw new BusinessException(ErrorCode.UNSUPPORTED_IMAGE_TYPE, "cannot read source image");
 
-            String dir = getDirPrefix(originalKey);
+            String baseDir = getDirPrefix(originalKey);
+            String stem    = getStemWithoutExt(originalKey);
+            String variantDir = baseDir + stem + "/";
 
             for (VariantSpec spec : specs) {
-                String fmt = normalizeFormat(spec.format()); // webp 지원 없으면 jpeg로 폴백
+                String fmt = normalizeFormat(spec.format());
                 byte[] bytes;
 
-                // 정사각 스펙: 중앙 크롭 후 리사이즈
                 if (spec.maxWidth() != null && spec.maxHeight() != null && spec.maxWidth().equals(spec.maxHeight())) {
+                    // 중앙 정사각 크롭 + 리사이즈
                     int size = spec.maxWidth();
+                    int crop = Math.min(src.getWidth(), src.getHeight());
                     try (var baos = new ByteArrayOutputStream()) {
                         Thumbnails.of(src)
-                                .sourceRegion(Positions.CENTER,
-                                        Math.min(src.getWidth(), src.getHeight()),
-                                        Math.min(src.getWidth(), src.getHeight()))
-                                .size(size, size)
+                                .sourceRegion(Positions.CENTER, crop, crop)
+                                .size(Math.min(size, crop), Math.min(size, crop))
                                 .outputFormat(fmt)
                                 .outputQuality((spec.quality() == null ? 80 : spec.quality()) / 100.0)
                                 .toOutputStream(baos);
                         bytes = baos.toByteArray();
                     }
                 } else {
-                    // 긴 변 기준 리사이즈 (Aspect Ratio 유지)
+                    // 긴 변 기준 리사이즈 (원본보다 키우지 않음)
                     int longEdge = (spec.maxWidth() != null) ? spec.maxWidth()
                             : (spec.maxHeight() != null ? spec.maxHeight() : 2048);
+
                     int w = src.getWidth(), h = src.getHeight();
-                    int tw = (w >= h) ? longEdge : (int) Math.round((longEdge / (double) h) * w);
-                    int th = (w >= h) ? (int) Math.round((longEdge / (double) w) * h) : longEdge;
+                    int targetLong = Math.min(longEdge, Math.max(w, h));
+                    int tw = (w >= h) ? targetLong : (int)Math.round((targetLong / (double)h) * w);
+                    int th = (w >= h) ? (int)Math.round((targetLong / (double)w) * h) : targetLong;
 
                     try (var baos = new ByteArrayOutputStream()) {
                         Thumbnails.of(src)
@@ -172,7 +173,8 @@ public class S3UploadService {
                     }
                 }
 
-                String variantKey = dir + spec.filename();
+                // ✅ 변환본을 원본-stem 하위 폴더에 저장
+                String variantKey = variantDir + spec.filename();
                 putBytes(variantKey, bytes, "image/" + fmt);
             }
         } catch (IOException e) {
@@ -193,6 +195,12 @@ public class S3UploadService {
         String encodedKey = encodePath(key);
         String base = String.format(publicBaseUrlPattern, bucket, region);
         return base.endsWith("/") ? base + encodedKey : base + "/" + encodedKey;
+    }
+
+    private String getStemWithoutExt(String key) {
+        String file = key.substring(key.lastIndexOf('/') + 1);
+        int dot = file.lastIndexOf('.');
+        return (dot > 0) ? file.substring(0, dot) : file;
     }
 
     /** 경로 세그먼트별 안전 인코딩 */
