@@ -3,9 +3,10 @@ package com.dearwith.dearwith_backend.external.aws;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.image.VariantSpec;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import net.coobird.thumbnailator.Thumbnails;
-import net.coobird.thumbnailator.geometry.Positions;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -28,6 +29,7 @@ import java.time.LocalDate;
 import java.time.Year;
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class S3UploadService {
@@ -126,88 +128,107 @@ public class S3UploadService {
      * - VariantSpec: filename, maxWidth, maxHeight, format(webp/jpeg), quality(0~100)
      */
     public void generateVariants(String originalKey, List<VariantSpec> specs) {
+        long t0 = System.currentTimeMillis();
+        log.info("[variants] start originalKey={}, specs={}", originalKey, specs);
+
         var getReq = GetObjectRequest.builder().bucket(bucket).key(originalKey).build();
 
         try (var in = s3.getObject(getReq)) {
             BufferedImage src = ImageIO.read(in);
-            if (src == null) throw new BusinessException(ErrorCode.UNSUPPORTED_IMAGE_TYPE, "cannot read source image");
+            if (src == null) {
+                log.warn("[variants] cannot read source image: key={}", originalKey);
+                throw new BusinessException(ErrorCode.UNSUPPORTED_IMAGE_TYPE, "cannot read source image");
+            }
+            log.info("[variants] source size={}x{}, type={}", src.getWidth(), src.getHeight(), src.getType());
 
-            String baseDir   = getDirPrefix(originalKey);
-            String stem      = getStemWithoutExt(originalKey);
-            String variantDir= baseDir + stem + "/";
+            String baseDir    = getDirPrefix(originalKey);
+            String stem       = getStemWithoutExt(originalKey);
+            String variantDir = baseDir + stem + "/";
+            log.info("[variants] variantDir={}", variantDir);
 
             for (VariantSpec spec : specs) {
                 String fmt = normalizeFormat(spec.format());
                 byte[] bytes;
+                try {
+                    if (spec.maxWidth() != null && spec.maxHeight() != null) {
+                        int targetW = spec.maxWidth();
+                        int targetH = spec.maxHeight();
 
-                if (spec.maxWidth() != null && spec.maxHeight() != null) {
-                    int targetW = spec.maxWidth();
-                    int targetH = spec.maxHeight();
+                        int w = src.getWidth(), h = src.getHeight();
+                        double scale = Math.min(targetW / (double) w, targetH / (double) h);
+                        int rw = Math.max(1, (int) Math.round(w * scale));
+                        int rh = Math.max(1, (int) Math.round(h * scale));
 
-                    int w = src.getWidth(), h = src.getHeight();
-                    double scale = Math.min(targetW / (double) w, targetH / (double) h);
-                    int rw = Math.max(1, (int) Math.round(w * scale));
-                    int rh = Math.max(1, (int) Math.round(h * scale));
+                        log.info("[variants] CONTAIN resize spec filename={}, fmt={}, target={}x{}, resized={}x{}",
+                                spec.filename(), fmt, targetW, targetH, rw, rh);
 
-                    // 1) 비율유지 리사이즈 (중간 버퍼는 무손실 PNG로)
-                    BufferedImage resized;
-                    try (var baos = new ByteArrayOutputStream()) {
-                        Thumbnails.of(src)
-                                .size(rw, rh)
-                                .outputFormat("png")
-                                .toOutputStream(baos);
-                        resized = ImageIO.read(new java.io.ByteArrayInputStream(baos.toByteArray()));
-                    }
-
-                    // 2) 타깃 캔버스에 중앙 합성 (배경 흰색; 투명 원하면 ARGB와 png/webp 사용)
-                    boolean transparent = fmt.equals("png") || fmt.equals("webp");
-                    int type = transparent ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB;
-                    BufferedImage canvas = new BufferedImage(targetW, targetH, type);
-
-                    var g = canvas.createGraphics();
-                    try {
-                        if (transparent) {
-                            g.setComposite(java.awt.AlphaComposite.Src);
-                            g.setColor(new java.awt.Color(0, 0, 0, 0));
-                        } else {
-                            g.setColor(java.awt.Color.WHITE);
+                        // 1) 비율유지 리사이즈 (중간 PNG)
+                        BufferedImage resized;
+                        try (var baos = new ByteArrayOutputStream()) {
+                            Thumbnails.of(src).size(rw, rh).outputFormat("png").toOutputStream(baos);
+                            resized = ImageIO.read(new java.io.ByteArrayInputStream(baos.toByteArray()));
                         }
-                        g.fillRect(0, 0, targetW, targetH);
 
-                        int x = (targetW - rw) / 2;
-                        int y = (targetH - rh) / 2;
-                        g.drawImage(resized, x, y, null);
-                    } finally {
-                        g.dispose();
+                        // 2) 캔버스 합성
+                        boolean transparent = fmt.equals("png") || fmt.equals("webp");
+                        int type = transparent ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB;
+                        BufferedImage canvas = new BufferedImage(targetW, targetH, type);
+
+                        var g = canvas.createGraphics();
+                        try {
+                            if (transparent) {
+                                g.setComposite(java.awt.AlphaComposite.Src);
+                                g.setColor(new java.awt.Color(0, 0, 0, 0));
+                            } else {
+                                g.setColor(java.awt.Color.WHITE);
+                            }
+                            g.fillRect(0, 0, targetW, targetH);
+
+                            int x = (targetW - rw) / 2;
+                            int y = (targetH - rh) / 2;
+                            g.drawImage(resized, x, y, null);
+                        } finally {
+                            g.dispose();
+                        }
+
+                        try (var baos = new ByteArrayOutputStream()) {
+                            ImageIO.write(canvas, fmt.equals("jpeg") ? "jpg" : fmt, baos);
+                            bytes = baos.toByteArray();
+                        }
+                    } else {
+                        int longEdge = (spec.maxWidth() != null) ? spec.maxWidth()
+                                : (spec.maxHeight() != null ? spec.maxHeight() : 2048);
+                        int w = src.getWidth(), h = src.getHeight();
+                        int targetLong = Math.min(longEdge, Math.max(w, h));
+                        int tw = (w >= h) ? targetLong : (int) Math.round((targetLong / (double) h) * w);
+                        int th = (w >= h) ? (int) Math.round((targetLong / (double) w) * h) : targetLong;
+
+                        log.info("[variants] LONG-EDGE resize spec filename={}, fmt={}, targetLong={}, out={}x{}",
+                                spec.filename(), fmt, longEdge, tw, th);
+
+                        try (var baos = new ByteArrayOutputStream()) {
+                            Thumbnails.of(src)
+                                    .size(Math.max(1, tw), Math.max(1, th))
+                                    .outputFormat(fmt)
+                                    .outputQuality((spec.quality() == null ? 80 : spec.quality()) / 100.0)
+                                    .toOutputStream(baos);
+                            bytes = baos.toByteArray();
+                        }
                     }
 
-                    try (var baos = new ByteArrayOutputStream()) {
-                        ImageIO.write(canvas, fmt.equals("jpeg") ? "jpg" : fmt, baos);
-                        bytes = baos.toByteArray();
-                    }
-                } else {
-                    // 한쪽만 지정된 경우: 긴 변 기준 리사이즈 (비율 유지, 업스케일 방지)
-                    int longEdge = (spec.maxWidth() != null) ? spec.maxWidth()
-                            : (spec.maxHeight() != null ? spec.maxHeight() : 2048);
-                    int w = src.getWidth(), h = src.getHeight();
-                    int targetLong = Math.min(longEdge, Math.max(w, h));
-                    int tw = (w >= h) ? targetLong : (int) Math.round((targetLong / (double) h) * w);
-                    int th = (w >= h) ? (int) Math.round((targetLong / (double) w) * h) : targetLong;
+                    String variantKey = variantDir + spec.filename();
+                    putBytes(variantKey, bytes, "image/" + fmt);
+                    log.info("[variants] uploaded key={}, size={}B", variantKey, bytes.length);
 
-                    try (var baos = new ByteArrayOutputStream()) {
-                        Thumbnails.of(src)
-                                .size(Math.max(1, tw), Math.max(1, th))
-                                .outputFormat(fmt)
-                                .outputQuality((spec.quality() == null ? 80 : spec.quality()) / 100.0)
-                                .toOutputStream(baos);
-                        bytes = baos.toByteArray();
-                    }
+                } catch (Exception ex) {
+                    log.error("[variants] failed spec filename={}, fmt={}, reason={}", spec.filename(), fmt, ex.toString(), ex);
+                    throw ex;
                 }
-
-                String variantKey = variantDir + spec.filename();
-                putBytes(variantKey, bytes, "image/" + fmt);
             }
+
+            log.info("[variants] done originalKey={} ({}ms)", originalKey, (System.currentTimeMillis() - t0));
         } catch (IOException e) {
+            log.error("[variants] IO error originalKey={}, err={}", originalKey, e.toString(), e);
             throw new BusinessException(ErrorCode.IMAGE_PROCESSING_FAILED, e.getMessage());
         }
     }
@@ -287,5 +308,11 @@ public class S3UploadService {
                         .cacheControl("public, max-age=31536000, immutable"),
                 RequestBody.fromBytes(bytes)
         );
+    }
+
+    @PostConstruct
+    void logBuildAndClass() {
+        var loc = S3UploadService.class.getProtectionDomain().getCodeSource().getLocation();
+        log.info("[BOOT] S3UploadService loaded from: {}", loc);
     }
 }
