@@ -7,6 +7,8 @@ import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.entity.Event;
 import com.dearwith.dearwith_backend.event.entity.EventImageMapping;
 import com.dearwith.dearwith_backend.external.aws.S3UploadService;
+import com.dearwith.dearwith_backend.review.entity.Review;
+import com.dearwith.dearwith_backend.review.entity.ReviewImageMapping;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,67 @@ public class ImageAttachmentService {
 
     private final S3UploadService s3UploadService;
     private final ImageService imageService;
+
+    @Transactional
+    public void setReviewImages(Review review, List<ImageAttachmentRequest> images, UUID userId) {
+
+        if (images == null || images.isEmpty()) return;
+
+        // displayOrder 정렬 & 중복 tmpKey 방지
+        var sorted = images.stream()
+                .sorted(Comparator.comparing(
+                        ImageAttachmentRequest::displayOrder,
+                        Comparator.nullsLast(Integer::compare)))
+                .toList();
+
+        Set<String> dedup = new HashSet<>();
+        int seq = 0;
+
+        for (var dto : sorted) {
+            String tmpKey = dto.tmpKey();
+            if (tmpKey == null || !tmpKey.startsWith("tmp/")) {
+                throw new BusinessException(ErrorCode.INVALID_TMP_KEY, "tmpKey=" + tmpKey);
+            }
+            if (!dedup.add(tmpKey)) {
+                throw new BusinessException(ErrorCode.DUPLICATE_IMAGE_KEY, tmpKey);
+            }
+
+            // 1) tmp → inline 원본 커밋
+            String originalKey = commitTmpToInline(tmpKey);
+
+            // 2) 원본 등록 + 파생 버전 생성 (리뷰 프리셋 적용)
+            Image img = imageService.registerCommittedImageWithVariants(
+                    originalKey,
+                    userId,
+                    ReviewVariantPresets.reviewImageSet() // 160/320, 122/244, large(2048) 등
+            );
+
+            // 3) 매핑 추가
+            int order = (dto.displayOrder() != null) ? dto.displayOrder() : seq++;
+            review.addImageMapping(ReviewImageMapping.builder()
+                    .review(review)
+                    .image(img)
+                    .displayOrder(order)
+                    .build());
+        }
+    }
+
+//    @Transactional
+//    public void setReviewImages(Review review, List<ImageAttachmentRequest> images, UUID userId) {
+//        attachImages(
+//                images,
+//                userId,
+//                () -> false,
+//                img -> {},
+//                (img, order) -> review.addImageMapping(
+//                        ReviewImageMapping.builder()
+//                                .review(review)
+//                                .image(img)
+//                                .displayOrder(order)
+//                                .build()
+//                )
+//        );
+//    }
 
     @Transactional
     public void setEventImages(Event event, List<ImageAttachmentRequest> images, UUID userId) {

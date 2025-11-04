@@ -4,5 +4,5 @@ import jakarta.validation.constraints.NotBlank;
 
 public record ImageAttachmentRequest(
         @NotBlank String tmpKey,
-        int displayOrder
+        Integer displayOrder
 ) {}

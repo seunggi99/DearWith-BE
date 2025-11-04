@@ -2,24 +2,31 @@ package com.dearwith.dearwith_backend.external.aws;
 
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
+import com.dearwith.dearwith_backend.image.VariantSpec;
 import lombok.RequiredArgsConstructor;
+import net.coobird.thumbnailator.Thumbnails;
+import net.coobird.thumbnailator.geometry.Positions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.MetadataDirective;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.Year;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +46,15 @@ public class S3UploadService {
 
 
     private static final Set<String> ALLOWED_DOMAINS = Set.of("event", "review", "artist", "profile");
-    private static final Set<String> ALLOWED_MIME = Set.of("image/jpeg", "image/png", "image/webp", "image/avif");
+    private static final Set<String> ALLOWED_MIME = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/avif",
+            "image/heic",
+            "image/heif",
+            "image/gif"
+    );
     public record PresignOut(String url, String key, long ttlSeconds) {}
 
     /**
@@ -107,6 +122,71 @@ public class S3UploadService {
     }
 
     /**
+     * 원본 기준으로 썸네일/미리보기/확대용 등 여러 버전 생성 & 업로드
+     * - VariantSpec: filename, maxWidth, maxHeight, format(webp/jpeg), quality(0~100)
+     */
+    public void generateVariants(String originalKey, List<VariantSpec> specs) {
+        var getReq = GetObjectRequest.builder().bucket(bucket).key(originalKey).build();
+
+        try (var in = s3.getObject(getReq)) {
+            BufferedImage src = ImageIO.read(in);
+            if (src == null) {
+                throw new BusinessException(ErrorCode.UNSUPPORTED_IMAGE_TYPE, "cannot read source image");
+            }
+
+            String dir = getDirPrefix(originalKey);
+
+            for (VariantSpec spec : specs) {
+                String fmt = normalizeFormat(spec.format()); // webp 지원 없으면 jpeg로 폴백
+                byte[] bytes;
+
+                // 정사각 스펙: 중앙 크롭 후 리사이즈
+                if (spec.maxWidth() != null && spec.maxHeight() != null && spec.maxWidth().equals(spec.maxHeight())) {
+                    int size = spec.maxWidth();
+                    try (var baos = new ByteArrayOutputStream()) {
+                        Thumbnails.of(src)
+                                .sourceRegion(Positions.CENTER,
+                                        Math.min(src.getWidth(), src.getHeight()),
+                                        Math.min(src.getWidth(), src.getHeight()))
+                                .size(size, size)
+                                .outputFormat(fmt)
+                                .outputQuality((spec.quality() == null ? 80 : spec.quality()) / 100.0)
+                                .toOutputStream(baos);
+                        bytes = baos.toByteArray();
+                    }
+                } else {
+                    // 긴 변 기준 리사이즈 (Aspect Ratio 유지)
+                    int longEdge = (spec.maxWidth() != null) ? spec.maxWidth()
+                            : (spec.maxHeight() != null ? spec.maxHeight() : 2048);
+                    int w = src.getWidth(), h = src.getHeight();
+                    int tw = (w >= h) ? longEdge : (int) Math.round((longEdge / (double) h) * w);
+                    int th = (w >= h) ? (int) Math.round((longEdge / (double) w) * h) : longEdge;
+
+                    try (var baos = new ByteArrayOutputStream()) {
+                        Thumbnails.of(src)
+                                .size(Math.max(tw, 1), Math.max(th, 1))
+                                .outputFormat(fmt)
+                                .outputQuality((spec.quality() == null ? 80 : spec.quality()) / 100.0)
+                                .toOutputStream(baos);
+                        bytes = baos.toByteArray();
+                    }
+                }
+
+                String variantKey = dir + spec.filename();
+                putBytes(variantKey, bytes, "image/" + fmt);
+            }
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.IMAGE_PROCESSING_FAILED, e.getMessage());
+        }
+    }
+
+    /** inline/.../dir/ 경로 prefix 추출 */
+    public String getDirPrefix(String key) {
+        int idx = key.lastIndexOf('/');
+        return (idx < 0) ? "" : key.substring(0, idx + 1);
+    }
+
+    /**
      * S3 또는 CloudFront 퍼블릭 URL 생성
      */
     public String generatePublicUrl(String key) {
@@ -139,5 +219,26 @@ public class S3UploadService {
         name = name.replace("\\", "_").replace("/", "_");
         if (name.length() > 120) name = name.substring(name.length() - 120);
         return Normalizer.normalize(name, Normalizer.Form.NFKC);
+    }
+
+    /** webp 플러그인 미존재 시 jpeg로 폴백 */
+    private String normalizeFormat(String fmt) {
+        if (fmt == null) return "jpeg";
+        String f = fmt.toLowerCase(Locale.ROOT);
+        if (f.equals("webp") && ImageIO.getImageWritersByFormatName("webp").hasNext()) return "webp";
+        if (f.equals("jpg")) return "jpeg";
+        if (f.equals("png") || f.equals("jpeg")) return f;
+        return "jpeg";
+    }
+
+    /** S3 업로드 (SDK v2) */
+    private void putBytes(String key, byte[] bytes, String contentType) {
+        s3.putObject(b -> b
+                        .bucket(bucket)
+                        .key(key)
+                        .contentType(contentType)
+                        .cacheControl("public, max-age=31536000, immutable"),
+                RequestBody.fromBytes(bytes)
+        );
     }
 }

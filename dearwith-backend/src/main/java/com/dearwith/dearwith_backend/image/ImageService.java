@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -33,5 +34,25 @@ public class ImageService {
                 .build();
 
         return imageRepository.save(image);
+    }
+
+    @Transactional
+    public Image registerCommittedImageWithVariants(String originalKey, UUID userId, List<VariantSpec> specs) {
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+        String url = s3UploadService.generatePublicUrl(originalKey);
+
+        Image image = Image.builder()
+                .s3Key(originalKey)
+                .imageUrl(url)
+                .status(ImageStatus.COMMITTED)
+                .user(user)
+                .build();
+
+        Image saved = imageRepository.save(image);
+
+        s3UploadService.generateVariants(originalKey, specs);
+
+        return saved;
     }
 }
