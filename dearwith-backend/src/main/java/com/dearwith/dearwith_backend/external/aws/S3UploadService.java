@@ -132,40 +132,71 @@ public class S3UploadService {
             BufferedImage src = ImageIO.read(in);
             if (src == null) throw new BusinessException(ErrorCode.UNSUPPORTED_IMAGE_TYPE, "cannot read source image");
 
-            String baseDir = getDirPrefix(originalKey);
-            String stem    = getStemWithoutExt(originalKey);
-            String variantDir = baseDir + stem + "/";
+            String baseDir   = getDirPrefix(originalKey);
+            String stem      = getStemWithoutExt(originalKey);
+            String variantDir= baseDir + stem + "/";
 
             for (VariantSpec spec : specs) {
                 String fmt = normalizeFormat(spec.format());
                 byte[] bytes;
 
-                if (spec.maxWidth() != null && spec.maxHeight() != null && spec.maxWidth().equals(spec.maxHeight())) {
-                    // 중앙 정사각 크롭 + 리사이즈
-                    int size = spec.maxWidth();
-                    int crop = Math.min(src.getWidth(), src.getHeight());
+                if (spec.maxWidth() != null && spec.maxHeight() != null) {
+                    int targetW = spec.maxWidth();
+                    int targetH = spec.maxHeight();
+
+                    int w = src.getWidth(), h = src.getHeight();
+                    double scale = Math.min(targetW / (double) w, targetH / (double) h);
+                    int rw = Math.max(1, (int) Math.round(w * scale));
+                    int rh = Math.max(1, (int) Math.round(h * scale));
+
+                    // 1) 비율유지 리사이즈 (중간 버퍼는 무손실 PNG로)
+                    BufferedImage resized;
                     try (var baos = new ByteArrayOutputStream()) {
                         Thumbnails.of(src)
-                                .sourceRegion(Positions.CENTER, crop, crop)
-                                .size(Math.min(size, crop), Math.min(size, crop))
-                                .outputFormat(fmt)
-                                .outputQuality((spec.quality() == null ? 80 : spec.quality()) / 100.0)
+                                .size(rw, rh)
+                                .outputFormat("png")
                                 .toOutputStream(baos);
+                        resized = ImageIO.read(new java.io.ByteArrayInputStream(baos.toByteArray()));
+                    }
+
+                    // 2) 타깃 캔버스에 중앙 합성 (배경 흰색; 투명 원하면 ARGB와 png/webp 사용)
+                    boolean transparent = fmt.equals("png") || fmt.equals("webp");
+                    int type = transparent ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB;
+                    BufferedImage canvas = new BufferedImage(targetW, targetH, type);
+
+                    var g = canvas.createGraphics();
+                    try {
+                        if (transparent) {
+                            g.setComposite(java.awt.AlphaComposite.Src);
+                            g.setColor(new java.awt.Color(0, 0, 0, 0));
+                        } else {
+                            g.setColor(java.awt.Color.WHITE);
+                        }
+                        g.fillRect(0, 0, targetW, targetH);
+
+                        int x = (targetW - rw) / 2;
+                        int y = (targetH - rh) / 2;
+                        g.drawImage(resized, x, y, null);
+                    } finally {
+                        g.dispose();
+                    }
+
+                    try (var baos = new ByteArrayOutputStream()) {
+                        ImageIO.write(canvas, fmt.equals("jpeg") ? "jpg" : fmt, baos);
                         bytes = baos.toByteArray();
                     }
                 } else {
-                    // 긴 변 기준 리사이즈 (원본보다 키우지 않음)
+                    // 한쪽만 지정된 경우: 긴 변 기준 리사이즈 (비율 유지, 업스케일 방지)
                     int longEdge = (spec.maxWidth() != null) ? spec.maxWidth()
                             : (spec.maxHeight() != null ? spec.maxHeight() : 2048);
-
                     int w = src.getWidth(), h = src.getHeight();
                     int targetLong = Math.min(longEdge, Math.max(w, h));
-                    int tw = (w >= h) ? targetLong : (int)Math.round((targetLong / (double)h) * w);
-                    int th = (w >= h) ? (int)Math.round((targetLong / (double)w) * h) : targetLong;
+                    int tw = (w >= h) ? targetLong : (int) Math.round((targetLong / (double) h) * w);
+                    int th = (w >= h) ? (int) Math.round((targetLong / (double) w) * h) : targetLong;
 
                     try (var baos = new ByteArrayOutputStream()) {
                         Thumbnails.of(src)
-                                .size(Math.max(tw, 1), Math.max(th, 1))
+                                .size(Math.max(1, tw), Math.max(1, th))
                                 .outputFormat(fmt)
                                 .outputQuality((spec.quality() == null ? 80 : spec.quality()) / 100.0)
                                 .toOutputStream(baos);
@@ -173,7 +204,6 @@ public class S3UploadService {
                     }
                 }
 
-                // ✅ 변환본을 원본-stem 하위 폴더에 저장
                 String variantKey = variantDir + spec.filename();
                 putBytes(variantKey, bytes, "image/" + fmt);
             }
@@ -233,7 +263,16 @@ public class S3UploadService {
     private String normalizeFormat(String fmt) {
         if (fmt == null) return "jpeg";
         String f = fmt.toLowerCase(Locale.ROOT);
-        if (f.equals("webp") && ImageIO.getImageWritersByFormatName("webp").hasNext()) return "webp";
+
+        // ✅ Mac (arm64) 환경에서는 webp 스킵
+        if (f.equals("webp")) {
+            String arch = System.getProperty("os.arch");
+            String os   = System.getProperty("os.name");
+            if (arch.contains("aarch") || os.toLowerCase().contains("mac")) {
+                return "jpeg";
+            }
+        }
+
         if (f.equals("jpg")) return "jpeg";
         if (f.equals("png") || f.equals("jpeg")) return f;
         return "jpeg";
