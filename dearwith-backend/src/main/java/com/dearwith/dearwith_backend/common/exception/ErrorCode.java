@@ -18,7 +18,6 @@ public enum ErrorCode {
     INVALID_AGREEMENT_TYPE(HttpStatus.BAD_REQUEST, "지원하지 않는 약관 타입입니다. 지원하는 타입: AGE_OVER_14, TERMS_OF_SERVICE, PERSONAL_INFORMATION, MARKETING_CONSENT, PUSH_NOTIFICATION"),
     DUPLICATE_SOCIAL_ACCOUNT(HttpStatus.CONFLICT, "이미 연결된 소셜 계정입니다."),
     KAKAO_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "카카오 인증에 실패했습니다."),
-    S3_PRESIGN_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S3 Presigned URL 발급에 실패했습니다."),
     S3_COMMIT_FAILED(HttpStatus.BAD_REQUEST, "S3 객체 커밋에 실패했습니다."),
     INVALID_TMP_KEY(HttpStatus.BAD_REQUEST, "유효하지 않은 tmpKey 입니다."),
     IMAGE_TOO_LARGE(HttpStatus.BAD_REQUEST, "이미지 용량이 허용 범위를 초과했습니다."),
@@ -41,7 +40,10 @@ public enum ErrorCode {
     INVALID_FILE_SIZE(HttpStatus.BAD_REQUEST, "허용되지 않은 파일 크기입니다."),
     UNSUPPORTED_CONTENT_TYPE(HttpStatus.BAD_REQUEST, "지원하지 않는 파일 형식입니다."),
     UNSUPPORTED_DOMAIN(HttpStatus.BAD_REQUEST, "허용되지 않은 업로드 도메인입니다."),
-    IMAGE_PROCESSING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "이미지 처리에 실패했습니다.")
+    IMAGE_PROCESSING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "이미지 처리에 실패했습니다."),
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다."),
+    S3_OPERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S3 작업 중 오류가 발생했습니다."),
+    VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "입력값 검증에 실패했습니다.")
     ;
 
     private final HttpStatus httpStatus;

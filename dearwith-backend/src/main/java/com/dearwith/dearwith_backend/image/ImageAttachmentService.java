@@ -6,7 +6,6 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.entity.Event;
 import com.dearwith.dearwith_backend.event.entity.EventImageMapping;
-import com.dearwith.dearwith_backend.external.aws.S3UploadService;
 import com.dearwith.dearwith_backend.review.entity.Review;
 import com.dearwith.dearwith_backend.review.entity.ReviewImageMapping;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +22,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ImageAttachmentService {
 
-    private final S3UploadService s3UploadService;
+    private final ImageAssetService imageAssetService;
     private final ImageService imageService;
 
     @Transactional
@@ -40,7 +39,7 @@ public class ImageAttachmentService {
 
             // tmp -> inline 승격 + 이미지 엔티티 등록 + (리뷰용) 버전 생성
             Image image = imageService.registerCommittedImageWithVariants(
-                    s3UploadService.promoteTmpToInline(tmpKey),
+                    imageAssetService.promoteTmpToInline(tmpKey),
                     userId,
                     ReviewVariantPresets.reviewImageSet() // 리뷰용 프리셋
             );
@@ -146,7 +145,7 @@ public class ImageAttachmentService {
 
     private String commitTmpToInline(String tmpKey) {
         try {
-            return s3UploadService.promoteTmpToInline(tmpKey);
+            return imageAssetService.promoteTmpToInline(tmpKey);
         } catch (IllegalArgumentException e) {
             String msg = e.getMessage() == null ? "" : e.getMessage();
             if (msg.contains("size")) {

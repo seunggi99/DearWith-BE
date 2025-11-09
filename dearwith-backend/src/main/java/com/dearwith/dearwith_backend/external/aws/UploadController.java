@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.external.aws;
 
 
 import com.dearwith.dearwith_backend.image.Image;
+import com.dearwith.dearwith_backend.image.ImageAssetService;
 import com.dearwith.dearwith_backend.image.ImageService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -19,7 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UploadController {
 
-    private final S3UploadService s3UploadService;
+    private final ImageAssetService imageAssetService;
     private final ImageService imageService;
 
     @PostMapping("/presign")
@@ -45,7 +46,7 @@ public class UploadController {
         """
     )
     public PresignRes presign(@RequestBody PresignReq req) {
-        var out = s3UploadService.createPresignedPutWithKey(
+        var out = imageAssetService.presignTmpPut(
                 req.domain(), req.filename(), req.contentType(), Duration.ofMinutes(5));
 
         return new PresignRes(out.url(), out.key(), out.ttlSeconds());
@@ -62,7 +63,7 @@ public class UploadController {
                     """)
     public CommitRes commit(@Valid @RequestBody CommitReq req,
                             @AuthenticationPrincipal(expression = "id") UUID userId) {
-        String inlineKey = s3UploadService.promoteTmpToInline(req.tmpKey());
+        String inlineKey = imageAssetService.promoteTmpToInline(req.tmpKey());
         Image saved = imageService.registerCommittedImage(inlineKey, userId);
         return new CommitRes(saved.getId(), saved.getImageUrl());
     }
