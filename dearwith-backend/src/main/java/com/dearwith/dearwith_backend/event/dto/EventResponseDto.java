@@ -3,12 +3,14 @@ package com.dearwith.dearwith_backend.event.dto;
 import com.dearwith.dearwith_backend.event.enums.BenefitType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public record EventResponseDto(
         Long id,
         String title,
-        String description,
+        LocalTime openTime,
+        LocalTime closeTime,
         LocalDate startDate,
         LocalDate endDate,
         PlaceDto place,

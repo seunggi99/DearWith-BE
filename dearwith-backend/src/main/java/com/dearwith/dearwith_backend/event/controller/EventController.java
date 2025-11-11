@@ -119,7 +119,7 @@ public class EventController {
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @RequestBody @Valid EventCreateRequestDto request
     ) {
-        EventResponseDto response = eventService.createEvent(userId, request);
+        EventResponseDto response = eventService.create(userId, request);
         return ResponseEntity
                 .created(URI.create("/api/events/" + response.id()))
                 .body(response);

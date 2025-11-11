@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -76,6 +77,8 @@ public class EventService {
                         )
                         .startDate(event.getStartDate())
                         .endDate(event.getEndDate())
+                        .openTime(event.getOpenTime())
+                        .closeTime(event.getCloseTime())
                         .bookmarkCount(event.getBookmarkCount())
                         .bookmarked(
                                 userId != null &&
@@ -104,6 +107,8 @@ public class EventService {
                         )
                         .startDate(event.getStartDate())
                         .endDate(event.getEndDate())
+                        .openTime(event.getOpenTime())
+                        .closeTime(event.getCloseTime())
                         .bookmarkCount(event.getBookmarkCount())
                         .bookmarked(
                                 userId != null &&
@@ -132,6 +137,8 @@ public class EventService {
                         )
                         .startDate(event.getStartDate())
                         .endDate(event.getEndDate())
+                        .openTime(event.getOpenTime())
+                        .closeTime(event.getCloseTime())
                         .bookmarkCount(event.getBookmarkCount())
                         .bookmarked(
                                 userId != null &&
@@ -142,7 +149,7 @@ public class EventService {
     }
 
     @Transactional
-    public EventResponseDto createEvent(UUID userId, EventCreateRequestDto req) {
+    public EventResponseDto create(UUID userId, EventCreateRequestDto req) {
         // 0) Organizer 필수 확인
         if (req.organizer() == null) {
             throw new BusinessException(ErrorCode.ORGANIZER_REQUIRED);
@@ -354,6 +361,8 @@ public class EventService {
                         .toList())
                 .startDate(event.getStartDate())
                 .endDate(event.getEndDate())
+                .openTime(event.getOpenTime())
+                .closeTime(event.getCloseTime())
                 .bookmarkCount(event.getBookmarkCount())
                 .bookmarked(userId == null ? null : bookmarked.contains(event.getId()))
                 .build());
@@ -407,6 +416,8 @@ public class EventService {
                     )
                     .startDate(event.getStartDate())
                     .endDate(event.getEndDate())
+                    .openTime(event.getOpenTime())
+                    .closeTime(event.getCloseTime())
                     .bookmarkCount(event.getBookmarkCount())
                     .bookmarked(true)
                     .build();
@@ -482,6 +493,8 @@ public class EventService {
                         .artistNamesKr(namesKrMap.getOrDefault(e.getId(), List.of()))
                         .startDate(e.getStartDate())
                         .endDate(e.getEndDate())
+                        .startDate(e.getStartDate())
+                        .closeTime(e.getCloseTime())
                         .bookmarkCount(e.getBookmarkCount())
                         .bookmarked(userId == null ? null : bookmarked.contains(e.getId()))
                         .build()

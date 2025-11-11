@@ -6,11 +6,14 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public record EventCreateRequestDto(
         @NotNull
         String title,
+        LocalTime openTime,
+        LocalTime closeTime,
         LocalDate startDate,
         LocalDate endDate,
         List<Long> artistIds,

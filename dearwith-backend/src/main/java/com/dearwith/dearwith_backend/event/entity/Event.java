@@ -9,6 +9,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +34,9 @@ public class Event extends BaseDeletableEntity {
 
     @Embedded
     private PlaceInfo placeInfo; // 장소 정보 (예: 좌표, 상세 주소 등)
+
+    private LocalTime openTime;
+    private LocalTime closeTime;
 
     private LocalDate startDate; // 이벤트 시작 날짜
     private LocalDate endDate; // 이벤트 종료 날짜

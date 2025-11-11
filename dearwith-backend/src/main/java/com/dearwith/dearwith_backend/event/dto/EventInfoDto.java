@@ -5,6 +5,7 @@ import lombok.Getter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Getter
@@ -15,6 +16,8 @@ public class EventInfoDto {
     private String imageUrl;
     private List<String> artistNamesEn;
     private List<String> artistNamesKr;
+    private LocalTime openTime;
+    private LocalTime closeTime;
     private LocalDate startDate;
     private LocalDate endDate;
     private Long bookmarkCount;
