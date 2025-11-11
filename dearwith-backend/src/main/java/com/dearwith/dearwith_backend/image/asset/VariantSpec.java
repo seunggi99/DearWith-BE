@@ -1,5 +1,8 @@
-package com.dearwith.dearwith_backend.image;
+package com.dearwith.dearwith_backend.image.asset;
 
+import lombok.Builder;
+
+@Builder
 public record VariantSpec(
         String filename,
         Integer maxWidth,

@@ -1,4 +1,4 @@
-package com.dearwith.dearwith_backend.image;
+package com.dearwith.dearwith_backend.image.service;
 
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
@@ -17,6 +17,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+//“S3 원본 자산 I/O + 정책”
 public class ImageAssetService {
 
     private final S3ClientAdapter s3;
@@ -28,7 +29,7 @@ public class ImageAssetService {
     private String cacheControl;
 
     private static final Set<String> ALLOWED_MIME = Set.of(
-            "image/jpeg","image/png","image/webp","image/avif","image/heic","image/heif","image/gif"
+            "image/jpeg","","image/webp","image/avif","image/heic","image/heif","image/gif"
     );
 
     /* ========= 정책 1: tmp → inline 승격 ========= */

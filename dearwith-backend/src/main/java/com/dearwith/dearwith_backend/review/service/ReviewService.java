@@ -7,15 +7,16 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.entity.Event;
 import com.dearwith.dearwith_backend.event.repository.EventRepository;
-import com.dearwith.dearwith_backend.image.Image;
-import com.dearwith.dearwith_backend.image.ImageAttachmentRequest;
-import com.dearwith.dearwith_backend.image.ImageAttachmentService;
+import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
+import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.review.dto.EventPhotoReviewResponseDto;
 import com.dearwith.dearwith_backend.review.dto.EventReviewResponseDto;
 import com.dearwith.dearwith_backend.review.dto.ReviewCreateRequestDto;
+import com.dearwith.dearwith_backend.review.dto.ReviewUpdateRequestDto;
 import com.dearwith.dearwith_backend.review.entity.Review;
 import com.dearwith.dearwith_backend.review.entity.ReviewImageMapping;
 import com.dearwith.dearwith_backend.review.entity.ReviewLike;
+import com.dearwith.dearwith_backend.review.enums.ReviewStatus;
 import com.dearwith.dearwith_backend.review.repository.ReviewImageMappingRepository;
 import com.dearwith.dearwith_backend.review.repository.ReviewLikeRepository;
 import com.dearwith.dearwith_backend.review.repository.ReviewRepository;
@@ -26,13 +27,12 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
+import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -41,12 +41,12 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
-    private final ImageAttachmentService imageAttachmentService;
     private final ReviewImageMappingRepository reviewImageMappingRepository;
     private final ReviewLikeRepository reviewLikeRepository;
+    private final ReviewImageAppService reviewImageAppService;
 
     @Transactional
-    public Long createReview(UUID userId, Long eventId, ReviewCreateRequestDto req) {
+    public Long create(UUID userId, Long eventId, ReviewCreateRequestDto req) {
         // 0) 유효성
         if (req.content() == null || req.content().isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "리뷰 내용은 비어 있을 수 없습니다.");
@@ -84,10 +84,10 @@ public class ReviewService {
 
         // 4) 이미지 첨부
         if (req.images() != null && !req.images().isEmpty()) {
-            List<ImageAttachmentRequest> imageDtos = req.images().stream()
-                    .map(d -> new ImageAttachmentRequest(d.tmpKey(), d.displayOrder()))
+            List<ImageAttachmentRequestDto> imageDtos = req.images().stream()
+                    .map(d -> new ImageAttachmentRequestDto(d.tmpKey(), d.displayOrder()))
                     .toList();
-            imageAttachmentService.setReviewImages(saved, imageDtos, userId);
+            reviewImageAppService.create(saved, imageDtos, user);
         }
 
         return saved.getId();
@@ -128,7 +128,6 @@ public class ReviewService {
                     );
 
                     return ImageGroupDto.builder()
-                            .group(stem)
                             .variants(variants)
                             .build();
                 })
@@ -162,6 +161,7 @@ public class ReviewService {
         }
 
         List<Review> fetched = reviewRepository.findWithUserAndImagesByIdIn(orderedIds);
+        reviewRepository.preloadTagsByReviewIds(orderedIds);
 
         // 2-1) id -> Review 매핑
         Map<Long, Review> byId = new HashMap<>(fetched.size());
@@ -197,29 +197,29 @@ public class ReviewService {
         } catch (Exception ignore) {}
 
 
-        List<ImageGroupDto> images = r.getImages() == null
-                ? List.of()
-                : r.getImages().stream()
-                .sorted(Comparator.comparingInt(ReviewImageMapping::getDisplayOrder))
-                .map(m -> {
-                    var baseUrl = (m.getImage() != null) ? m.getImage().getImageUrl() : null;
-                    if (baseUrl == null) return null;
+            List<ImageGroupDto> images = r.getImages() == null
+                    ? List.of()
+                    : r.getImages().stream()
+                    .sorted(Comparator.comparingInt(ReviewImageMapping::getDisplayOrder))
+                    .map(m -> {
+                        var baseUrl = (m.getImage() != null) ? m.getImage().getImageUrl() : null;
+                        if (baseUrl == null) return null;
 
-                    String prefix = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
-                    String stem = baseUrl.substring(baseUrl.lastIndexOf('/') + 1, baseUrl.lastIndexOf('.'));
+                        String prefix = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
+                        String stem = baseUrl.substring(baseUrl.lastIndexOf('/') + 1, baseUrl.lastIndexOf('.'));
 
-                    return ImageGroupDto.builder()
-                            .group(stem)
-                            .variants(List.of(
-                                    new ImageVariantDto("original", baseUrl),
-                                    new ImageVariantDto("large", prefix + stem + "/large.webp"),
-                                    new ImageVariantDto("review@1x", prefix + stem + "/review@1x.webp"),
-                                    new ImageVariantDto("review@2x", prefix + stem + "/review@2x.webp")
-                            ))
-                            .build();
-                })
-                .filter(Objects::nonNull)
-                .toList();
+                        return ImageGroupDto.builder()
+                                .id(m.getImage().getId())
+                                .variants(List.of(
+                                        new ImageVariantDto("original", baseUrl),
+                                        new ImageVariantDto("large", prefix + stem + "/large.webp"),
+                                        new ImageVariantDto("review@1x", prefix + stem + "/review@1x.webp"),
+                                        new ImageVariantDto("review@2x", prefix + stem + "/review@2x.webp")
+                                ))
+                                .build();
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
 
         List<String> tags = r.getTags() != null ? r.getTags() : List.of();
 
@@ -230,6 +230,7 @@ public class ReviewService {
                 .nickname(user != null ? user.getNickname() : null)
                 .profileImageUrl(profileImageUrl)
                 .createdAt(r.getCreatedAt())
+                .updatedAt(r.getUpdatedAt())
                 .content(r.getContent())
                 .images(images)
                 .tags(tags)
@@ -269,5 +270,71 @@ public class ReviewService {
 
         reviewLikeRepository.delete(like);
         reviewRepository.decrementLike(like.getReview().getId());
+    }
+
+    @Transactional
+    public void update(UUID userId, Long reviewId, ReviewUpdateRequestDto req){
+        Review review = reviewRepository.findByIdAndUserIdWithTags(reviewId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없거나 권한이 없습니다. id=" + reviewId));
+
+        // 1) content
+        if (req.content() != null) {
+            String c = req.content();
+            if (c.isBlank()) {
+                review.setContent(null);
+            } else {
+                review.setContent(Normalizer.normalize(c, Normalizer.Form.NFC));
+            }
+        }
+
+        // 2) tags
+        if (req.tags() != null) {
+            if (req.tags().isEmpty()) {
+                review.getTags().clear();
+            } else {
+                List<String> desired = req.tags().stream()
+                        .map(s -> s == null ? "" : s.trim())
+                        .filter(s -> !s.isEmpty())
+                        .map(s -> Normalizer.normalize(s, Normalizer.Form.NFC))
+                        .limit(4)
+                        .toList();
+
+                review.getTags().clear();
+                review.getTags().addAll(desired);
+            }
+        }
+
+        // 3) images
+        if (req.images() != null) {
+            if (req.images().isEmpty()) {
+                reviewImageAppService.deleteAll(reviewId);
+
+            } else {
+                reviewImageAppService.update(review, req.images(), userId);
+            }
+        }
+
+        reviewRepository.save(review);
+
+    }
+    @Transactional
+    public void delete(Long reviewId, UUID userId) {
+        Review review = reviewRepository.findByIdAndUserId(reviewId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없거나 권한이 없습니다. id=" + reviewId));
+
+        if(review.getStatus() == ReviewStatus.DELETED) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "이미 삭제된 리뷰입니다.");
+        }
+
+        if (review.getTags() != null && !review.getTags().isEmpty()) {
+            review.getTags().clear();
+        }
+
+        reviewImageAppService.deleteAll(reviewId);
+        reviewLikeRepository.deleteByReviewId(reviewId);
+
+        review.setDeletedAt(LocalDateTime.now());
+        review.setStatus(ReviewStatus.DELETED);
+        reviewRepository.save(review);
     }
 }

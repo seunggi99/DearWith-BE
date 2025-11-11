@@ -3,6 +3,7 @@ package com.dearwith.dearwith_backend.review.repository;
 import com.dearwith.dearwith_backend.review.entity.Review;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -10,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 public interface ReviewRepository extends JpaRepository<Review, Long> {
     @Query("select r.id from Review r " +
@@ -25,6 +28,22 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
         """)
     List<Review> findWithUserAndImagesByIdIn(@Param("ids") Collection<Long> ids);
 
+    @Query("""
+        select r
+        from Review r
+        left join fetch r.tags
+        where r.id = :reviewId and r.user.id = :userId
+    """)
+    Optional<Review> findByIdAndUserIdWithTags(@Param("reviewId") Long reviewId,
+                                               @Param("userId") UUID userId);
+
+    @Query("""
+        select r.id, t
+        from Review r
+        join r.tags t
+        where r.id in :ids
+    """)
+    List<Object[]> preloadTagsByReviewIds(@Param("ids") Collection<Long> ids);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Review r set r.likeCount = r.likeCount + 1 where r.id = :reviewId")
@@ -33,4 +52,10 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Review r set r.likeCount = case when r.likeCount > 0 then r.likeCount - 1 else 0 end where r.id = :reviewId")
     int decrementLike(@Param("reviewId") Long reviewId);
+
+    @EntityGraph(attributePaths = {"tags"})
+    Optional<Review> findByIdAndUserId(Long id, UUID userId);
+
+    @EntityGraph(attributePaths = {"tags"})
+    Optional<Review> findById(Long id);
 }

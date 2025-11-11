@@ -22,6 +22,7 @@ public class EventReviewResponseDto {
 
     private String content;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     private List<ImageGroupDto> images;
     private List<String> tags;

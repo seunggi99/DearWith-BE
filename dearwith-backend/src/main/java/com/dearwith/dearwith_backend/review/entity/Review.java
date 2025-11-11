@@ -4,11 +4,11 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
 import com.dearwith.dearwith_backend.event.entity.Event;
-import com.dearwith.dearwith_backend.review.enums.ReviewReportReason;
 import com.dearwith.dearwith_backend.review.enums.ReviewStatus;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +55,7 @@ public class Review extends BaseDeletableEntity {
     )
     @Column(name = "tag", length = 30, nullable = false)
     @OrderColumn(name = "display_order")
+    @BatchSize(size = 100)
     private List<String> tags = new ArrayList<>();
 
     @Builder.Default

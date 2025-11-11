@@ -3,6 +3,7 @@ package com.dearwith.dearwith_backend.review.controller;
 import com.dearwith.dearwith_backend.review.dto.EventPhotoReviewResponseDto;
 import com.dearwith.dearwith_backend.review.dto.ReviewCreateRequestDto;
 import com.dearwith.dearwith_backend.review.dto.EventReviewResponseDto;
+import com.dearwith.dearwith_backend.review.dto.ReviewUpdateRequestDto;
 import com.dearwith.dearwith_backend.review.enums.ReviewSort;
 import com.dearwith.dearwith_backend.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,7 +32,7 @@ public class ReviewController {
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @Valid @RequestBody ReviewCreateRequestDto req
     ) {
-        reviewService.createReview(userId, eventId, req);
+        reviewService.create(userId, eventId, req);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
@@ -81,6 +82,27 @@ public class ReviewController {
             @AuthenticationPrincipal(expression = "id") UUID userId
     ) {
         reviewService.unlike(reviewId, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "리뷰 수정", description = "빈 문자열일 경우 내용 삭제, null일 경우 변경 없음")
+    @PatchMapping("/api/reviews/{reviewId}")
+    public ResponseEntity<Void> updateReview(
+            @PathVariable Long reviewId,
+            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @Valid @RequestBody ReviewUpdateRequestDto req
+    ) {
+        reviewService.update(userId, reviewId, req);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "리뷰 삭제")
+    @DeleteMapping("/api/reviews/{reviewId}")
+    public ResponseEntity<Void> deleteReview(
+            @PathVariable Long reviewId,
+            @AuthenticationPrincipal(expression = "id") UUID userId
+    ) {
+        reviewService.delete(reviewId, userId);
         return ResponseEntity.ok().build();
     }
 }

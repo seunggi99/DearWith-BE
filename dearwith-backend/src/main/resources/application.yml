@@ -33,6 +33,7 @@ spring:
     hibernate:
       ddl-auto: update
     properties:
+      hibernate.generate_statistics: true
       hibernate:
         format_sql: true
     show-sql: true
@@ -113,3 +114,18 @@ app:
   search:
     recent:
       ttl-days: 7
+
+decorator:
+  datasource:
+    datasource-proxy:
+      query:
+        enable-logging: true
+        log-level: DEBUG
+        multiline: true
+        include-parameter-values: true
+      slow-query:
+        enable-logging: true
+        threshold: 5000
+logging:
+  level:
+    com.github.gavlyukovskiy.boot.jdbc.decorator: DEBUG

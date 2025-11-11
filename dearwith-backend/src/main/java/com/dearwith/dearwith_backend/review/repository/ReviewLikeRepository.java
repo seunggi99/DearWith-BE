@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.review.repository;
 
 import com.dearwith.dearwith_backend.review.entity.ReviewLike;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -22,4 +23,8 @@ public interface ReviewLikeRepository extends JpaRepository<ReviewLike, Long> {
     """)
     List<Long> findLikedReviewIds(@Param("userId") UUID userId,
                                   @Param("reviewIds") Collection<Long> reviewIds);
+
+    @Modifying
+    @Query("delete from ReviewLike l where l.review.id = :reviewId")
+    void deleteByReviewId(@Param("reviewId") Long reviewId);
 }

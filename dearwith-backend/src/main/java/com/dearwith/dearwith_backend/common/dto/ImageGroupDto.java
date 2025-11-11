@@ -8,6 +8,6 @@ import java.util.List;
 @Builder
 @Getter
 public class ImageGroupDto {
-    private String group;
+    private Long id;
     private List<ImageVariantDto> variants;
 }
