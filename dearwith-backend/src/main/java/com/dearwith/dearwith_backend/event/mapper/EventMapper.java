@@ -1,9 +1,9 @@
 package com.dearwith.dearwith_backend.event.mapper;
 
 import com.dearwith.dearwith_backend.event.entity.*;
-import com.dearwith.dearwith_backend.image.Image;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
+import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
 import org.mapstruct.*;
 

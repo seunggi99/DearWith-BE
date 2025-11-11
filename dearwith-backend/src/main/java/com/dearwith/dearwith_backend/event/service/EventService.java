@@ -15,9 +15,9 @@ import com.dearwith.dearwith_backend.event.mapper.EventMapper;
 import com.dearwith.dearwith_backend.event.repository.*;
 import com.dearwith.dearwith_backend.external.x.XVerifyPayload;
 import com.dearwith.dearwith_backend.external.x.XVerifyTicketService;
-import com.dearwith.dearwith_backend.image.Image;
-import com.dearwith.dearwith_backend.image.ImageAttachmentRequest;
-import com.dearwith.dearwith_backend.image.ImageAttachmentService;
+import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
+import com.dearwith.dearwith_backend.image.entity.Image;
+import com.dearwith.dearwith_backend.image.service.ImageAttachmentService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -198,7 +198,7 @@ public class EventService {
         // 2) 이미지 매핑
         if (req.images() != null && !req.images().isEmpty()) {
             var imageDtos = req.images().stream()
-                    .map(d -> new ImageAttachmentRequest(d.tmpKey(), d.displayOrder()))
+                    .map(d -> new ImageAttachmentRequestDto(d.tmpKey(), d.displayOrder()))
                     .toList();
             imageAttachmentService.setEventImages(event, imageDtos, userId);
         }

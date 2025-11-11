@@ -1,7 +1,7 @@
 package com.dearwith.dearwith_backend.artist.entity;
 
 import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
-import com.dearwith.dearwith_backend.image.Image;
+import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;

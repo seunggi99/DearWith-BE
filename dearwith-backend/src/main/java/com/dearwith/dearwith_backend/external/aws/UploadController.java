@@ -1,9 +1,9 @@
 package com.dearwith.dearwith_backend.external.aws;
 
 
-import com.dearwith.dearwith_backend.image.Image;
-import com.dearwith.dearwith_backend.image.ImageAssetService;
-import com.dearwith.dearwith_backend.image.ImageService;
+import com.dearwith.dearwith_backend.image.entity.Image;
+import com.dearwith.dearwith_backend.image.service.ImageAssetService;
+import com.dearwith.dearwith_backend.image.service.ImageService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

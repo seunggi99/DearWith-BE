@@ -1,7 +1,7 @@
 package com.dearwith.dearwith_backend.event.entity;
 
 import com.dearwith.dearwith_backend.common.jpa.BaseTimeEntity;
-import com.dearwith.dearwith_backend.image.Image;
+import com.dearwith.dearwith_backend.image.entity.Image;
 import jakarta.persistence.*;
 import lombok.*;
 

@@ -3,7 +3,7 @@ package com.dearwith.dearwith_backend.artist.mapper;
 import com.dearwith.dearwith_backend.artist.dto.ArtistDto;
 import com.dearwith.dearwith_backend.artist.dto.ArtistInfoDto;
 import com.dearwith.dearwith_backend.artist.entity.Artist;
-import com.dearwith.dearwith_backend.image.Image;
+import com.dearwith.dearwith_backend.image.entity.Image;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;

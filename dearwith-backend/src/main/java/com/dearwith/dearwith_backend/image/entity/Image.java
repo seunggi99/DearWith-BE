@@ -1,6 +1,7 @@
-package com.dearwith.dearwith_backend.image;
+package com.dearwith.dearwith_backend.image.entity;
 
 import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
+import com.dearwith.dearwith_backend.image.enums.ImageStatus;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -20,7 +21,7 @@ public class Image extends BaseDeletableEntity {
     @Column(nullable = false, unique = true, length = 255)
     private String s3Key;
 
-    @Column(nullable = false, length = 500)
+    @Column(nullable = true, length = 500)
     private String imageUrl;
 
     @Enumerated(EnumType.STRING)

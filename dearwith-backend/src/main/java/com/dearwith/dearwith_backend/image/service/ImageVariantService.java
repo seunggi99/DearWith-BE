@@ -1,8 +1,10 @@
-package com.dearwith.dearwith_backend.image;
+package com.dearwith.dearwith_backend.image.service;
 
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.external.aws.S3ClientAdapter;
+import com.dearwith.dearwith_backend.image.asset.AssetVariantPreset;
+import com.dearwith.dearwith_backend.image.asset.VariantSpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
@@ -26,9 +28,17 @@ public class ImageVariantService {
     @Value("${app.assets.cache-control:public, max-age=31536000, immutable}")
     private String cacheControl;
 
-    public void generateVariants(String originalKey, List<VariantSpec> specs) {
+    public void generateVariants(String originalKey, AssetVariantPreset preset) {
+        if (preset == null) {
+            throw new IllegalArgumentException("preset must not be null");
+        }
+        generateVariants(originalKey, preset.specs(), preset.name());
+    }
+
+    private void generateVariants(String originalKey, List<VariantSpec> specs, String presetNameForLog) {
         long t0 = System.currentTimeMillis();
-        log.info("[variants] start originalKey={}, specs={}", originalKey, specs);
+        log.info("[variants] start originalKey={}, preset={}, specs={}",
+                originalKey, (presetNameForLog == null ? "-" : presetNameForLog), specs);
 
         byte[] originalBytes = s3.read(originalKey);
         BufferedImage src;
@@ -40,15 +50,21 @@ public class ImageVariantService {
         }
 
         String baseDir = dirPrefix(originalKey);
-        String stem = stemNoExt(originalKey);
+        String stem    = stemNoExt(originalKey);
         String variantDir = baseDir + stem + "/";
 
         for (VariantSpec spec : specs) {
             try {
                 String fmt = normalizeFormat(spec.format());
+                int maxW = spec.maxWidth()  == null ? Integer.MAX_VALUE : spec.maxWidth();
+                int maxH = spec.maxHeight() == null ? Integer.MAX_VALUE : spec.maxHeight();
+
                 byte[] out = resizeOrContain(src, spec, fmt);
                 String key = variantDir + spec.filename();
-                s3.put(key, out, "image/" + (fmt.equals("jpg") ? "jpeg" : fmt), cacheControl);
+
+                String contentType = "image/" + (fmt.equals("jpg") ? "jpeg" : fmt);
+                s3.put(key, out, contentType, cacheControl);
+
                 log.info("[variants] uploaded key={}, size={}B", key, out.length);
             } catch (Exception ex) {
                 log.error("[variants] failed filename={}, reason={}", spec.filename(), ex.toString(), ex);
@@ -132,7 +148,6 @@ public class ImageVariantService {
     private String normalizeFormat(String fmt) {
         if (fmt == null) return "jpeg";
         String f = fmt.toLowerCase(Locale.ROOT);
-        // ✅ Mac (arm64) 환경에서는 webp 스킵
         if (f.equals("webp")) {
             String arch = System.getProperty("os.arch");
             String os   = System.getProperty("os.name");
