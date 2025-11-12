@@ -32,7 +32,6 @@ import java.util.UUID;
 public class ArtistController {
     private final ArtistService artistService;
     private final EventService eventService;
-    private final RecentSearchService recentSearchService;
     private final ArtistRepository artistRepository;
 
     @GetMapping
