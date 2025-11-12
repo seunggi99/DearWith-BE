@@ -3,8 +3,10 @@ package com.dearwith.dearwith_backend.artist.controller;
 import com.dearwith.dearwith_backend.artist.dto.ArtistDto;
 import com.dearwith.dearwith_backend.artist.dto.ArtistGroupDto;
 import com.dearwith.dearwith_backend.artist.dto.ArtistSearchResponseDto;
+import com.dearwith.dearwith_backend.artist.dto.HotArtistDtoResponseDto;
 import com.dearwith.dearwith_backend.artist.service.ArtistGroupService;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
+import com.dearwith.dearwith_backend.artist.service.HotArtistService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,6 +28,7 @@ import java.util.UUID;
 public class ArtistSearchController {
     private final ArtistService artistService;
     private final ArtistGroupService artistGroupService;
+    private final HotArtistService hotArtistService;
 
     @GetMapping
     @Operation(summary = "아티스트/아티스트 그룹 통합 검색")
@@ -47,5 +51,10 @@ public class ArtistSearchController {
                 .artists(artistPage)
                 .groups(groupPage)
                 .build();
+    }
+    @GetMapping("/artists-groups")
+    @Operation(summary = "핫 아티스트/그룹 TOP 20")
+    public List<HotArtistDtoResponseDto> getHotArtistsAndGroups() {
+        return hotArtistService.getTop20();
     }
 }

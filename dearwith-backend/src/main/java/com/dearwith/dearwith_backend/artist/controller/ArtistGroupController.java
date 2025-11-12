@@ -5,6 +5,7 @@ import com.dearwith.dearwith_backend.artist.dto.GroupEventsResponseDto;
 import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistGroupService;
+import com.dearwith.dearwith_backend.artist.service.HotArtistService;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
@@ -29,6 +30,7 @@ public class ArtistGroupController {
     private final ArtistGroupService artistGroupService;
     private final EventService eventService;
     private final ArtistGroupRepository groupRepository;
+    private final HotArtistService hotArtistService;
 
     @GetMapping
     @Operation(summary = "아티스트 그룹 검색")
@@ -58,6 +60,8 @@ public class ArtistGroupController {
             case UPCOMING -> Sort.by(Sort.Order.asc("startDate"), Sort.Order.asc("id"));
             case LATEST -> Sort.by(Sort.Order.desc("id"));
         });
+
+        hotArtistService.recordGroupView(groupId, userId);
 
         Page<EventInfoDto> eventPage = eventService.getEventsByGroup(groupId, userId, pageable);
 

@@ -6,6 +6,7 @@ import com.dearwith.dearwith_backend.artist.dto.ArtistEventsResponseDto;
 import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
+import com.dearwith.dearwith_backend.artist.service.HotArtistService;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
@@ -33,7 +34,7 @@ public class ArtistController {
     private final ArtistService artistService;
     private final EventService eventService;
     private final ArtistRepository artistRepository;
-
+    private final HotArtistService hotArtistService;
     @GetMapping
     @Operation(summary = "아티스트 검색")
     public Page<ArtistDto> search(
@@ -76,6 +77,8 @@ public class ArtistController {
             case UPCOMING -> Sort.by(Sort.Order.asc("startDate"), Sort.Order.asc("id"));
             case LATEST -> Sort.by(Sort.Order.desc("id"));
         });
+
+        hotArtistService.recordArtistView(artistId, userId);
 
         Page<EventInfoDto> eventPage = eventService.getEventsByArtist(artistId, userId, pageable);
 
