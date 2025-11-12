@@ -48,6 +48,10 @@ public class Event extends BaseDeletableEntity {
     private List<EventArtistMapping> artists = new ArrayList<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<EventArtistGroupMapping> artistGroups = new ArrayList<>();
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("dayIndex ASC, displayOrder ASC")
     @Builder.Default
     private List<EventBenefit> benefits = new ArrayList<>();
@@ -62,6 +66,16 @@ public class Event extends BaseDeletableEntity {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "verified",     column = @Column(name = "organizer_verified", nullable = false)),
+            @AttributeOverride(name = "twitterHandle",column = @Column(name = "organizer_twitter_handle", length = 50)),
+            @AttributeOverride(name = "twitterId",    column = @Column(name = "organizer_twitter_id", length = 32)),
+            @AttributeOverride(name = "twitterName",  column = @Column(name = "organizer_twitter_name", length = 60))
+    })
+    @Builder.Default
+    private OrganizerInfo organizer = new OrganizerInfo();
+
     public void addBenefit(EventBenefit benefit) {
         this.benefits.add(benefit);
         benefit.setEvent(this);
@@ -75,15 +89,8 @@ public class Event extends BaseDeletableEntity {
         this.artists.add(mapping);
         mapping.setEvent(this);
     }
-
-    @Embedded
-    @AttributeOverrides({
-            @AttributeOverride(name = "verified",     column = @Column(name = "organizer_verified", nullable = false)),
-            @AttributeOverride(name = "twitterHandle",column = @Column(name = "organizer_twitter_handle", length = 50)),
-            @AttributeOverride(name = "twitterId",    column = @Column(name = "organizer_twitter_id", length = 32)),
-            @AttributeOverride(name = "twitterName",  column = @Column(name = "organizer_twitter_name", length = 60))
-    })
-    @Builder.Default
-    private OrganizerInfo organizer = new OrganizerInfo();
-
+    public void addArtistGroupMapping(EventArtistGroupMapping mapping) {
+        this.artistGroups.add(mapping);
+        mapping.setEvent(this);
+    }
 }

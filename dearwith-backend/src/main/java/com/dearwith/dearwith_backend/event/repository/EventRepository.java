@@ -78,4 +78,18 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     """)
     Page<Event> findPageByArtistId(@Param("artistId") Long artistId, Pageable pageable);
 
+    @Query("""
+    select distinct e
+    from Event e
+        left join e.artistGroups eag                   
+        left join e.artists eam                  
+        left join eam.artist a                      
+        left join ArtistGroupMapping agm        
+            on agm.artist = a
+    where
+        eag.artistGroup.id = :groupId             
+        or agm.group.id = :groupId               
+    """)
+    Page<Event> findPageByGroupOrItsArtists(@Param("groupId") Long groupId, Pageable pageable);
+
 }

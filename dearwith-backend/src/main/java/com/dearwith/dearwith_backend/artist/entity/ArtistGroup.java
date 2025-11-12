@@ -1,10 +1,8 @@
 package com.dearwith.dearwith_backend.artist.entity;
 
 import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.dearwith.dearwith_backend.image.entity.Image;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,7 +23,9 @@ public class ArtistGroup extends BaseDeletableEntity {
     private String nameKr;
     private String nameEn;
 
-    private String description; // 그룹 설명
-    private String imageUrl; // 그룹 이미지 URL
-    private LocalDate debutDate;   // 활동 시작일
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "profile_image_id", foreignKey = @ForeignKey(name = "fk_artistGroup_profile_image"))
+    private Image profileImage;
+
+    private LocalDate debutDate;
 }

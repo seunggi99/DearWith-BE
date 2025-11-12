@@ -1,6 +1,8 @@
 package com.dearwith.dearwith_backend.event.service;
 
 import com.dearwith.dearwith_backend.artist.entity.Artist;
+import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
+import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
@@ -41,13 +43,14 @@ public class EventService {
     private final ArtistRepository artistRepository;
     private final UserRepository userRepository;
     private final EventArtistMappingRepository eventArtistMappingRepository;
+    private final EventArtistGroupMappingRepository eventArtistGroupMappingRepository;
     private final EventImageMappingRepository mappingRepository;
     private final EventBenefitRepository benefitRepository;
     private final EventMapper mapper;
-    private final EventArtistMappingRepository artistMappingRepository;
     private final ArtistService artistService;
     private final XVerifyTicketService xVerifyTicketService;
     private final ImageAttachmentService imageAttachmentService;
+    private final ArtistGroupRepository artistGroupRepository;
 
     private String toImageUrl(Image img) {
         if (img == null) return null;
@@ -266,6 +269,22 @@ public class EventService {
             }
         }
 
+        // 4-1) 그룹 매핑
+        if (req.artistGroupIds() != null && !req.artistGroupIds().isEmpty()) {
+            Set<Long> uniqueGroupIds = new LinkedHashSet<>(req.artistGroupIds());
+            for (Long groupId : uniqueGroupIds) {
+                ArtistGroup group = artistGroupRepository.findById(groupId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "아티스트 그룹을 찾을 수 없습니다."));
+
+                EventArtistGroupMapping groupMapping = EventArtistGroupMapping.builder()
+                        .event(event)
+                        .artistGroup(group)
+                        .build();
+
+                event.addArtistGroupMapping(groupMapping);
+            }
+        }
+
         validateAndNormalize(event);
 
         // 5. 저장
@@ -277,9 +296,11 @@ public class EventService {
         List<EventBenefit> benefits =
                 benefitRepository.findByEvent_IdOrderByDayIndexAscDisplayOrderAsc(saved.getId());
         List<EventArtistMapping> artists =
-                artistMappingRepository.findByEventId(saved.getId());
+                eventArtistMappingRepository.findByEventId(saved.getId());
+        List<EventArtistGroupMapping> artistGroups =
+                eventArtistGroupMappingRepository.findByEventId(saved.getId());
 
-        return mapper.toResponse(saved, mappings, benefits, artists);
+        return mapper.toResponse(saved, mappings, benefits, artists,artistGroups);
     }
 
     private void validateAndNormalize(Event event) {
@@ -310,9 +331,12 @@ public class EventService {
                 benefitRepository.findByEvent_IdOrderByDayIndexAscDisplayOrderAsc(eventId);
 
         List<EventArtistMapping> artists =
-                artistMappingRepository.findByEventId(eventId);
+                eventArtistMappingRepository.findByEventId(eventId);
 
-        return mapper.toResponse(e, mappings, benefits, artists, isBookmarked(eventId, userId));
+        List<EventArtistGroupMapping> artistGroups =
+                eventArtistGroupMappingRepository.findByEventId(eventId);
+
+        return mapper.toResponse(e, mappings, benefits, artists, artistGroups, isBookmarked(eventId, userId));
     }
 
     @Transactional
@@ -454,7 +478,6 @@ public class EventService {
         return eventBookmarkRepository.existsByEventIdAndUserId(eventId, userId);
     }
 
-
     public Page<EventInfoDto> getEventsByArtist(Long artistId, UUID userId, Pageable pageable) {
 
         if (!artistRepository.existsById(artistId)) {
@@ -480,6 +503,19 @@ public class EventService {
             namesKrMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>()).add(row.getNameKr());
         }
 
+        // 3-2) 그룹 이름 배치 조회
+        List<EventArtistGroupMappingRepository.EventGroupNamesRow> groupNames =
+                eventArtistGroupMappingRepository.findGroupNamesByEventIds(eventIds);
+
+        Map<Long, List<String>> groupNamesEnMap = new HashMap<>();
+        Map<Long, List<String>> groupNamesKrMap = new HashMap<>();
+        for (EventArtistGroupMappingRepository.EventGroupNamesRow row : groupNames) {
+            groupNamesEnMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>())
+                    .add(row.getNameEn());
+            groupNamesKrMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>())
+                    .add(row.getNameKr());
+        }
+
         // 4) (로그인 시) 북마크 여부 일괄 조회
         Set<Long> bookmarked = bookmarkedIds(userId, eventIds);
 
@@ -491,7 +527,8 @@ public class EventService {
                         .imageUrl(e.getCoverImage() != null ? e.getCoverImage().getImageUrl() : null)
                         .artistNamesEn(namesEnMap.getOrDefault(e.getId(), List.of()))
                         .artistNamesKr(namesKrMap.getOrDefault(e.getId(), List.of()))
-                        .startDate(e.getStartDate())
+                        .groupNamesEn(groupNamesEnMap.getOrDefault(e.getId(), List.of()))
+                        .groupNamesKr(groupNamesKrMap.getOrDefault(e.getId(), List.of()))                        .startDate(e.getStartDate())
                         .endDate(e.getEndDate())
                         .startDate(e.getStartDate())
                         .closeTime(e.getCloseTime())
@@ -502,5 +539,79 @@ public class EventService {
 
         return new PageImpl<>(dtoList, pageable, page.getTotalElements());
     }
+    public Page<EventInfoDto> getEventsByGroup(Long groupId, UUID userId, Pageable pageable) {
 
+        // 0) 그룹 존재 확인
+        if (!artistGroupRepository.existsById(groupId)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "아티스트 그룹을 찾을 수 없습니다.");
+        }
+
+        // 1) 이벤트 페이지 조회 (그룹 직속 + 소속 아티스트 이벤트 포함)
+        Page<Event> page = eventRepository.findPageByGroupOrItsArtists(groupId, pageable);
+
+        if (page.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, 0);
+        }
+
+        // 2) 배치로 이벤트ID 수집
+        List<Long> eventIds = page.getContent().stream()
+                .map(Event::getId)
+                .toList();
+
+        // 3-1) 아티스트 이름 배치 조회
+        List<EventArtistMappingRepository.EventArtistNamesRow> artistNames =
+                eventArtistMappingRepository.findArtistNamesByEventIds(eventIds);
+
+        Map<Long, List<String>> artistNamesEnMap = new HashMap<>();
+        Map<Long, List<String>> artistNamesKrMap = new HashMap<>();
+        for (EventArtistMappingRepository.EventArtistNamesRow row : artistNames) {
+            artistNamesEnMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>())
+                    .add(row.getNameEn());
+            artistNamesKrMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>())
+                    .add(row.getNameKr());
+        }
+
+        // 3-2) 그룹 이름 배치 조회
+        List<EventArtistGroupMappingRepository.EventGroupNamesRow> groupNames =
+                eventArtistGroupMappingRepository.findGroupNamesByEventIds(eventIds);
+
+        Map<Long, List<String>> groupNamesEnMap = new HashMap<>();
+        Map<Long, List<String>> groupNamesKrMap = new HashMap<>();
+        for (EventArtistGroupMappingRepository.EventGroupNamesRow row : groupNames) {
+            groupNamesEnMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>())
+                    .add(row.getNameEn());
+            groupNamesKrMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>())
+                    .add(row.getNameKr());
+        }
+
+        // (선택) 중복 제거
+        artistNamesEnMap.replaceAll((k, v) -> v.stream().filter(Objects::nonNull).distinct().toList());
+        artistNamesKrMap.replaceAll((k, v) -> v.stream().filter(Objects::nonNull).distinct().toList());
+        groupNamesEnMap.replaceAll((k, v) -> v.stream().filter(Objects::nonNull).distinct().toList());
+        groupNamesKrMap.replaceAll((k, v) -> v.stream().filter(Objects::nonNull).distinct().toList());
+
+        // 4) (로그인 시) 북마크 여부 일괄 조회
+        Set<Long> bookmarked = bookmarkedIds(userId, eventIds);
+
+        // 5) DTO 매핑
+        List<EventInfoDto> dtoList = page.getContent().stream()
+                .map(e -> EventInfoDto.builder()
+                        .id(e.getId())
+                        .title(e.getTitle())
+                        .imageUrl(e.getCoverImage() != null ? e.getCoverImage().getImageUrl() : null)
+                        .artistNamesEn(artistNamesEnMap.getOrDefault(e.getId(), List.of()))
+                        .artistNamesKr(artistNamesKrMap.getOrDefault(e.getId(), List.of()))
+                        .groupNamesEn(groupNamesEnMap.getOrDefault(e.getId(), List.of()))
+                        .groupNamesKr(groupNamesKrMap.getOrDefault(e.getId(), List.of()))
+                        .startDate(e.getStartDate())
+                        .endDate(e.getEndDate())
+                        .closeTime(e.getCloseTime())
+                        .bookmarkCount(e.getBookmarkCount())
+                        .bookmarked(userId == null ? null : bookmarked.contains(e.getId()))
+                        .build()
+                )
+                .toList();
+
+        return new PageImpl<>(dtoList, pageable, page.getTotalElements());
+    }
 }

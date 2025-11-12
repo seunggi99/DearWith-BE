@@ -17,6 +17,7 @@ public record EventCreateRequestDto(
         LocalDate startDate,
         LocalDate endDate,
         List<Long> artistIds,
+        List<Long> artistGroupIds,
         PlaceDto place,
         List<ImageAttachDto> images,
         List<BenefitDto> benefits,

@@ -16,6 +16,8 @@ public class EventInfoDto {
     private String imageUrl;
     private List<String> artistNamesEn;
     private List<String> artistNamesKr;
+    private List<String> groupNamesEn;
+    private List<String> groupNamesKr;
     private LocalTime openTime;
     private LocalTime closeTime;
     private LocalDate startDate;
