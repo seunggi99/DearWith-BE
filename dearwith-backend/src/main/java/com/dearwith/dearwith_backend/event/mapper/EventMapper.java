@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.event.mapper;
 
+import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
@@ -52,6 +53,7 @@ public interface EventMapper {
     @Mapping(target = "artists", source = "artistMappings")       // List<EventArtistMapping> -> List<ArtistDto>
     @Mapping(target = "artistGroups",  source = "artistGroupMappings")
     @Mapping(target = "benefits", source = "benefits")            // List<EventBenefit> -> List<BenefitDto>
+    @Mapping(target = "notices", source = "notices")
     @Mapping(target = "bookmarked", expression = "java(bookmarked)")
     EventResponseDto toResponse(
             Event event,
@@ -59,6 +61,7 @@ public interface EventMapper {
             List<EventBenefit> benefits,
             List<EventArtistMapping> artistMappings,
             List<EventArtistGroupMapping> artistGroupMappings,
+            List<EventNoticeResponseDto> notices,
             boolean bookmarked
     );
 

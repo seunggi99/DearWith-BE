@@ -9,6 +9,7 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
+import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.enums.BenefitType;
@@ -29,7 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -51,6 +51,7 @@ public class EventService {
     private final XVerifyTicketService xVerifyTicketService;
     private final ImageAttachmentService imageAttachmentService;
     private final ArtistGroupRepository artistGroupRepository;
+    private final EventNoticeService eventNoticeService;
 
     private String toImageUrl(Image img) {
         if (img == null) return null;
@@ -336,7 +337,10 @@ public class EventService {
         List<EventArtistGroupMapping> artistGroups =
                 eventArtistGroupMappingRepository.findByEventId(eventId);
 
-        return mapper.toResponse(e, mappings, benefits, artists, artistGroups, isBookmarked(eventId, userId));
+        List<EventNoticeResponseDto> notices =
+                eventNoticeService.getLatestNoticesForEvent(eventId);
+
+        return mapper.toResponse(e, mappings, benefits, artists, artistGroups, notices, isBookmarked(eventId, userId));
     }
 
     @Transactional
@@ -528,7 +532,8 @@ public class EventService {
                         .artistNamesEn(namesEnMap.getOrDefault(e.getId(), List.of()))
                         .artistNamesKr(namesKrMap.getOrDefault(e.getId(), List.of()))
                         .groupNamesEn(groupNamesEnMap.getOrDefault(e.getId(), List.of()))
-                        .groupNamesKr(groupNamesKrMap.getOrDefault(e.getId(), List.of()))                        .startDate(e.getStartDate())
+                        .groupNamesKr(groupNamesKrMap.getOrDefault(e.getId(), List.of()))
+                        .startDate(e.getStartDate())
                         .endDate(e.getEndDate())
                         .startDate(e.getStartDate())
                         .closeTime(e.getCloseTime())

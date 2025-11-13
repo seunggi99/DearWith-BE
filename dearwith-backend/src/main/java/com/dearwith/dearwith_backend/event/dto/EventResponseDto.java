@@ -1,9 +1,6 @@
 package com.dearwith.dearwith_backend.event.dto;
 
-import com.dearwith.dearwith_backend.artist.dto.ArtistGroupDto;
-import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
 import com.dearwith.dearwith_backend.event.enums.BenefitType;
-import org.w3c.dom.ls.LSException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -24,7 +21,8 @@ public record EventResponseDto(
         List<BenefitDto> benefits,
         OrganizerDto organizer,
         Long bookmarkCount,
-        boolean bookmarked
+        boolean bookmarked,
+        List<EventNoticeResponseDto> notices
 ) {
     public record ArtistDto(
             Long id,

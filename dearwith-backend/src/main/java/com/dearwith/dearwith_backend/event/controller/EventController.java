@@ -27,7 +27,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class EventController {
     private final EventService eventService;
-    private final RecentSearchService recentSearchService;
 
     @Operation(summary = "북마크 해제")
     @DeleteMapping("/{eventId}/bookmark")
