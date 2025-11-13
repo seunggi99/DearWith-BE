@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.event.controller;
 
 import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
+import com.dearwith.dearwith_backend.event.dto.EventBookmarkResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
@@ -30,28 +31,20 @@ public class EventController {
 
     @Operation(summary = "북마크 해제")
     @DeleteMapping("/{eventId}/bookmark")
-    public ResponseEntity<Void> removeBookmark(
+    public EventBookmarkResponseDto removeBookmark(
             @PathVariable Long eventId,
-            @AuthenticationPrincipal CustomUserDetails principal
+            @AuthenticationPrincipal(expression = "id") UUID userId
     ) {
-        if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        eventService.removeBookmark(eventId, principal.getId());
-        return ResponseEntity.ok().build();
+        return eventService.removeBookmark(eventId, userId);
     }
 
     @Operation(summary = "북마크 추가")
     @PostMapping("/{eventId}/bookmark")
-    public ResponseEntity<Void> addBookmark(
+    public EventBookmarkResponseDto addBookmark(
             @PathVariable Long eventId,
-            @AuthenticationPrincipal CustomUserDetails principal
+            @AuthenticationPrincipal(expression = "id") UUID userId
     ) {
-        if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        eventService.addBookmark(eventId, principal.getId());
-        return ResponseEntity.ok().build();
+        return eventService.addBookmark(eventId, userId);
     }
 
     @Operation(summary = "북마크힌 이벤트 조회",

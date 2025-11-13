@@ -7,10 +7,7 @@ import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
-import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
-import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
-import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
-import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
+import com.dearwith.dearwith_backend.event.dto.*;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.enums.BenefitType;
 import com.dearwith.dearwith_backend.event.enums.EventStatus;
@@ -344,7 +341,7 @@ public class EventService {
     }
 
     @Transactional
-    public void addBookmark(Long eventId, UUID userId) {
+    public EventBookmarkResponseDto addBookmark(Long eventId, UUID userId) {
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
@@ -359,16 +356,32 @@ public class EventService {
         }
 
         eventRepository.incrementBookmark(eventId);
+
+        long count = eventRepository.getBookmarkCount(eventId);
+
+        return new EventBookmarkResponseDto(
+                eventId,
+                true,
+                count
+        );
     }
 
     @Transactional
-    public void removeBookmark(Long eventId, UUID userId) {
+    public EventBookmarkResponseDto removeBookmark(Long eventId, UUID userId) {
         EventBookmark bookmark = eventBookmarkRepository
                 .findByEventIdAndUserId(eventId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOOKMARK_NOT_FOUND));
 
         eventBookmarkRepository.delete(bookmark);
         eventRepository.decrementBookmark(bookmark.getEvent().getId());
+
+        long count = eventRepository.getBookmarkCount(eventId);
+
+        return new EventBookmarkResponseDto(
+                eventId,
+                false,
+                count
+        );
     }
 
     @Transactional(readOnly = true)

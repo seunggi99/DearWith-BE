@@ -92,4 +92,7 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     """)
     Page<Event> findPageByGroupOrItsArtists(@Param("groupId") Long groupId, Pageable pageable);
 
+    @Query("select e.bookmarkCount from Event e where e.id = :eventId")
+    long getBookmarkCount(@Param("eventId") Long eventId);
+
 }

@@ -10,10 +10,7 @@ import com.dearwith.dearwith_backend.event.entity.Event;
 import com.dearwith.dearwith_backend.event.repository.EventRepository;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
 import com.dearwith.dearwith_backend.image.entity.Image;
-import com.dearwith.dearwith_backend.review.dto.EventPhotoReviewResponseDto;
-import com.dearwith.dearwith_backend.review.dto.EventReviewResponseDto;
-import com.dearwith.dearwith_backend.review.dto.ReviewCreateRequestDto;
-import com.dearwith.dearwith_backend.review.dto.ReviewUpdateRequestDto;
+import com.dearwith.dearwith_backend.review.dto.*;
 import com.dearwith.dearwith_backend.review.entity.Review;
 import com.dearwith.dearwith_backend.review.entity.ReviewImageMapping;
 import com.dearwith.dearwith_backend.review.entity.ReviewLike;
@@ -48,7 +45,7 @@ public class ReviewService {
     private final AuthService authService;
 
     @Transactional
-    public Long create(UUID userId, Long eventId, ReviewCreateRequestDto req) {
+    public void create(UUID userId, Long eventId, ReviewCreateRequestDto req) {
         // 0) 유효성
         if (req.content() == null || req.content().isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "리뷰 내용은 비어 있을 수 없습니다.");
@@ -91,8 +88,6 @@ public class ReviewService {
                     .toList();
             reviewImageAppService.create(saved, imageDtos, user);
         }
-
-        return saved.getId();
     }
 
     public EventPhotoReviewResponseDto getEventPhotoReviews(Long eventId, Pageable pageable) {
@@ -243,7 +238,7 @@ public class ReviewService {
     }
 
     @Transactional
-    public void like(Long reviewId, UUID userId) {
+    public ReviewLikeResponseDto like(Long reviewId, UUID userId) {
 
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
@@ -263,15 +258,31 @@ public class ReviewService {
         }
 
         reviewRepository.incrementLike(reviewId);
+
+        long likeCount = reviewRepository.getLikeCount(reviewId);
+
+        return new ReviewLikeResponseDto(
+                reviewId,
+                true,
+                likeCount
+        );
     }
 
     @Transactional
-    public void unlike(Long reviewId, UUID userId) {
+    public ReviewLikeResponseDto unlike(Long reviewId, UUID userId) {
         ReviewLike like = reviewLikeRepository.findByReviewIdAndUserId(reviewId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "좋아요를 찾을 수 없습니다."));
 
         reviewLikeRepository.delete(like);
         reviewRepository.decrementLike(like.getReview().getId());
+
+        long likeCount = reviewRepository.getLikeCount(reviewId);
+
+        return new ReviewLikeResponseDto(
+                reviewId,
+                false,
+                likeCount
+        );
     }
 
     @Transactional

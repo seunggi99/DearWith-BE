@@ -58,4 +58,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     @EntityGraph(attributePaths = {"tags"})
     Optional<Review> findById(Long id);
+
+    @Query("select r.likeCount from Review r where r.id = :reviewId")
+    long getLikeCount(@Param("reviewId") Long reviewId);
 }

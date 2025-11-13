@@ -1,9 +1,6 @@
 package com.dearwith.dearwith_backend.review.controller;
 
-import com.dearwith.dearwith_backend.review.dto.EventPhotoReviewResponseDto;
-import com.dearwith.dearwith_backend.review.dto.ReviewCreateRequestDto;
-import com.dearwith.dearwith_backend.review.dto.EventReviewResponseDto;
-import com.dearwith.dearwith_backend.review.dto.ReviewUpdateRequestDto;
+import com.dearwith.dearwith_backend.review.dto.*;
 import com.dearwith.dearwith_backend.review.enums.ReviewSort;
 import com.dearwith.dearwith_backend.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -67,22 +64,20 @@ public class ReviewController {
 
     @Operation(summary = "리뷰 좋아요 추가")
     @PostMapping("/api/reviews/{reviewId}/like")
-    public ResponseEntity<Void> like(
+    public ReviewLikeResponseDto like(
             @PathVariable Long reviewId,
             @AuthenticationPrincipal(expression = "id") UUID userId
     ) {
-        reviewService.like(reviewId, userId);
-        return ResponseEntity.ok().build();
+        return reviewService.like(reviewId, userId);
     }
 
     @Operation(summary = "리뷰 좋아요 취소")
     @DeleteMapping("/api/reviews/{reviewId}/like")
-    public ResponseEntity<Void> unlike(
+    public ReviewLikeResponseDto unlike(
             @PathVariable Long reviewId,
             @AuthenticationPrincipal(expression = "id") UUID userId
     ) {
-        reviewService.unlike(reviewId, userId);
-        return ResponseEntity.ok().build();
+        return reviewService.unlike(reviewId, userId);
     }
 
     @Operation(
