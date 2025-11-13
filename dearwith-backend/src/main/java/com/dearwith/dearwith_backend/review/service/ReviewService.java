@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.review.service;
 
 
+import com.dearwith.dearwith_backend.auth.service.AuthService;
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.common.dto.ImageVariantDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
@@ -44,6 +45,7 @@ public class ReviewService {
     private final ReviewImageMappingRepository reviewImageMappingRepository;
     private final ReviewLikeRepository reviewLikeRepository;
     private final ReviewImageAppService reviewImageAppService;
+    private final AuthService authService;
 
     @Transactional
     public Long create(UUID userId, Long eventId, ReviewCreateRequestDto req) {
@@ -277,6 +279,8 @@ public class ReviewService {
         Review review = reviewRepository.findByIdAndUserIdWithTags(reviewId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없거나 권한이 없습니다. id=" + reviewId));
 
+        authService.validateOwner(review.getUser(), userId, "리뷰를 수정할 권한이 없습니다.");
+
         // 1) content
         if (req.content() != null) {
             String c = req.content();
@@ -321,6 +325,8 @@ public class ReviewService {
     public void delete(Long reviewId, UUID userId) {
         Review review = reviewRepository.findByIdAndUserId(reviewId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없거나 권한이 없습니다. id=" + reviewId));
+
+        authService.validateOwner(review.getUser(), userId, "리뷰를 삭제할 권한이 없습니다.");
 
         if(review.getStatus() == ReviewStatus.DELETED) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "이미 삭제된 리뷰입니다.");

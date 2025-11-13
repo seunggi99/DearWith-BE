@@ -11,6 +11,7 @@ import com.dearwith.dearwith_backend.user.enums.Role;
 import com.dearwith.dearwith_backend.user.enums.UserStatus;
 import com.dearwith.dearwith_backend.user.dto.SignInRequestDto;
 import com.dearwith.dearwith_backend.user.dto.SignInResponseDto;
+import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import com.dearwith.dearwith_backend.user.service.SocialAccountService;
 import com.dearwith.dearwith_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -27,14 +28,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthService {
     private final AuthenticationManager authenticationManager;
-    @Autowired
     private final JwtTokenProvider jwtTokenProvider;
-    @Autowired
     private final UserService userService;
-    @Autowired
     private final SocialAccountService socialAccountService;
-    @Autowired
     private final KakaoAuthService kakaoAuthService;
+    private final UserRepository userRepository;
 
     public SignInResponseDto signIn(SignInRequestDto request){
         // 1. 인증 처리 (예외는 전역 핸들러에서 처리)
@@ -171,5 +169,19 @@ public class AuthService {
                 .email(user.getEmail())
                 .role(user.getRole().name())
                 .build();
+    }
+
+    public void validateOwner(User owner, UUID userId, String message) {
+
+        User requester = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "User not found"));
+
+        if (requester.isAdmin()) {
+            return;
+        }
+
+        if (owner == null || owner.getId() == null || !owner.getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, message);
+        }
     }
 }

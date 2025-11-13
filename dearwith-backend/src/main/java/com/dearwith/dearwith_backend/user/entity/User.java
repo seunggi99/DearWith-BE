@@ -118,7 +118,7 @@ public class User extends BaseDeletableEntity {
         this.lastLoginAt = LocalDateTime.now();
     }
 
-    public void updateUpdatedAt() {
-        this.updatedAt = LocalDateTime.now();
+    public boolean isAdmin() {
+        return this.role == Role.ADMIN;
     }
 }
