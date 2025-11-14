@@ -29,13 +29,21 @@ public class GlobalExceptionHandler {
 
     // 비즈니스 예외 (커스텀)
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex,
+                                                                 HttpServletRequest request) {
         ErrorCode errorCode = ex.getErrorCode();
-        log.warn("비즈니스 예외 발생: {} ({})", errorCode.name(), ex.getMessage());
+
+        log.warn("비즈니스 예외 발생: {} ({}) detail={} uri={}",
+                errorCode.name(),
+                ex.getMessage(),
+                ex.getDetail(),
+                request.getRequestURI(),
+                ex
+        );
 
         ErrorResponse response = ErrorResponse.of(
                 errorCode,
-                ex.getMessage(),
+                ex.getDetail(),
                 request.getRequestURI()
         );
 

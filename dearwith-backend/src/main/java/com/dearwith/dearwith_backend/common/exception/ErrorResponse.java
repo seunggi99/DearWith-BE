@@ -40,5 +40,4 @@ public class ErrorResponse {
                 OffsetDateTime.now()
         );
     }
-
 }
