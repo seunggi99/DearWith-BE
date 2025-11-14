@@ -14,16 +14,22 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/events/{eventId}/notices")
+@RequestMapping
 @RequiredArgsConstructor
 public class EventNoticeController {
     private final EventNoticeService eventNoticeService;
+    @GetMapping("/api/events/notices/{noticeId}")
+    @Operation(summary = "이벤트 공지 상세 조회")
+    public EventNoticeResponseDto getNotice(
+            @PathVariable Long noticeId
+    ) {
+        return eventNoticeService.getNoticeById(noticeId);
+    }
 
-    @GetMapping
+    @GetMapping("/api/events/{eventId}/notices")
     @Operation(summary = "이벤트 공지 목록 조회")
     public Page<EventNoticeResponseDto> getNotices(
             @PathVariable Long eventId,
@@ -34,7 +40,7 @@ public class EventNoticeController {
         return eventNoticeService.getNoticesByEvent(eventId, pageable);
     }
 
-    @PostMapping
+    @PostMapping("/api/events/{eventId}/notices")
     @Operation(summary = "이벤트 공지 등록")
     public EventNoticeResponseDto createNotice(
             @AuthenticationPrincipal(expression = "id") UUID userId,
@@ -44,7 +50,7 @@ public class EventNoticeController {
         return eventNoticeService.create(userId, eventId, req);
     }
 
-    @PatchMapping("/{noticeId}")
+    @PatchMapping("/api/events/{eventId}/notices/{noticeId}")
     @Operation(summary = "이벤트 공지 수정")
     public EventNoticeResponseDto updateNotice(
             @AuthenticationPrincipal(expression = "id") UUID userId,
@@ -55,7 +61,7 @@ public class EventNoticeController {
         return eventNoticeService.update(userId, eventId, noticeId, req);
     }
 
-    @DeleteMapping("/{noticeId}")
+    @DeleteMapping("/api/events/{eventId}/notices/{noticeId}")
     @Operation(summary = "이벤트 공지 삭제")
     public ResponseEntity<Void> deleteNotice(
             @AuthenticationPrincipal(expression = "id") UUID userId,

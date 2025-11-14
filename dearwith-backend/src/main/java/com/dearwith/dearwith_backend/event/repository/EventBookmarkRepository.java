@@ -44,4 +44,11 @@ public interface EventBookmarkRepository extends JpaRepository<EventBookmark, Lo
     """)
     List<Long> findBookmarkedEventIds(@Param("userId") UUID userId,
                                       @Param("eventIds") Collection<Long> eventIds);
+    @Query("""
+        select eb.user.id
+        from EventBookmark eb
+        where eb.event.id = :eventId
+          and eb.user is not null
+    """)
+    List<UUID> findUserIdsByEventId(@Param("eventId") Long eventId);
 }

@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public record EventNoticeResponseDto(
         Long id,
         Long eventId,
+        String eventTitle,
         String title,
         String content,
         String writerNickname,

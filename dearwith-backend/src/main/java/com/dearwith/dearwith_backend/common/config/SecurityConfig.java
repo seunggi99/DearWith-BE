@@ -106,7 +106,8 @@ public class SecurityConfig {
                                 "/api/events/*/bookmark",
                                 "/api/uploads/*",
                                 "/api/reviews/*/like",
-                                "/api/search/recent/**"
+                                "/api/search/recent/**",
+                                "/api/notifications/**"
                             //    "/oauth2/x/authorize",
                             //    "/oauth2/callback/x",
                             //    "/api/events/organizer/verify-x"

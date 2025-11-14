@@ -8,8 +8,10 @@ import com.dearwith.dearwith_backend.event.dto.EventNoticeRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
 import com.dearwith.dearwith_backend.event.entity.Event;
 import com.dearwith.dearwith_backend.event.entity.EventNotice;
+import com.dearwith.dearwith_backend.event.repository.EventBookmarkRepository;
 import com.dearwith.dearwith_backend.event.repository.EventNoticeRepository;
 import com.dearwith.dearwith_backend.event.repository.EventRepository;
+import com.dearwith.dearwith_backend.notification.service.NotificationService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -31,6 +33,16 @@ public class EventNoticeService {
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
     private final AuthService authService;
+    private final NotificationService notificationService;
+    private final EventBookmarkRepository eventBookmarkRepository;
+
+    @Transactional
+    public EventNoticeResponseDto getNoticeById(Long noticeId) {
+        EventNotice notice = eventNoticeRepository.findByIdAndDeletedAtIsNull(noticeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "해당 공지를 찾을 수 없습니다. id=" + noticeId));
+
+        return toDto(notice);
+    }
 
     /**
      * 이벤트 공지 등록
@@ -53,6 +65,17 @@ public class EventNoticeService {
                 .build();
 
         EventNotice saved = eventNoticeRepository.save(notice);
+
+        List<UUID> targetUserIds =
+                eventBookmarkRepository.findUserIdsByEventId(event.getId());
+
+        notificationService.sendEventNoticeCreatedToMany(
+                targetUserIds,
+                event.getId(),
+                notice.getId(),
+                event.getTitle(),
+                notice.getTitle()
+        );
         return toDto(saved);
     }
 
@@ -126,6 +149,7 @@ public class EventNoticeService {
         return new EventNoticeResponseDto(
                 notice.getId(),
                 notice.getEvent().getId(),
+                notice.getEvent().getTitle(),
                 notice.getTitle(),
                 notice.getContent(),
                 writerNickname,
