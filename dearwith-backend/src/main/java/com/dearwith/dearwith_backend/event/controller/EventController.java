@@ -1,12 +1,12 @@
 package com.dearwith.dearwith_backend.event.controller;
 
-import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.event.dto.EventBookmarkResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
-import com.dearwith.dearwith_backend.event.service.EventService;
-import com.dearwith.dearwith_backend.search.service.RecentSearchService;
+import com.dearwith.dearwith_backend.event.service.EventBookmarkService;
+import com.dearwith.dearwith_backend.event.service.EventCommandService;
+import com.dearwith.dearwith_backend.event.service.EventQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 
 import jakarta.validation.Valid;
@@ -15,7 +15,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +26,9 @@ import java.util.UUID;
 @RequestMapping("/api/events")
 @RequiredArgsConstructor
 public class EventController {
-    private final EventService eventService;
+    private final EventQueryService eventQueryService;
+    private final EventBookmarkService eventBookmarkService;
+    private final EventCommandService eventCommandService;
 
     @Operation(summary = "북마크 해제")
     @DeleteMapping("/{eventId}/bookmark")
@@ -35,7 +36,7 @@ public class EventController {
             @PathVariable Long eventId,
             @AuthenticationPrincipal(expression = "id") UUID userId
     ) {
-        return eventService.removeBookmark(eventId, userId);
+        return eventBookmarkService.removeBookmark(eventId, userId);
     }
 
     @Operation(summary = "북마크 추가")
@@ -44,7 +45,7 @@ public class EventController {
             @PathVariable Long eventId,
             @AuthenticationPrincipal(expression = "id") UUID userId
     ) {
-        return eventService.addBookmark(eventId, userId);
+        return eventBookmarkService.addBookmark(eventId, userId);
     }
 
     @Operation(summary = "북마크힌 이벤트 조회",
@@ -62,21 +63,8 @@ public class EventController {
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        return eventService.getBookmarkedEvents(userId, state, pageable);
+        return eventBookmarkService.getBookmarkedEvents(userId, state, pageable);
     }
-
-//    @GetMapping("/{eventId}/bookmark")
-//    @Operation(summary = "단일 이벤트 북마크 여부 조회")
-//    public ResponseEntity<Map<String, Boolean>> getBookmarkStatus(
-//            @PathVariable Long eventId,
-//            @AuthenticationPrincipal(expression = "id") UUID userId
-//    ) {
-//        boolean bookmarked = eventService.isBookmarked(eventId, userId);
-//
-//        return ResponseEntity.ok()
-//                .cacheControl(org.springframework.http.CacheControl.noStore())
-//                .body(Map.of("bookmarked", bookmarked));
-//    }
 
     @PostMapping
     @Operation(
@@ -111,7 +99,7 @@ public class EventController {
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @RequestBody @Valid EventCreateRequestDto request
     ) {
-        EventResponseDto response = eventService.create(userId, request);
+        EventResponseDto response = eventCommandService.create(userId, request);
         return ResponseEntity
                 .created(URI.create("/api/events/" + response.id()))
                 .body(response);
@@ -123,7 +111,7 @@ public class EventController {
             @PathVariable Long eventId,
             @AuthenticationPrincipal(expression = "id", errorOnInvalidType = false) UUID userId
     ) {
-        return ResponseEntity.ok(eventService.getEvent(eventId, userId));
+        return ResponseEntity.ok(eventQueryService.getEvent(eventId, userId));
     }
 
     @GetMapping
@@ -137,7 +125,7 @@ public class EventController {
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by("title").ascending());
 
-        return eventService.search(userId,query, pageable);
+        return eventQueryService.search(userId,query, pageable);
     }
 }
 

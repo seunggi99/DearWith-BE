@@ -11,8 +11,7 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.enums.EventSort;
-import com.dearwith.dearwith_backend.event.service.EventService;
-import com.dearwith.dearwith_backend.search.service.RecentSearchService;
+import com.dearwith.dearwith_backend.event.service.EventQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +31,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ArtistController {
     private final ArtistService artistService;
-    private final EventService eventService;
+    private final EventQueryService eventQueryService;
     private final ArtistRepository artistRepository;
     private final HotArtistService hotArtistService;
     @GetMapping
@@ -80,7 +79,7 @@ public class ArtistController {
 
         hotArtistService.recordArtistView(artistId, userId);
 
-        Page<EventInfoDto> eventPage = eventService.getEventsByArtist(artistId, userId, pageable);
+        Page<EventInfoDto> eventPage = eventQueryService.getEventsByArtist(artistId, userId, pageable);
 
         Artist artist = artistRepository.findById(artistId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));

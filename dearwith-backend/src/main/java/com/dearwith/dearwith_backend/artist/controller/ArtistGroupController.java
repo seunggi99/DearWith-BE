@@ -10,7 +10,7 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.enums.EventSort;
-import com.dearwith.dearwith_backend.event.service.EventService;
+import com.dearwith.dearwith_backend.event.service.EventQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,7 +28,7 @@ import java.util.UUID;
 public class ArtistGroupController {
 
     private final ArtistGroupService artistGroupService;
-    private final EventService eventService;
+    private final EventQueryService eventQueryService;
     private final ArtistGroupRepository groupRepository;
     private final HotArtistService hotArtistService;
 
@@ -63,7 +63,7 @@ public class ArtistGroupController {
 
         hotArtistService.recordGroupView(groupId, userId);
 
-        Page<EventInfoDto> eventPage = eventService.getEventsByGroup(groupId, userId, pageable);
+        Page<EventInfoDto> eventPage = eventQueryService.getEventsByGroup(groupId, userId, pageable);
 
         ArtistGroup group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
