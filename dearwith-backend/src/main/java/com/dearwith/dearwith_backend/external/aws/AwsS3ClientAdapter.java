@@ -42,7 +42,7 @@ public class AwsS3ClientAdapter implements S3ClientAdapter {
         try {
             return s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
         } catch (S3Exception e) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "S3 객체를 찾을 수 없습니다. key=" + key);
+            throw new BusinessException(ErrorCode.NOT_FOUND, "S3 객체를 찾을 수 없습니다. key=" + key,e);
         }
     }
 
@@ -57,7 +57,7 @@ public class AwsS3ClientAdapter implements S3ClientAdapter {
                             .build(),
                     RequestBody.fromBytes(bytes));
         } catch (S3Exception e) {
-            throw new BusinessException(ErrorCode.S3_OPERATION_FAILED, "S3 업로드 실패 key=" + key);
+            throw new BusinessException(ErrorCode.S3_OPERATION_FAILED, "S3 업로드 실패 key=" + key,e);
         }
     }
 
@@ -77,7 +77,7 @@ public class AwsS3ClientAdapter implements S3ClientAdapter {
             }
             s3.copyObject(b.build());
         } catch (S3Exception e) {
-            throw new BusinessException(ErrorCode.S3_OPERATION_FAILED, "S3 복사 실패 src=" + srcKey + " dst=" + dstKey);
+            throw new BusinessException(ErrorCode.S3_OPERATION_FAILED, "S3 복사 실패 src=" + srcKey + " dst=" + dstKey, e);
         }
     }
 
@@ -86,7 +86,7 @@ public class AwsS3ClientAdapter implements S3ClientAdapter {
         try {
             s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
         } catch (S3Exception e) {
-            throw new BusinessException(ErrorCode.S3_OPERATION_FAILED, "S3 삭제 실패 key=" + key);
+            throw new BusinessException(ErrorCode.S3_OPERATION_FAILED, "S3 삭제 실패 key=" + key,e);
         }
     }
 
@@ -110,7 +110,7 @@ public class AwsS3ClientAdapter implements S3ClientAdapter {
             in.transferTo(baos);
             return baos.toByteArray();
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.S3_OPERATION_FAILED, "S3 다운로드 실패 key=" + key);
+            throw new BusinessException(ErrorCode.S3_OPERATION_FAILED, "S3 다운로드 실패 key=" + key,e);
         }
     }
 

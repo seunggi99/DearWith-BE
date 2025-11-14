@@ -4,17 +4,25 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.BindException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingPathVariableException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.validation.FieldError;
 
-import java.time.OffsetDateTime;
 import java.util.stream.Collectors;
 
+import static com.dearwith.dearwith_backend.common.exception.ErrorCode.*;
+import jakarta.validation.ConstraintViolationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -78,6 +86,91 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
                 .body(new ErrorResponse(errorCode.getMessage(), errorCode.name(),null,null,null));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException e,
+                                                                    HttpServletRequest request) {
+
+        String path = request.getRequestURI();
+
+        // 첫 번째 필드 에러 메시지만 간단히 사용
+        String detail = e.getBindingResult().getFieldErrors()
+                .stream()
+                .findFirst()
+                .map(fieldError -> String.format("[%s] %s", fieldError.getField(), fieldError.getDefaultMessage()))
+                .orElse("요청 값 검증에 실패했습니다.");
+
+        log.warn("[ValidationException] detail={}, path={}", detail, path);
+
+        ErrorResponse body = ErrorResponse.of(VALIDATION_FAILED, detail, path);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException e,
+                                                                            HttpServletRequest request) {
+
+        String path = request.getRequestURI();
+
+        String detail = e.getConstraintViolations().stream()
+                .findFirst()
+                .map(v -> v.getPropertyPath() + " " + v.getMessage())
+                .orElse("요청 값 검증에 실패했습니다.");
+
+        log.warn("[ConstraintViolationException] detail={}, path={}", detail, path);
+
+        ErrorResponse body = ErrorResponse.of(VALIDATION_FAILED, detail, path);
+        return ResponseEntity.status(BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleJsonParseException(HttpMessageNotReadableException e,
+                                                                  HttpServletRequest request) {
+
+        String path = request.getRequestURI();
+        String detail = e.getMostSpecificCause() != null
+                ? e.getMostSpecificCause().getMessage()
+                : "요청 본문을 읽을 수 없습니다.";
+
+        log.warn("[JsonParseException] detail={}, path={}", detail, path);
+
+        ErrorResponse body = ErrorResponse.of(INVALID_FORMAT, detail, path);
+        return ResponseEntity.status(BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException e,
+                                                            HttpServletRequest request) {
+
+        String path = request.getRequestURI();
+        String requiredType = (e.getRequiredType() != null)
+                ? e.getRequiredType().getSimpleName()
+                : "요청 타입";
+
+        String detail = String.format("변수 '%s'에 대한 값 '%s'를(을) %s 으로 변환할 수 없습니다.",
+                e.getName(), e.getValue(), requiredType);
+
+        log.warn("[MethodArgumentTypeMismatch] detail={}, path={}", detail, path);
+
+        ErrorResponse body = ErrorResponse.of(INVALID_PATH_VARIABLE, detail, path);
+        return ResponseEntity.status(BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler({
+            MissingServletRequestParameterException.class,
+            MissingPathVariableException.class
+    })
+    public ResponseEntity<ErrorResponse> handleMissingParameter(Exception e,
+                                                                HttpServletRequest request) {
+
+        String path = request.getRequestURI();
+        String detail = e.getMessage();
+
+        log.warn("[MissingParameter] detail={}, path={}", detail, path);
+
+        ErrorResponse body = ErrorResponse.of(INVALID_REQUEST, detail, path);
+        return ResponseEntity.status(BAD_REQUEST).body(body);
     }
 
     // 그 외 모든 예외
