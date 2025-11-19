@@ -5,6 +5,7 @@ import com.dearwith.dearwith_backend.image.enums.ImageStatus;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Where;
 
 @Getter
 @Setter
@@ -12,6 +13,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Entity
+@Where(clause = "deleted_at IS NULL")
 public class Image extends BaseDeletableEntity {
 
     @Id

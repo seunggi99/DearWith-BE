@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface EventRepository extends JpaRepository<Event, Long> {
-    @Query("SELECT e FROM Event e ORDER BY e.startDate DESC")
     List<Event> findTop10ByOrderByCreatedAtDesc();
 
     List<Event> findByStatus(EventStatus status);

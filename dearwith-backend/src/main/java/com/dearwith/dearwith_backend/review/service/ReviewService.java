@@ -259,7 +259,7 @@ public class ReviewService {
 
         reviewRepository.incrementLike(reviewId);
 
-        long likeCount = reviewRepository.getLikeCount(reviewId);
+        Integer likeCount = reviewRepository.getLikeCount(reviewId);
 
         return new ReviewLikeResponseDto(
                 reviewId,
@@ -276,7 +276,7 @@ public class ReviewService {
         reviewLikeRepository.delete(like);
         reviewRepository.decrementLike(like.getReview().getId());
 
-        long likeCount = reviewRepository.getLikeCount(reviewId);
+        Integer likeCount = reviewRepository.getLikeCount(reviewId);
 
         return new ReviewLikeResponseDto(
                 reviewId,
@@ -339,10 +339,6 @@ public class ReviewService {
 
         authService.validateOwner(review.getUser(), userId, "리뷰를 삭제할 권한이 없습니다.");
 
-        if(review.getStatus() == ReviewStatus.DELETED) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "이미 삭제된 리뷰입니다.");
-        }
-
         if (review.getTags() != null && !review.getTags().isEmpty()) {
             review.getTags().clear();
         }
@@ -350,8 +346,7 @@ public class ReviewService {
         reviewImageAppService.deleteAll(reviewId);
         reviewLikeRepository.deleteByReviewId(reviewId);
 
-        review.setDeletedAt(LocalDateTime.now());
-        review.setStatus(ReviewStatus.DELETED);
+        review.softDelete();
         reviewRepository.save(review);
     }
 }

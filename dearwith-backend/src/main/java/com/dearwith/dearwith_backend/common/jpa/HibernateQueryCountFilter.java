@@ -1,4 +1,4 @@
-package com.dearwith.dearwith_backend.common.config;
+package com.dearwith.dearwith_backend.common.jpa;
 
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.servlet.*;

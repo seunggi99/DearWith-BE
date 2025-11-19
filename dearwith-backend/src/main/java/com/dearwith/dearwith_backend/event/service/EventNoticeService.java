@@ -38,7 +38,7 @@ public class EventNoticeService {
 
     @Transactional
     public EventNoticeResponseDto getNoticeById(Long noticeId) {
-        EventNotice notice = eventNoticeRepository.findByIdAndDeletedAtIsNull(noticeId)
+        EventNotice notice = eventNoticeRepository.findById(noticeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "해당 공지를 찾을 수 없습니다. id=" + noticeId));
 
         return toDto(notice);
@@ -84,7 +84,7 @@ public class EventNoticeService {
      */
     @Transactional
     public EventNoticeResponseDto update(UUID userId, Long eventId, Long noticeId, EventNoticeRequestDto req) {
-        EventNotice notice = eventNoticeRepository.findByIdAndDeletedAtIsNull(noticeId)
+        EventNotice notice = eventNoticeRepository.findById(noticeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이벤트 공지를 찾을 수 없습니다."));
 
         if (!notice.getEvent().getId().equals(eventId)) {
@@ -103,7 +103,7 @@ public class EventNoticeService {
      */
     @Transactional
     public void delete(UUID userId, Long eventId, Long noticeId) {
-        EventNotice notice = eventNoticeRepository.findByIdAndDeletedAtIsNull(noticeId)
+        EventNotice notice = eventNoticeRepository.findById(noticeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이벤트 공지를 찾을 수 없습니다."));
 
         if (!notice.getEvent().getId().equals(eventId)) {
@@ -122,7 +122,7 @@ public class EventNoticeService {
     public Page<EventNoticeResponseDto> getNoticesByEvent(Long eventId, Pageable pageable) {
 
         Page<EventNotice> page = eventNoticeRepository
-                .findByEventIdAndDeletedAtIsNull(eventId, pageable);
+                .findByEventId(eventId, pageable);
 
         return page.map(this::toDto);
     }
@@ -136,7 +136,7 @@ public class EventNoticeService {
         );
 
         Page<EventNotice> page = eventNoticeRepository
-                .findByEventIdAndDeletedAtIsNull(eventId, pageable);
+                .findByEventId(eventId, pageable);
 
         return page.getContent().stream()
                 .map(this::toDto)

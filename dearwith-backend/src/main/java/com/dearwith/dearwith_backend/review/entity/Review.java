@@ -9,11 +9,13 @@ import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Where;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Where(clause = "deleted_at IS NULL")
 @Setter
 @Getter
 @NoArgsConstructor

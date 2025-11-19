@@ -1,6 +1,5 @@
 package com.dearwith.dearwith_backend.notification.entity;
 
-import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
 import com.dearwith.dearwith_backend.common.jpa.BaseTimeEntity;
 import com.dearwith.dearwith_backend.notification.enums.NotificationType;
 import jakarta.persistence.*;

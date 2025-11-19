@@ -11,6 +11,7 @@ import lombok.*;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 
 
 @Entity
+@Where(clause = "deleted_at IS NULL")
 @Getter @NoArgsConstructor @AllArgsConstructor @Builder
 public class User extends BaseDeletableEntity {
     @Id

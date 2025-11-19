@@ -7,6 +7,7 @@ import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Where(clause = "deleted_at IS NULL")
 @Setter
 @Getter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Event extends BaseDeletableEntity {

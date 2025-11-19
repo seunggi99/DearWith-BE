@@ -7,10 +7,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDate;
 
 @Entity
+@Where(clause = "deleted_at IS NULL")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

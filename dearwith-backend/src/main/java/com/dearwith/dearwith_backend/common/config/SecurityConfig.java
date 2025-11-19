@@ -102,7 +102,7 @@ public class SecurityConfig {
                         // ===== 로그인 필수 (X 인증 플로우 등) =====
                         .requestMatchers(
                                 "/users/me/**",
-                                "/api/main",
+                            //    "/api/main",
                                 "/api/events/*/bookmark",
                                 "/api/uploads/*",
                                 "/api/reviews/*/like",

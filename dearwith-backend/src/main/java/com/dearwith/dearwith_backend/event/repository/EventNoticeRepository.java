@@ -5,11 +5,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
-import java.util.Optional;
-
 public interface EventNoticeRepository extends JpaRepository<EventNotice, Long> {
-
-    Page<EventNotice> findByEventIdAndDeletedAtIsNull(Long eventId, Pageable pageable);
-    Optional<EventNotice> findByIdAndDeletedAtIsNull(Long id);
+    Page<EventNotice> findByEventId(Long eventId, Pageable pageable);
 }
