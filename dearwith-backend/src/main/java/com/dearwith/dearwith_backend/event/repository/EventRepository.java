@@ -16,6 +16,19 @@ import java.util.UUID;
 public interface EventRepository extends JpaRepository<Event, Long> {
     List<Event> findTop10ByOrderByCreatedAtDesc();
 
+    @Query("""
+        select e
+        from Event e
+        where e.status <> :excludedStatus
+          and e.id not in :excludedIds
+        order by e.bookmarkCount desc
+    """)
+    List<Event> findTopByStatusNotAndIdNotInOrderByBookmarkCountDesc(
+            @Param("excludedStatus") EventStatus excludedStatus,
+            @Param("excludedIds") List<Long> excludedIds,
+            Pageable pageable
+    );
+
     List<Event> findByStatus(EventStatus status);
     List<Event> findByUser_Id(UUID userId);
 

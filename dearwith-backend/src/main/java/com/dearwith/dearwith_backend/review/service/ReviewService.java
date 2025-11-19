@@ -8,13 +8,13 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.entity.Event;
 import com.dearwith.dearwith_backend.event.repository.EventRepository;
+import com.dearwith.dearwith_backend.event.service.HotEventService;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.review.dto.*;
 import com.dearwith.dearwith_backend.review.entity.Review;
 import com.dearwith.dearwith_backend.review.entity.ReviewImageMapping;
 import com.dearwith.dearwith_backend.review.entity.ReviewLike;
-import com.dearwith.dearwith_backend.review.enums.ReviewStatus;
 import com.dearwith.dearwith_backend.review.repository.ReviewImageMappingRepository;
 import com.dearwith.dearwith_backend.review.repository.ReviewLikeRepository;
 import com.dearwith.dearwith_backend.review.repository.ReviewRepository;
@@ -29,7 +29,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
-import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -43,6 +42,7 @@ public class ReviewService {
     private final ReviewLikeRepository reviewLikeRepository;
     private final ReviewImageAppService reviewImageAppService;
     private final AuthService authService;
+    private final HotEventService hotEventService;
 
     @Transactional
     public void create(UUID userId, Long eventId, ReviewCreateRequestDto req) {
@@ -88,6 +88,8 @@ public class ReviewService {
                     .toList();
             reviewImageAppService.create(saved, imageDtos, user);
         }
+
+        hotEventService.increaseEventScore(eventId, HotEventService.Action.REVIEW);
     }
 
     public EventPhotoReviewResponseDto getEventPhotoReviews(Long eventId, Pageable pageable) {
@@ -348,5 +350,7 @@ public class ReviewService {
 
         review.softDelete();
         reviewRepository.save(review);
+
+        hotEventService.decreaseEventScore(reviewId, HotEventService.Action.REVIEW);
     }
 }

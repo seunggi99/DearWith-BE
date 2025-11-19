@@ -26,6 +26,7 @@ public class EventBookmarkService {
     private final EventRepository eventRepository;
     private final EventBookmarkRepository eventBookmarkRepository;
     private final UserRepository userRepository;
+    private final HotEventService hotEventService;
 
     @Transactional
     public EventBookmarkResponseDto addBookmark(Long eventId, UUID userId) {
@@ -44,6 +45,9 @@ public class EventBookmarkService {
 
         eventRepository.incrementBookmark(eventId);
 
+        hotEventService.increaseEventScore(eventId, HotEventService.Action.BOOKMARK);
+
+
         long count = eventRepository.getBookmarkCount(eventId);
 
         return new EventBookmarkResponseDto(
@@ -61,6 +65,8 @@ public class EventBookmarkService {
 
         eventBookmarkRepository.delete(bookmark);
         eventRepository.decrementBookmark(bookmark.getEvent().getId());
+
+        hotEventService.decreaseEventScore(bookmark.getEvent().getId(), HotEventService.Action.BOOKMARK);
 
         long count = eventRepository.getBookmarkCount(eventId);
 

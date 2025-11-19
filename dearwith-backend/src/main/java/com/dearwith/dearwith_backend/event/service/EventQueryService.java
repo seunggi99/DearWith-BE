@@ -33,6 +33,7 @@ public class EventQueryService {
     private final ArtistRepository artistRepository;
     private final ArtistGroupRepository artistGroupRepository;
     private final EventInfoAssembler eventInfoAssembler;
+    private final HotEventService hotEventService;
 
     // 메인페이지(추천/핫/신규)
     @Transactional(readOnly = true)
@@ -43,7 +44,14 @@ public class EventQueryService {
 
     @Transactional(readOnly = true)
     public List<EventInfoDto> getHotEvents(UUID userId) {
-        List<Event> events = eventRepository.findTop10ByOrderByCreatedAtDesc();
+        List<EventInfoDto> hotEvents = hotEventService.getHotEvents(10);
+
+        List<Long> ids = hotEvents.stream()
+                .map(EventInfoDto::getId)
+                .toList();
+
+        List<Event> events = eventRepository.findAllById(ids);
+
         return buildEventInfoList(events, userId);
     }
 
@@ -74,6 +82,8 @@ public class EventQueryService {
                 eventNoticeService.getLatestNoticesForEvent(eventId);
 
         boolean bookmarked = isBookmarked(eventId, userId);
+
+        hotEventService.onEventViewed(eventId, userId);
 
         return mapper.toResponse(e, mappings, benefits, artists, artistGroups, notices, bookmarked);
     }
