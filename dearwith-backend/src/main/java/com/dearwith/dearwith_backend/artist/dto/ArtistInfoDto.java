@@ -16,4 +16,6 @@ public class ArtistInfoDto {
 
     private LocalDate birthDate; // 아티스트 생년월일
     private LocalDate debutDate; // 활동 시작일
+
+    private boolean isBirthday; // 오늘 생일 여부
 }

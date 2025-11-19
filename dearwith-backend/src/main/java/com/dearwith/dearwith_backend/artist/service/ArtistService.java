@@ -37,21 +37,26 @@ public class ArtistService {
     @PersistenceContext
     private EntityManager entityManager;
 
-    public List<ArtistInfoDto> getTodayBirthdayArtists() {
-        LocalDate today = LocalDate.now();
-        List<Artist> artists = artistRepository.findArtistsByBirthDate(today);
-        return artistMapper.toInfoDtos(artists);
-    }
-
     public List<ArtistInfoDto> getThisMonthBirthdayArtists() {
-        int thisMonth = LocalDate.now().getMonthValue();
+        LocalDate today = LocalDate.now();
+        int thisMonth = today.getMonthValue();
+        int thisDay = today.getDayOfMonth();
 
         List<Artist> artists = artistRepository.findArtistsByBirthMonth(thisMonth);
-        return artistMapper.toInfoDtos(artists);
+        return artists.stream()
+                .map(a -> {
+                    boolean isBirthday = a.getBirthDate() != null &&
+                            a.getBirthDate().getMonthValue() == thisMonth &&
+                            a.getBirthDate().getDayOfMonth() == thisDay;
+
+                    return artistMapper.toInfoDtoWithBirthday(a, isBirthday);
+                })
+                .toList();
     }
 
     public Page<ArtistDto> search(String query, Pageable pageable) {
-        return artistRepository.searchByName(query, pageable).map(artistMapper::toDto);
+        return artistRepository.searchByName(query, pageable)
+                .map(artistMapper::toDto);
     }
 
     public List<Artist> findAllByIds(List<Long> ids) {
@@ -111,14 +116,7 @@ public class ArtistService {
         }
 
         // 6) 응답 DTO
-        String imageOut = (artist.getProfileImage() != null)
-                ? artist.getProfileImage().getImageUrl()
-                : null;
-
-        return new ArtistDto(
-                artist.getId(), artist.getNameKr(), artist.getNameEn(),
-                imageOut, artist.getBirthDate(), artist.getDebutDate()
-        );
+        return artistMapper.toDto(artist);
     }
 
 }
