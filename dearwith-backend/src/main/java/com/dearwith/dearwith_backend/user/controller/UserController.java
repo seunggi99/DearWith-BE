@@ -42,10 +42,6 @@ public class UserController {
             "      \"agreed\": true\n" +
             "    },\n" +
             "    {\n" +
-            "      \"type\": \"MARKETING_CONSENT\",\n" +
-            "      \"agreed\": false\n" +
-            "    },\n" +
-            "    {\n" +
             "      \"type\": \"PUSH_NOTIFICATION\",\n" +
             "      \"agreed\": false\n" +
             "    }\n" +
