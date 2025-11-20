@@ -9,6 +9,8 @@ import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.entity.Event;
 import com.dearwith.dearwith_backend.event.repository.EventRepository;
 import com.dearwith.dearwith_backend.event.service.HotEventService;
+import com.dearwith.dearwith_backend.image.asset.ImageVariantAssembler;
+import com.dearwith.dearwith_backend.image.asset.ImageVariantProfile;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.review.dto.*;
@@ -43,6 +45,7 @@ public class ReviewService {
     private final ReviewImageAppService reviewImageAppService;
     private final AuthService authService;
     private final HotEventService hotEventService;
+    private final ImageVariantAssembler imageVariantAssembler;
 
     @Transactional
     public void create(UUID userId, Long eventId, ReviewCreateRequestDto req) {
@@ -99,37 +102,19 @@ public class ReviewService {
         List<ImageGroupDto> imageGroups = mappings.stream()
                 .map(rim -> {
                     Image img = rim.getImage();
-
-                    String baseUrl = img.getImageUrl();
-
-                    int lastSlash = baseUrl.lastIndexOf('/');
-                    String prefix = baseUrl.substring(0, lastSlash + 1);
-                    String filename = baseUrl.substring(lastSlash + 1);
-                    String stem = filename.substring(0, filename.lastIndexOf('.'));
-
-                    List<ImageVariantDto> variants = List.of(
-                            ImageVariantDto.builder()
-                                    .name("original")
-                                    .url(baseUrl)
-                                    .build(),
-                            ImageVariantDto.builder()
-                                    .name("large")
-                                    .url(prefix + stem + "/large.webp")
-                                    .build(),
-                            ImageVariantDto.builder()
-                                    .name("photo@1x")
-                                    .url(prefix + stem + "/photo@1x.webp")
-                                    .build(),
-                            ImageVariantDto.builder()
-                                    .name("photo@2x")
-                                    .url(prefix + stem + "/photo@2x.webp")
-                                    .build()
-                    );
+                    if (img == null || img.getImageUrl() == null) return null;
 
                     return ImageGroupDto.builder()
-                            .variants(variants)
+                            .id(img.getId())
+                            .variants(
+                                    imageVariantAssembler.toVariants(
+                                            img.getImageUrl(),
+                                            ImageVariantProfile.REVIEW_PHOTO
+                                    )
+                            )
                             .build();
                 })
+                .filter(Objects::nonNull)
                 .toList();
 
         return EventPhotoReviewResponseDto.builder()
@@ -195,26 +180,22 @@ public class ReviewService {
             profileImageUrl = user.getProfileImage() != null ? user.getProfileImage().getImageUrl() : null;
         } catch (Exception ignore) {}
 
-
             List<ImageGroupDto> images = r.getImages() == null
                     ? List.of()
                     : r.getImages().stream()
                     .sorted(Comparator.comparingInt(ReviewImageMapping::getDisplayOrder))
                     .map(m -> {
-                        var baseUrl = (m.getImage() != null) ? m.getImage().getImageUrl() : null;
-                        if (baseUrl == null) return null;
-
-                        String prefix = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
-                        String stem = baseUrl.substring(baseUrl.lastIndexOf('/') + 1, baseUrl.lastIndexOf('.'));
+                        var img = m.getImage();
+                        if (img == null || img.getImageUrl() == null) return null;
 
                         return ImageGroupDto.builder()
-                                .id(m.getImage().getId())
-                                .variants(List.of(
-                                        new ImageVariantDto("original", baseUrl),
-                                        new ImageVariantDto("large", prefix + stem + "/large.webp"),
-                                        new ImageVariantDto("review@1x", prefix + stem + "/review@1x.webp"),
-                                        new ImageVariantDto("review@2x", prefix + stem + "/review@2x.webp")
-                                ))
+                                .id(img.getId())
+                                .variants(
+                                        imageVariantAssembler.toVariants(
+                                                img.getImageUrl(),
+                                                ImageVariantProfile.REVIEW_LIST
+                                        )
+                                )
                                 .build();
                     })
                     .filter(Objects::nonNull)
