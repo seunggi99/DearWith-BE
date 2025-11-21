@@ -18,11 +18,13 @@ import com.dearwith.dearwith_backend.review.enums.ReviewStatus;
 import com.dearwith.dearwith_backend.review.repository.ReviewImageMappingRepository;
 import com.dearwith.dearwith_backend.user.entity.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReviewImageAppService {
@@ -81,7 +83,11 @@ public class ReviewImageAppService {
 
                 s3Waiter.waitUntilExists(inlineKey);
 
-                imageVariantService.generateVariants(inlineKey, AssetVariantPreset.REVIEW);
+                try {
+                    imageVariantService.generateVariants(inlineKey, AssetVariantPreset.REVIEW);
+                } catch (Throwable t) {
+                    log.error("[variants] generation failed but ignored. imageId={}, key={}", ni.id(), inlineKey, t);
+                }
             });
         }
     }
