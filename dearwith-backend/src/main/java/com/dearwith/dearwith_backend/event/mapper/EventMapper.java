@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.event.mapper;
 
+import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
@@ -48,37 +49,20 @@ public interface EventMapper {
 
     // ---- Entity -> Response ----
     @Mapping(target = "place", source = "event.placeInfo")
+    @Mapping(target = "images", source = "images")
     @Mapping(target = "organizer", source = "event.organizer")
-    @Mapping(target = "images", source = "mappings")              // List<EventImageMapping> -> List<ImageDto>
-    @Mapping(target = "artists", source = "artistMappings")       // List<EventArtistMapping> -> List<ArtistDto>
-    @Mapping(target = "artistGroups",  source = "artistGroupMappings")
-    @Mapping(target = "benefits", source = "benefits")            // List<EventBenefit> -> List<BenefitDto>
+    @Mapping(target = "artists", source = "artistMappings")
+    @Mapping(target = "artistGroups", source = "artistGroupMappings")
+    @Mapping(target = "benefits", source = "benefits")
     @Mapping(target = "notices", source = "notices")
-    @Mapping(target = "bookmarked", expression = "java(bookmarked)")
     EventResponseDto toResponse(
             Event event,
-            List<EventImageMapping> mappings,
+            List<ImageGroupDto> images,
             List<EventBenefit> benefits,
             List<EventArtistMapping> artistMappings,
             List<EventArtistGroupMapping> artistGroupMappings,
             List<EventNoticeResponseDto> notices,
             boolean bookmarked
-    );
-
-    // ---- Entity -> Response ----
-    @Mapping(target = "place", source = "event.placeInfo")
-    @Mapping(target = "organizer", source = "event.organizer")
-    @Mapping(target = "images", source = "mappings")              // List<EventImageMapping> -> List<ImageDto>
-    @Mapping(target = "artists", source = "artistMappings")       // List<EventArtistMapping> -> List<ArtistDto>
-    @Mapping(target = "artistGroups",  source = "artistGroupMappings")
-    @Mapping(target = "benefits", source = "benefits")            // List<EventBenefit> -> List<BenefitDto>
-    @Mapping(target = "bookmarked", constant = "false")
-    EventResponseDto toResponse(
-            Event event,
-            List<EventImageMapping> mappings,
-            List<EventBenefit> benefits,
-            List<EventArtistMapping> artistMappings,
-            List<EventArtistGroupMapping> artistGroupMappings
     );
 
     // PlaceInfo -> Response.PlaceDto
@@ -117,18 +101,4 @@ public interface EventMapper {
     EventResponseDto.ArtistGroupDto toGroupDto(EventArtistGroupMapping mapping);
 
     List<EventResponseDto.ArtistGroupDto> toGroupDtos(List<EventArtistGroupMapping> mappings);
-
-    // ---- Image 매핑 ----
-    @Mapping(target = "id",           source = "image.id")
-    @Mapping(target = "imageUrl",     source = "image.imageUrl")
-    @Mapping(target = "displayOrder", source = "displayOrder")
-    EventResponseDto.ImageDto toImageDto(EventImageMapping mapping);
-    List<EventResponseDto.ImageDto> toImageDtos(List<EventImageMapping> mappings);
-
-    default List<String> mapImageUrls(List<EventImageMapping> mappings) {
-        return mappings.stream()
-                .map(EventImageMapping::getImage)
-                .map(Image::getImageUrl)
-                .toList();
-    }
 }

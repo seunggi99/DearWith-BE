@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.event.service;
 
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
+import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.assembler.EventInfoAssembler;
@@ -11,6 +12,9 @@ import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.mapper.EventMapper;
 import com.dearwith.dearwith_backend.event.repository.*;
+import com.dearwith.dearwith_backend.image.asset.ImageVariantAssembler;
+import com.dearwith.dearwith_backend.image.asset.ImageVariantProfile;
+import com.dearwith.dearwith_backend.image.entity.Image;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -34,6 +38,7 @@ public class EventQueryService {
     private final ArtistGroupRepository artistGroupRepository;
     private final EventInfoAssembler eventInfoAssembler;
     private final HotEventService hotEventService;
+    private final ImageVariantAssembler imageVariantAssembler;
 
     // 메인페이지(추천/핫/신규)
     @Transactional(readOnly = true)
@@ -69,6 +74,8 @@ public class EventQueryService {
         List<EventImageMapping> mappings =
                 mappingRepository.findByEvent_IdOrderByDisplayOrderAsc(eventId);
 
+        List<ImageGroupDto> images = toEventImageGroups(mappings);
+
         List<EventBenefit> benefits =
                 benefitRepository.findByEvent_IdOrderByDayIndexAscDisplayOrderAsc(eventId);
 
@@ -85,7 +92,7 @@ public class EventQueryService {
 
         hotEventService.onEventViewed(eventId, userId);
 
-        return mapper.toResponse(e, mappings, benefits, artists, artistGroups, notices, bookmarked);
+        return mapper.toResponse(e, images, benefits, artists, artistGroups, notices, bookmarked);
     }
 
     @Transactional(readOnly = true)
@@ -240,5 +247,29 @@ public class EventQueryService {
             return false;
         }
         return eventBookmarkRepository.existsByEventIdAndUserId(eventId, userId);
+    }
+
+    private List<ImageGroupDto> toEventImageGroups(List<EventImageMapping> mappings) {
+        if (mappings == null || mappings.isEmpty()) {
+            return List.of();
+        }
+
+        return mappings.stream()
+                .map(m -> {
+                    Image img = m.getImage();
+                    if (img == null || img.getImageUrl() == null) return null;
+
+                    return ImageGroupDto.builder()
+                            .id(img.getId())
+                            .variants(
+                                    imageVariantAssembler.toVariants(
+                                            img.getImageUrl(),
+                                            ImageVariantProfile.EVENT_DETAIL
+                                    )
+                            )
+                            .build();
+                })
+                .filter(Objects::nonNull)
+                .toList();
     }
 }

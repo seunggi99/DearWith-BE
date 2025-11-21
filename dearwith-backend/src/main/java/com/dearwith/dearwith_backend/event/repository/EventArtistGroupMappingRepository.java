@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.event.repository;
 
 import com.dearwith.dearwith_backend.event.entity.EventArtistGroupMapping;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -36,4 +37,8 @@ public interface EventArtistGroupMappingRepository extends JpaRepository<EventAr
         where eag.event.id in :eventIds
         """)
     List<EventGroupNamesRow> findGroupNamesByEventIds(@Param("eventIds") Collection<Long> eventIds);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from EventArtistGroupMapping m where m.event.id = :eventId")
+    void deleteByEventId(@Param("eventId") Long eventId);
 }

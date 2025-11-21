@@ -14,9 +14,12 @@ public enum AssetVariantPreset {
             .build()
     ),
 
-    EVENT_COVER(VariantPresetSet.builder()
-            .spec(VariantSpec.builder().filename("cover@1x.webp").maxWidth(640).maxHeight(null).format("webp").quality(80).build())
-            .spec(VariantSpec.builder().filename("cover@2x.webp").maxWidth(1280).maxHeight(null).format("webp").quality(80).build())
+    EVENT(VariantPresetSet.builder()
+            .spec(VariantSpec.builder().filename("cover@1x.webp").maxWidth(180).maxHeight(252).format("webp").quality(80).build())
+            .spec(VariantSpec.builder().filename("cover@2x.webp").maxWidth(360).maxHeight(504).format("webp").quality(80).build())
+            .spec(VariantSpec.builder().filename("event@1x.webp").maxWidth(375).maxHeight(536).format("webp").quality(80).build())
+            .spec(VariantSpec.builder().filename("event@2x.webp").maxWidth(750).maxHeight(1072).format("webp").quality(80).build())
+            .spec(VariantSpec.builder().filename("large.webp").maxWidth(2048).maxHeight(null).format("webp").quality(80).build())
             .build()
     );
 

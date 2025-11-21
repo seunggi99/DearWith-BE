@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.event.dto;
 
+import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.event.enums.BenefitType;
 
 import java.math.BigDecimal;
@@ -15,7 +16,7 @@ public record EventResponseDto(
         LocalDate startDate,
         LocalDate endDate,
         PlaceDto place,
-        List<ImageDto> images,
+        List<ImageGroupDto> images,
         List<ArtistDto> artists,
         List<ArtistGroupDto> artistGroups,
         List<BenefitDto> benefits,
@@ -38,12 +39,6 @@ public record EventResponseDto(
             String profileImageUrl
     ) {}
 
-    public record ImageDto(
-            Long id,
-            String imageUrl,
-            Integer displayOrder
-    ) {}
-
     public record PlaceDto(
             String kakaoPlaceId,
             String name,
@@ -58,7 +53,6 @@ public record EventResponseDto(
     public record BenefitDto(
             Long id,
             String name,
-            String description,
             BenefitType benefitType,
             Integer dayIndex,
             LocalDate visibleFrom,
