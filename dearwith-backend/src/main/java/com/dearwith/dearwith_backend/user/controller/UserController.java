@@ -4,6 +4,7 @@ package com.dearwith.dearwith_backend.user.controller;
 import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.auth.dto.SignUpRequestDto;
 import com.dearwith.dearwith_backend.auth.dto.SignUpResponseDto;
+import com.dearwith.dearwith_backend.user.docs.UserApiDocs;
 import com.dearwith.dearwith_backend.user.dto.UpdateNicknameRequestDto;
 import com.dearwith.dearwith_backend.user.dto.UserResponseDto;
 import com.dearwith.dearwith_backend.user.service.UserService;
@@ -23,30 +24,7 @@ import java.util.List;
 public class UserController {
     private final UserService userService;
 
-    @Operation(summary = "회원가입" , description = "회원 가입시 필요한 Request" +
-            "{\n" +
-            "  \"email\": \"test@example.com\",\n" +
-            "  \"password\": \"testPassword\",\n" +
-            "  \"nickname\": \"테스트 닉네임\",\n" +
-            "  \"agreements\": [\n" +
-            "    {\n" +
-            "      \"type\": \"AGE_OVER_14\",\n" +
-            "      \"agreed\": true\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"type\": \"TERMS_OF_SERVICE\",\n" +
-            "      \"agreed\": true\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"type\": \"PERSONAL_INFORMATION\",\n" +
-            "      \"agreed\": true\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"type\": \"PUSH_NOTIFICATION\",\n" +
-            "      \"agreed\": false\n" +
-            "    }\n" +
-            "  ]\n" +
-            "}")
+    @Operation(summary = "회원가입" , description = UserApiDocs.CREATE_DESC)
     @PostMapping("/signup")
     public ResponseEntity<SignUpResponseDto> signUp(@RequestBody @Valid SignUpRequestDto request){
         return ResponseEntity.ok(userService.signUp(request));
