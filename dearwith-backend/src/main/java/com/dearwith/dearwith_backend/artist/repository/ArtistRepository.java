@@ -12,12 +12,15 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface ArtistRepository extends JpaRepository<Artist, Long> {
-    // 오늘 생일 아티스트
-    @Query("SELECT a FROM Artist a WHERE a.birthDate = :today")
-    List<Artist> findArtistsByBirthDate(LocalDate today);
 
-    @Query("SELECT a FROM Artist a WHERE FUNCTION('MONTH', a.birthDate) = :month")
-    List<Artist> findArtistsByBirthMonth(int month);
+    @Query("""
+        select a
+        from Artist a
+        where a.birthDate is not null
+          and month(a.birthDate) = :month
+          and a.deletedAt is null
+    """)
+    List<Artist> findArtistsByBirthMonth(@Param("month") int month);
 
     // 이름으로 검색 (부분 일치)
     Page<Artist> findByNameKrContainingIgnoreCaseOrNameEnContainingIgnoreCase(

@@ -15,6 +15,7 @@ import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -41,6 +43,80 @@ public class ArtistUnifiedService {
     private final UserRepository userRepository;
     private final ArtistService artistService;
     private final ArtistGroupService artistGroupService;
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "thisMonthAnniversaries", key = "#root.methodName + T(java.time.LocalDate).now().withDayOfMonth(1)")
+    public List<MonthlyAnniversaryDto> getThisMonthArtistAndGroupAnniversaries() {
+        LocalDate today = LocalDate.now();
+        int thisMonth = today.getMonthValue();
+        int thisDay = today.getDayOfMonth();
+
+        // 1) 이번 달 생일 아티스트
+        List<Artist> artists = artistRepository.findArtistsByBirthMonth(thisMonth);
+
+        List<MonthlyAnniversaryDto> artistDtos = artists.stream()
+                .filter(a -> a.getBirthDate() != null)
+                .map(a -> {
+                    LocalDate birthDate = a.getBirthDate();
+
+                    boolean isToday = birthDate.getMonthValue() == thisMonth
+                            && birthDate.getDayOfMonth() == thisDay;
+
+                    Integer years = today.getYear() - birthDate.getYear();
+                    if (years < 1) years = 1; // 최소 1살
+
+                    return new MonthlyAnniversaryDto(
+                            a.getId(),
+                            a.getNameKr(),
+                            a.getNameEn(),
+                            a.getProfileImage() != null ? a.getProfileImage().getImageUrl() : null,
+                            MonthlyAnniversaryDto.Type.ARTIST,
+                            birthDate,
+                            isToday,
+                            years
+                    );
+                })
+                .toList();
+
+        // 2) 이번 달 데뷔 그룹
+        List<ArtistGroup> groups = artistGroupRepository.findGroupsByDebutMonth(thisMonth);
+
+        List<MonthlyAnniversaryDto> groupDtos = groups.stream()
+                .filter(g -> g.getDebutDate() != null)
+                .map(g -> {
+                    LocalDate debutDate = g.getDebutDate();
+
+                    boolean isToday = debutDate.getMonthValue() == thisMonth
+                            && debutDate.getDayOfMonth() == thisDay;
+
+                    Integer years = today.getYear() - debutDate.getYear();
+                    if (years < 0) years = 0; // 0년차 허용
+
+                    return new MonthlyAnniversaryDto(
+                            g.getId(),
+                            g.getNameKr(),
+                            g.getNameEn(),
+                            g.getProfileImage() != null ? g.getProfileImage().getImageUrl() : null,
+                            MonthlyAnniversaryDto.Type.GROUP,
+                            debutDate,
+                            isToday,
+                            years
+                    );
+                })
+                .toList();
+
+        // 3) 합치고 원하는 정렬
+        List<MonthlyAnniversaryDto> merged = new ArrayList<>();
+        merged.addAll(artistDtos);
+        merged.addAll(groupDtos);
+
+        merged.sort(
+                Comparator.comparing((MonthlyAnniversaryDto dto) -> dto.date().getDayOfMonth())
+                        .thenComparing(MonthlyAnniversaryDto::nameKr, Comparator.nullsLast(String::compareTo))
+        );
+
+        return merged;
+    }
 
     // ======================
     // 아티스트 북마크 추가/해제

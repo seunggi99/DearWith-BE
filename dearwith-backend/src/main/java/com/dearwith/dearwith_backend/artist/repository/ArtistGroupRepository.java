@@ -9,9 +9,20 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ArtistGroupRepository  extends JpaRepository<ArtistGroup, Long> {
+
+    @Query("""
+        select g
+        from ArtistGroup g
+        where g.debutDate is not null
+          and month(g.debutDate) = :month
+          and g.deletedAt is null
+    """)
+    List<ArtistGroup> findGroupsByDebutMonth(@Param("month") int month);
+
     @Query("""
         SELECT a FROM ArtistGroup a 
         WHERE LOWER(a.nameKr) LIKE LOWER(CONCAT('%', :query, '%')) 

@@ -1,7 +1,7 @@
 package com.dearwith.dearwith_backend.page.main;
 
-import com.dearwith.dearwith_backend.artist.dto.ArtistInfoDto;
-import com.dearwith.dearwith_backend.artist.service.ArtistService;
+import com.dearwith.dearwith_backend.artist.dto.MonthlyAnniversaryDto;
+import com.dearwith.dearwith_backend.artist.service.ArtistUnifiedService;
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.service.EventQueryService;
@@ -23,13 +23,13 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class MainPageService {
-    private final ArtistService artistService;
     private final EventQueryService eventQueryService;
     private final ReviewRepository reviewRepository;
     private final ImageVariantAssembler imageVariantAssembler;
+    private final ArtistUnifiedService artistUnifiedService;
 
     public MainPageResponseDto getMainPage(UUID userId) {
-        List<ArtistInfoDto> birthdayArtists = artistService.getThisMonthBirthdayArtists();
+        List<MonthlyAnniversaryDto> birthdayArtists = artistUnifiedService.getThisMonthArtistAndGroupAnniversaries();
         List<EventInfoDto> recommendedEvents = eventQueryService.getRecommendedEvents(userId);
         List<EventInfoDto> hotEvents = eventQueryService.getHotEvents(userId);
         List<EventInfoDto> newEvents = eventQueryService.getNewEvents(userId);

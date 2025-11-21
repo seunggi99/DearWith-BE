@@ -2,7 +2,6 @@ package com.dearwith.dearwith_backend.artist.service;
 
 import com.dearwith.dearwith_backend.artist.dto.ArtistCreateRequestDto;
 import com.dearwith.dearwith_backend.artist.dto.ArtistDto;
-import com.dearwith.dearwith_backend.artist.dto.ArtistInfoDto;
 import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
 import com.dearwith.dearwith_backend.artist.entity.ArtistGroupMapping;
@@ -36,23 +35,6 @@ public class ArtistService {
     private final ImageAttachmentService imageAttachmentService;
     @PersistenceContext
     private EntityManager entityManager;
-
-    public List<ArtistInfoDto> getThisMonthBirthdayArtists() {
-        LocalDate today = LocalDate.now();
-        int thisMonth = today.getMonthValue();
-        int thisDay = today.getDayOfMonth();
-
-        List<Artist> artists = artistRepository.findArtistsByBirthMonth(thisMonth);
-        return artists.stream()
-                .map(a -> {
-                    boolean isBirthday = a.getBirthDate() != null &&
-                            a.getBirthDate().getMonthValue() == thisMonth &&
-                            a.getBirthDate().getDayOfMonth() == thisDay;
-
-                    return artistMapper.toInfoDtoWithBirthday(a, isBirthday);
-                })
-                .toList();
-    }
 
     public Page<ArtistDto> search(String query, Pageable pageable) {
         return artistRepository.searchByName(query, pageable)
