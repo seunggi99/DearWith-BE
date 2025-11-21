@@ -89,17 +89,16 @@ public class EventInfoAssembler {
                 .build();
     }
 
-    private List<ImageGroupDto> buildCoverImageGroups(Event e) {
+    public List<ImageGroupDto> buildCoverImageGroups(Event e) {
         ImageGroupDto dto = toCoverImageGroup(e);
         return (dto == null) ? List.of() : List.of(dto);
     }
 
-    private ImageGroupDto toCoverImageGroup(Event event) {
+    public ImageGroupDto toCoverImageGroup(Event event) {
         var cover = event.getCoverImage();
         if (cover == null) return null;
 
         String baseUrl = cover.getImageUrl();
-
 
         return ImageGroupDto.builder()
                 .id(cover.getId())

@@ -1,9 +1,10 @@
 package com.dearwith.dearwith_backend.notification.dto;
 
+import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.notification.enums.NotificationType;
-import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record NotificationResponseDto(
         Long id,
@@ -14,5 +15,6 @@ public record NotificationResponseDto(
         Long noticeId,
         boolean read,
         LocalDateTime readAt,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        List<ImageGroupDto> coverImage
 ) {}

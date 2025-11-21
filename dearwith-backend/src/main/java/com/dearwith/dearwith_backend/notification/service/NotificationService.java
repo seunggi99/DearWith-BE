@@ -1,7 +1,11 @@
 package com.dearwith.dearwith_backend.notification.service;
 
+import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
+import com.dearwith.dearwith_backend.event.assembler.EventInfoAssembler;
+import com.dearwith.dearwith_backend.event.entity.Event;
+import com.dearwith.dearwith_backend.event.repository.EventRepository;
 import com.dearwith.dearwith_backend.notification.dto.NotificationResponseDto;
 import com.dearwith.dearwith_backend.notification.dto.UnreadExistsResponseDto;
 import com.dearwith.dearwith_backend.notification.entity.Notification;
@@ -17,11 +21,16 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
     private final NotificationRepository notificationRepository;
+    private final EventInfoAssembler eventInfoAssembler;
+    private final EventRepository eventRepository;
+    private static final Pattern EVENT_NOTICE_PATTERN =
+            Pattern.compile("/events/(\\d+)(?:#notice-(\\d+))?");
 
     // ================================================================
     // 1) 안 읽은 알림 존재 여부 + 개수
@@ -36,11 +45,28 @@ public class NotificationService {
     // ================================================================
     public Page<NotificationResponseDto> getNotifications(UUID userId, boolean onlyUnread, Pageable pageable) {
 
+        // 1) 알림 페이지 조회
         Page<Notification> page = onlyUnread
                 ? notificationRepository.findByUserIdAndReadFalse(userId, pageable)
                 : notificationRepository.findByUserId(userId, pageable);
 
-        return page.map(this::toDto);
+        List<Notification> notifications = page.getContent();
+
+        // 2) 알림들에서 eventId만 먼저 뽑아서 배치 조회할 준비
+        Set<Long> eventIds = notifications.stream()
+                .map(this::parseEventLink)   // EventLink
+                .map(EventLink::eventId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // 3) 이벤트 배치 조회
+        Map<Long, Event> eventMap = eventIds.isEmpty()
+                ? Map.of()
+                : eventRepository.findByIdIn(eventIds).stream()
+                .collect(Collectors.toMap(Event::getId, e -> e));
+
+        // 4) 매핑
+        return page.map(n -> toDto(n, eventMap));
     }
 
     // ================================================================
@@ -151,28 +177,22 @@ public class NotificationService {
         }
     }
 
-    public NotificationResponseDto toDto(Notification n) {
+    private NotificationResponseDto toDto(Notification n, Map<Long, Event> eventMap) {
+
         Long eventId = null;
         Long noticeId = null;
+        List<ImageGroupDto> coverImage = null;
 
-        switch (n.getType()) {
-            case EVENT_NOTICE_CREATED -> {
-                if (n.getLinkUrl() != null) {
-                    String url = n.getLinkUrl();
-                    try {
-                        Pattern p = Pattern.compile("/events/(\\d+)(?:#notice-(\\d+))?");
-                        Matcher m = p.matcher(url);
-                        if (m.find()) {
-                            eventId = Long.valueOf(m.group(1));
-                            if (m.group(2) != null) {
-                                noticeId = Long.valueOf(m.group(2));
-                            }
-                        }
-                    } catch (Exception ignore) {
-                    }
+        if (n.getType() == NotificationType.EVENT_NOTICE_CREATED) {
+            EventLink link = parseEventLink(n);
+            eventId = link.eventId();
+            noticeId = link.noticeId();
+
+            if (eventId != null) {
+                Event event = eventMap.get(eventId);
+                if (event != null) {
+                    coverImage = eventInfoAssembler.buildCoverImageGroups(event);
                 }
-            }
-            case SYSTEM -> {
             }
         }
 
@@ -185,7 +205,39 @@ public class NotificationService {
                 noticeId,
                 n.isRead(),
                 n.getReadAt(),
-                n.getCreatedAt()
+                n.getCreatedAt(),
+                coverImage
         );
     }
+
+    private EventLink parseEventLink(Notification n) {
+        if (n.getType() != NotificationType.EVENT_NOTICE_CREATED) {
+            return new EventLink(null, null);
+        }
+
+        String url = n.getLinkUrl();
+        if (url == null || url.isBlank()) {
+            return new EventLink(null, null);
+        }
+
+        try {
+            Matcher m = EVENT_NOTICE_PATTERN.matcher(url);
+            if (m.find()) {
+                Long eventId = Long.valueOf(m.group(1));
+                Long noticeId = null;
+
+                if (m.group(2) != null) {
+                    noticeId = Long.valueOf(m.group(2));
+                }
+
+                return new EventLink(eventId, noticeId);
+            }
+        } catch (Exception ignore) {
+        }
+
+        return new EventLink(null, null);
+    }
+
+
+    private record EventLink(Long eventId, Long noticeId) {}
 }
