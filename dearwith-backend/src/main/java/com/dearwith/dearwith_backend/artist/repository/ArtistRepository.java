@@ -4,6 +4,7 @@ import com.dearwith.dearwith_backend.artist.entity.Artist;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -45,5 +46,24 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
     """)
     boolean existsByNameKrOrEnIgnoreCaseAndBirthDate(@Param("name") String name,
                                                      @Param("birthDate") LocalDate birthDate);
+
+
+    @Modifying
+    @Query("update Artist a set a.bookmarkCount = a.bookmarkCount + 1 where a.id = :artistId")
+    void incrementBookmark(@Param("artistId") Long artistId);
+
+    @Modifying
+    @Query("""
+           update Artist a
+           set a.bookmarkCount = case
+                                   when a.bookmarkCount > 0 then a.bookmarkCount - 1
+                                   else 0
+                                 end
+           where a.id = :artistId
+           """)
+    void decrementBookmark(@Param("artistId") Long artistId);
+
+    @Query("select a.bookmarkCount from Artist a where a.id = :artistId")
+    long getBookmarkCount(@Param("artistId") Long artistId);
 
 }

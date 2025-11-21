@@ -12,7 +12,6 @@ public class ArtistInfoDto {
     private String nameKo;
     private String nameEn;
     private String imageUrl;
-    private String groupName;
 
     private LocalDate birthDate; // 아티스트 생년월일
     private LocalDate debutDate; // 활동 시작일

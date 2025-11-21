@@ -25,6 +25,10 @@ public class ArtistGroup extends BaseDeletableEntity {
     private String nameKr;
     private String nameEn;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Long bookmarkCount = 0L;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "profile_image_id", foreignKey = @ForeignKey(name = "fk_artistGroup_profile_image"))
     private Image profileImage;

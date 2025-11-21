@@ -107,6 +107,9 @@ public class SecurityConfig {
                                 "/api/uploads/*",
                                 "/api/reviews/*/like",
                                 "/api/search/recent/**",
+                                "/api/artists/*/bookmark",
+                                "/api/artists/groups/*/bookmark",
+                                "/api/artists/bookmark",
                                 "/api/notifications/**"
                             //    "/oauth2/x/authorize",
                             //    "/oauth2/callback/x",

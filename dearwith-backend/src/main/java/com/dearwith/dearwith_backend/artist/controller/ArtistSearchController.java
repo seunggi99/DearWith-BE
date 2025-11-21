@@ -1,11 +1,9 @@
 package com.dearwith.dearwith_backend.artist.controller;
 
-import com.dearwith.dearwith_backend.artist.dto.ArtistDto;
-import com.dearwith.dearwith_backend.artist.dto.ArtistGroupDto;
-import com.dearwith.dearwith_backend.artist.dto.ArtistSearchResponseDto;
-import com.dearwith.dearwith_backend.artist.dto.HotArtistDtoResponseDto;
+import com.dearwith.dearwith_backend.artist.dto.*;
 import com.dearwith.dearwith_backend.artist.service.ArtistGroupService;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
+import com.dearwith.dearwith_backend.artist.service.ArtistUnifiedService;
 import com.dearwith.dearwith_backend.artist.service.HotArtistService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -26,13 +24,13 @@ import java.util.UUID;
 @RequestMapping("/api/search/artists")
 @RequiredArgsConstructor
 public class ArtistSearchController {
-    private final ArtistService artistService;
-    private final ArtistGroupService artistGroupService;
+
     private final HotArtistService hotArtistService;
+    private final ArtistUnifiedService artistUnifiedService;
 
     @GetMapping
     @Operation(summary = "아티스트/아티스트 그룹 통합 검색")
-    public ArtistSearchResponseDto search(
+    public Page<ArtistUnifiedDto> search(
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @RequestParam(name = "query") String query,
             @RequestParam(defaultValue = "0") int page,
@@ -44,13 +42,8 @@ public class ArtistSearchController {
                 Sort.by("nameKr").ascending().and(Sort.by("nameEn").ascending())
         );
 
-        Page<ArtistDto> artistPage = artistService.search(query, pageable);
-        Page<ArtistGroupDto> groupPage  = artistGroupService.search(query, pageable);
+        return artistUnifiedService.searchUnified(query, pageable);
 
-        return ArtistSearchResponseDto.builder()
-                .artists(artistPage)
-                .groups(groupPage)
-                .build();
     }
     @GetMapping("/artists-groups")
     @Operation(summary = "핫 아티스트/그룹 TOP 20")

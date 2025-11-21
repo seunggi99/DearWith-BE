@@ -12,7 +12,6 @@ import org.springframework.data.domain.Page;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ArtistSearchResponseDto {
-    // 기존 DTO 그대로 재사용
     private Page<ArtistDto> artists;
     private Page<ArtistGroupDto> groups;
 }
