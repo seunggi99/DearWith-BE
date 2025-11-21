@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.review.repository;
 
 import com.dearwith.dearwith_backend.review.entity.Review;
+import com.dearwith.dearwith_backend.review.enums.ReviewStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -61,4 +62,6 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     @Query("select r.likeCount from Review r where r.id = :reviewId")
     Integer getLikeCount(@Param("reviewId") Long reviewId);
+
+    List<Review> findTop6ByStatusOrderByIdDesc(ReviewStatus status);
 }

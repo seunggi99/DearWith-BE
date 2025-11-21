@@ -16,4 +16,5 @@ public class MainPageResponseDto {
     private List<EventInfoDto> recommendedEvents;    // 추천 이벤트
     private List<EventInfoDto> hotEvents;            // HOT 이벤트
     private List<EventInfoDto> newEvents;            // 최신 등록 이벤트
+    private List<MainPageReviewDto> latestReviews;   // 최신 리뷰 6개
 }

@@ -17,6 +17,12 @@ public enum ImageVariantProfile {
             List.of("large", "photo@1x", "photo@2x")
     ),
 
+    // 메인 페이지 최신 리뷰
+    MAIN_REVIEW_THUMB(
+            AssetVariantPreset.REVIEW,
+            List.of("photo@1x", "photo@2x")
+    ),
+
     // 이벤트 목록 카드용
     EVENT_LIST(
             AssetVariantPreset.EVENT,
