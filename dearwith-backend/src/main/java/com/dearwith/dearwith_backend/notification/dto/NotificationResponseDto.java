@@ -10,8 +10,8 @@ public record NotificationResponseDto(
         NotificationType type,
         String title,
         String content,
-        String linkUrl,
-        Long targetId,
+        Long eventId,
+        Long noticeId,
         boolean read,
         LocalDateTime readAt,
         LocalDateTime createdAt

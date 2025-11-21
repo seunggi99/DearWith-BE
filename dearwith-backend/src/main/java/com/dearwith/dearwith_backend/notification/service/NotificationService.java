@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -150,13 +152,37 @@ public class NotificationService {
     }
 
     public NotificationResponseDto toDto(Notification n) {
+        Long eventId = null;
+        Long noticeId = null;
+
+        switch (n.getType()) {
+            case EVENT_NOTICE_CREATED -> {
+                if (n.getLinkUrl() != null) {
+                    String url = n.getLinkUrl();
+                    try {
+                        Pattern p = Pattern.compile("/events/(\\d+)(?:#notice-(\\d+))?");
+                        Matcher m = p.matcher(url);
+                        if (m.find()) {
+                            eventId = Long.valueOf(m.group(1));
+                            if (m.group(2) != null) {
+                                noticeId = Long.valueOf(m.group(2));
+                            }
+                        }
+                    } catch (Exception ignore) {
+                    }
+                }
+            }
+            case SYSTEM -> {
+            }
+        }
+
         return new NotificationResponseDto(
                 n.getId(),
                 n.getType(),
                 n.getTitle(),
                 n.getContent(),
-                n.getLinkUrl(),
-                n.getTargetId(),
+                eventId,
+                noticeId,
                 n.isRead(),
                 n.getReadAt(),
                 n.getCreatedAt()
