@@ -42,7 +42,7 @@ public class EventBookmarkService {
             eventBookmarkRepository.save(EventBookmark.builder()
                     .event(event).user(user).build());
         } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(ErrorCode.ALREADY_BOOKMARKED_EVENT);
+            throw new BusinessException(ErrorCode.ALREADY_BOOKMARKED);
         }
 
         eventRepository.incrementBookmark(eventId);

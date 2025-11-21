@@ -1,6 +1,11 @@
 package com.dearwith.dearwith_backend.event.docs;
 
 public class EventApiDocs {
+
+    public static final String READ_BOOKMARK_DESC = "사용자가 북마크한 이벤트들을 조회합니다. `state` 파라미터로 필터링이 가능합니다. \n\n" +
+            "- `SCHEDULED`: 시작 전 이벤트\n" +
+            "- `IN_PROGRESS`: 진행 중 이벤트\n" +
+            "- `ENDED`: 종료 된 이벤트";
     public static final String CREATE_DESC = """
             이벤트 기본정보 + X(트위터) 계정 정보 + 장소 + 이미지 + 특전 정보를 함께 등록합니다.
             

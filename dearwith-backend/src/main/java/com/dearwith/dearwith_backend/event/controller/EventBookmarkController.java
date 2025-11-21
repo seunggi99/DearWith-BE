@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+import static com.dearwith.dearwith_backend.event.docs.EventApiDocs.READ_BOOKMARK_DESC;
+
 @RestController
 @RequestMapping("/api/events")
 @RequiredArgsConstructor
@@ -22,10 +24,7 @@ public class EventBookmarkController {
     private final EventBookmarkService eventBookmarkService;
 
     @Operation(summary = "북마크힌 이벤트 조회",
-            description = "사용자가 북마크한 이벤트들을 조회합니다. `state` 파라미터로 필터링이 가능합니다. \n\n" +
-                    "- `SCHEDULED`: 시작 전 이벤트\n" +
-                    "- `IN_PROGRESS`: 진행 중 이벤트\n" +
-                    "- `ENDED`: 종료 된 이벤트")
+            description = READ_BOOKMARK_DESC)
     @GetMapping("/bookmark")
     public Page<EventInfoDto> getBookmarkedEvents(
             @AuthenticationPrincipal(expression = "id") UUID userId,
