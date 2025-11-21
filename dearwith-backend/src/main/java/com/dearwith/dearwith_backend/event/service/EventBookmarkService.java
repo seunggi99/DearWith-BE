@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.event.service;
 
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
+import com.dearwith.dearwith_backend.event.assembler.EventInfoAssembler;
 import com.dearwith.dearwith_backend.event.dto.EventBookmarkResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.entity.Event;
@@ -27,6 +28,7 @@ public class EventBookmarkService {
     private final EventBookmarkRepository eventBookmarkRepository;
     private final UserRepository userRepository;
     private final HotEventService hotEventService;
+    private final EventInfoAssembler eventInfoAssembler;
 
     @Transactional
     public EventBookmarkResponseDto addBookmark(Long eventId, UUID userId) {
@@ -103,33 +105,7 @@ public class EventBookmarkService {
 
         return bookmarks.map(bookmark -> {
             Event event = bookmark.getEvent();
-            return EventInfoDto.builder()
-                    .id(event.getId())
-                    .title(event.getTitle())
-                    .imageUrl(
-                            event.getCoverImage() != null
-                                    ? event.getCoverImage().getImageUrl()
-                                    : null
-                    )
-                    .artistNamesKr(
-                            event.getArtists().stream()
-                                    .map(m -> m.getArtist().getNameKr())
-                                    .filter(Objects::nonNull)
-                                    .toList()
-                    )
-                    .artistNamesEn(
-                            event.getArtists().stream()
-                                    .map(m -> m.getArtist().getNameEn())
-                                    .filter(Objects::nonNull)
-                                    .toList()
-                    )
-                    .startDate(event.getStartDate())
-                    .endDate(event.getEndDate())
-                    .openTime(event.getOpenTime())
-                    .closeTime(event.getCloseTime())
-                    .bookmarkCount(event.getBookmarkCount())
-                    .bookmarked(true)
-                    .build();
+            return eventInfoAssembler.assemble(event, true);
         });
     }
 }

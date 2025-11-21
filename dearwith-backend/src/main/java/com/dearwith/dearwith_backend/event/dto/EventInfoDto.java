@@ -1,10 +1,10 @@
 package com.dearwith.dearwith_backend.event.dto;
 
+import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -13,7 +13,7 @@ import java.util.List;
 public class EventInfoDto {
     private Long id;
     private String title;
-    private String imageUrl;
+    private List<ImageGroupDto> images;
     private List<String> artistNamesEn;
     private List<String> artistNamesKr;
     private List<String> groupNamesEn;

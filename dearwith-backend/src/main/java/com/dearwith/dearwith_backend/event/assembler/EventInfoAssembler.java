@@ -1,7 +1,10 @@
 package com.dearwith.dearwith_backend.event.assembler;
 
+import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.entity.Event;
+import com.dearwith.dearwith_backend.image.asset.ImageVariantAssembler;
+import com.dearwith.dearwith_backend.image.asset.ImageVariantProfile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -10,6 +13,8 @@ import java.util.*;
 @Component
 @RequiredArgsConstructor
 public class EventInfoAssembler {
+
+    private final ImageVariantAssembler imageVariantAssembler;
     /**
      * 1) 단일 Event → 단순 DTO 변환
      */
@@ -17,7 +22,7 @@ public class EventInfoAssembler {
         return EventInfoDto.builder()
                 .id(e.getId())
                 .title(e.getTitle())
-                .imageUrl(e.getCoverImage() != null ? e.getCoverImage().getImageUrl() : null)
+                .images(buildCoverImageGroups(e))
                 .artistNamesEn(
                         e.getArtists().stream()
                                 .map(m -> m.getArtist().getNameEn())
@@ -71,7 +76,7 @@ public class EventInfoAssembler {
         return EventInfoDto.builder()
                 .id(id)
                 .title(e.getTitle())
-                .imageUrl(e.getCoverImage() != null ? e.getCoverImage().getImageUrl() : null)
+                .images(buildCoverImageGroups(e))
                 .artistNamesEn(artistNamesEnMap.getOrDefault(id, List.of()))
                 .artistNamesKr(artistNamesKrMap.getOrDefault(id, List.of()))
                 .groupNamesEn(groupNamesEnMap.getOrDefault(id, List.of()))
@@ -83,4 +88,23 @@ public class EventInfoAssembler {
                 .bookmarked(userId == null ? null : bookmarked.contains(id))
                 .build();
     }
+
+    private List<ImageGroupDto> buildCoverImageGroups(Event e) {
+        ImageGroupDto dto = toCoverImageGroup(e);
+        return (dto == null) ? List.of() : List.of(dto);
+    }
+
+    private ImageGroupDto toCoverImageGroup(Event event) {
+        var cover = event.getCoverImage();
+        if (cover == null) return null;
+
+        String baseUrl = cover.getImageUrl();
+
+
+        return ImageGroupDto.builder()
+                .id(cover.getId())
+                .variants(imageVariantAssembler.toVariants(baseUrl, ImageVariantProfile.EVENT_LIST))
+                .build();
+    }
 }
+
