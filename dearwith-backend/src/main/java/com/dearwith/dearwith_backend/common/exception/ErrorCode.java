@@ -35,6 +35,7 @@ public enum ErrorCode {
     GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 그룹입니다."),
     INVALID_EVENT_STATUS(HttpStatus.BAD_REQUEST, "유효하지 않은 이벤트 상태입니다."),
     ALREADY_BOOKMARKED(HttpStatus.CONFLICT, "이미 북마크되었습니다."),
+    ALREADY_REPORTED(HttpStatus.CONFLICT, "이미 신고하였습니다."),
     BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "북마크가 존재하지 않습니다."),
     ALREADY_LIKED(HttpStatus.CONFLICT, "이미 좋아요를 눌렀습니다."),
     INVALID_FILE_SIZE(HttpStatus.BAD_REQUEST, "허용되지 않은 파일 크기입니다."),

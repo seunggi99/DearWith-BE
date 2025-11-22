@@ -3,6 +3,7 @@ package com.dearwith.dearwith_backend.review.controller;
 import com.dearwith.dearwith_backend.review.docs.ReviewApiDocs;
 import com.dearwith.dearwith_backend.review.dto.*;
 import com.dearwith.dearwith_backend.review.enums.ReviewSort;
+import com.dearwith.dearwith_backend.review.service.ReviewReportService;
 import com.dearwith.dearwith_backend.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -23,6 +24,7 @@ import java.util.UUID;
 @RequestMapping
 public class ReviewController {
     private final ReviewService reviewService;
+    private final ReviewReportService reviewReportService;
     @PostMapping("/api/events/{eventId}/reviews")
     @Operation(summary = "이벤트 리뷰 작성")
     public ResponseEntity<Void> create(
@@ -101,5 +103,16 @@ public class ReviewController {
     ) {
         reviewService.delete(reviewId, userId);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{reviewId}/report")
+    @Operation(summary = "리뷰 신고",
+            description = ReviewApiDocs.REPORT_DESC)
+    public ReviewReportResponseDto reportReview(
+            @PathVariable Long reviewId,
+            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @RequestBody ReviewReportRequestDto req
+    ) {
+        return reviewReportService.reportReview(reviewId, userId, req);
     }
 }
