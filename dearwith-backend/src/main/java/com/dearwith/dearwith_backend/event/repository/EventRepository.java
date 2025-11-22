@@ -12,7 +12,6 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 
 public interface EventRepository extends JpaRepository<Event, Long> {
     List<Event> findTop10ByOrderByCreatedAtDesc();
@@ -29,9 +28,6 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             @Param("excludedIds") List<Long> excludedIds,
             Pageable pageable
     );
-
-    List<Event> findByStatus(EventStatus status);
-    List<Event> findByUser_Id(UUID userId);
 
     @Modifying
     @Query("update Event e set e.bookmarkCount = e.bookmarkCount + 1 where e.id = :eventId")
@@ -94,20 +90,6 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     @Query("""
     select distinct e
     from Event e
-        left join e.artistGroups eag                   
-        left join e.artists eam                  
-        left join eam.artist a                      
-        left join ArtistGroupMapping agm        
-            on agm.artist = a
-    where
-        eag.artistGroup.id = :groupId             
-        or agm.group.id = :groupId               
-    """)
-    Page<Event> findPageByGroupOrItsArtists(@Param("groupId") Long groupId, Pageable pageable);
-
-    @Query("""
-    select distinct e
-    from Event e
         join e.artistGroups eag
     where
         eag.artistGroup.id = :groupId
@@ -117,4 +99,49 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     @Query("select e.bookmarkCount from Event e where e.id = :eventId")
     long getBookmarkCount(@Param("eventId") Long eventId);
     List<Event> findByIdIn(Collection<Long> ids);
+
+    @Query("""
+        select distinct e
+        from Event e
+            left join e.artists ea       
+            left join ea.artist a
+            left join e.artistGroups eag   
+            left join eag.artistGroup g
+       where
+            (a.id in :artistIds or g.id in :groupIds)
+            and e.status in (
+                com.dearwith.dearwith_backend.event.enums.EventStatus.SCHEDULED,
+                com.dearwith.dearwith_backend.event.enums.EventStatus.IN_PROGRESS
+            )
+        order by
+            e.startDate asc nulls last,
+            e.bookmarkCount desc,
+            e.id desc
+        """)
+    Page<Event> findRecommendedForUser(
+            @Param("artistIds") List<Long> artistIds,
+            @Param("groupIds") List<Long> groupIds,
+            @Param("today") LocalDate today,
+            Pageable pageable
+    );
+
+    @Query("""
+    select e
+    from Event e
+    where
+        e.status in (
+            com.dearwith.dearwith_backend.event.enums.EventStatus.SCHEDULED,
+            com.dearwith.dearwith_backend.event.enums.EventStatus.IN_PROGRESS
+        )
+        and (e.endDate is null or e.endDate >= :today)
+    order by
+        case e.status
+            when com.dearwith.dearwith_backend.event.enums.EventStatus.IN_PROGRESS then 0
+            else 1
+        end,
+        e.startDate asc nulls last,  
+        e.bookmarkCount desc,        
+        e.createdAt desc              
+    """)
+    List<Event> findGlobalRecommendedFallback(@Param("today") LocalDate today, Pageable pageable);
 }

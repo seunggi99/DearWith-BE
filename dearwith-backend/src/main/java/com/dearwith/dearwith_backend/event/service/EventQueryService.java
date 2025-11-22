@@ -1,5 +1,7 @@
 package com.dearwith.dearwith_backend.event.service;
 
+import com.dearwith.dearwith_backend.artist.repository.ArtistBookmarkRepository;
+import com.dearwith.dearwith_backend.artist.repository.ArtistGroupBookmarkRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
@@ -20,6 +22,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -39,12 +42,71 @@ public class EventQueryService {
     private final EventInfoAssembler eventInfoAssembler;
     private final HotEventService hotEventService;
     private final ImageVariantAssembler imageVariantAssembler;
+    private final ArtistBookmarkRepository artistBookmarkRepository;
+    private final ArtistGroupBookmarkRepository artistGroupBookmarkRepository;
 
     // 메인페이지(추천/핫/신규)
     @Transactional(readOnly = true)
     public List<EventInfoDto> getRecommendedEvents(UUID userId) {
-        List<Event> events = eventRepository.findTop10ByOrderByCreatedAtDesc();
-        return buildEventInfoList(events, userId);
+
+        LocalDate today = LocalDate.now();
+
+        // 비로그인(= userId == null) → 바로 fallback
+        if (userId == null) {
+            List<Event> fallback = eventRepository.findGlobalRecommendedFallback(
+                    today,
+                    PageRequest.of(0, 10)
+            );
+            return buildEventInfoList(fallback, null);
+        }
+
+        // 0) 유저 북마크 기반 조회
+        List<Long> artistIds = artistBookmarkRepository.findArtistIdsByUserId(userId);
+        List<Long> groupIds  = artistGroupBookmarkRepository.findGroupIdsByUserId(userId);
+
+        // 북마크 없으면 → fallback 전체 추천
+        if (artistIds.isEmpty() && groupIds.isEmpty()) {
+            List<Event> fallback = eventRepository.findGlobalRecommendedFallback(
+                    LocalDate.now(),
+                    PageRequest.of(0, 10)
+            );
+            return buildEventInfoList(fallback, userId);
+        }
+
+        // 빈 리스트 방지
+        if (artistIds.isEmpty()) artistIds = List.of(-1L);
+        if (groupIds.isEmpty())  groupIds  = List.of(-1L);
+
+
+        // 1) 개인화 추천 최대 10개
+        PageRequest limit10 = PageRequest.of(0, 10);
+
+        List<Event> personalized = eventRepository.findRecommendedForUser(
+                artistIds,
+                groupIds,
+                today,
+                limit10
+        ).getContent();
+
+        // 2) 부족하면 fallback 정렬로 채우기
+        if (personalized.size() < 10) {
+
+            List<Long> alreadyIds = personalized.stream()
+                    .map(Event::getId)
+                    .toList();
+
+            List<Event> fallbackList = eventRepository.findGlobalRecommendedFallback(
+                    today,
+                    PageRequest.of(0, 30)
+            );
+
+            fallbackList.stream()
+                    .filter(e -> !alreadyIds.contains(e.getId()))
+                    .limit(10 - personalized.size())
+                    .forEach(personalized::add);
+        }
+
+        return buildEventInfoList(personalized, userId);
     }
 
     @Transactional(readOnly = true)
