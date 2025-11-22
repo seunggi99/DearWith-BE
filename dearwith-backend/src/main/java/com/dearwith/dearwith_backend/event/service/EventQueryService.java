@@ -124,7 +124,7 @@ public class EventQueryService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "아티스트 그룹을 찾을 수 없습니다.");
         }
 
-        Page<Event> page = eventRepository.findPageByGroupOrItsArtists(groupId, pageable);
+        Page<Event> page = eventRepository.findPageByGroup(groupId, pageable);
         return buildEventInfoPageWithBatch(page, userId);
     }
 
