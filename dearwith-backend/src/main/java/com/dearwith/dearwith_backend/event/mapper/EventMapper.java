@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.event.mapper;
 
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
+import com.dearwith.dearwith_backend.event.dto.EventNoticeInfoDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
@@ -61,7 +62,7 @@ public interface EventMapper {
             List<EventBenefit> benefits,
             List<EventArtistMapping> artistMappings,
             List<EventArtistGroupMapping> artistGroupMappings,
-            List<EventNoticeResponseDto> notices,
+            List<EventNoticeInfoDto> notices,
             boolean bookmarked
     );
 

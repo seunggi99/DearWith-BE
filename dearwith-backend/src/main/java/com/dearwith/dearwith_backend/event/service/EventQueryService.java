@@ -9,6 +9,7 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.assembler.EventInfoAssembler;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
+import com.dearwith.dearwith_backend.event.dto.EventNoticeInfoDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
@@ -156,7 +157,7 @@ public class EventQueryService {
         List<EventArtistGroupMapping> artistGroups =
                 eventArtistGroupMappingRepository.findByEventId(eventId);
 
-        List<EventNoticeResponseDto> notices =
+        List<EventNoticeInfoDto> notices =
                 eventNoticeService.getLatestNoticesForEvent(eventId);
 
         boolean bookmarked = isBookmarked(eventId, userId);

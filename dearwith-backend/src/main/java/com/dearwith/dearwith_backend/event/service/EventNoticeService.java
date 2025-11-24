@@ -1,8 +1,11 @@
 package com.dearwith.dearwith_backend.event.service;
 
 import com.dearwith.dearwith_backend.auth.service.AuthService;
+import com.dearwith.dearwith_backend.common.component.ViewCountLimiter;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
+import com.dearwith.dearwith_backend.event.dto.EventNoticeInfoDto;
+import com.dearwith.dearwith_backend.event.dto.EventNoticeListResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
 import com.dearwith.dearwith_backend.event.entity.Event;
@@ -34,19 +37,25 @@ public class EventNoticeService {
     private final AuthService authService;
     private final NotificationService notificationService;
     private final EventBookmarkRepository eventBookmarkRepository;
+    private final ViewCountLimiter viewCountLimiter;
 
     /*────────────────────────────
      | 개별 공지 조회
      *────────────────────────────*/
     @Transactional
-    public EventNoticeResponseDto getNoticeById(Long noticeId) {
+    public EventNoticeResponseDto getNoticeById(Long noticeId, UUID userId) {
         EventNotice notice = eventNoticeRepository.findById(noticeId)
                 .orElseThrow(() -> BusinessException.withMessage(
                         ErrorCode.NOT_FOUND,
                         "해당 공지를 찾을 수 없습니다."
                 ));
+        if (userId != null &&
+                viewCountLimiter.shouldIncrease("EVENT_NOTICE", noticeId, userId)) {
 
-        return toDto(notice);
+            eventNoticeRepository.incrementViewCount(noticeId);
+        }
+
+        return toDetailDto(notice);
     }
 
     /*────────────────────────────
@@ -101,7 +110,7 @@ public class EventNoticeService {
             );
         }
 
-        return toDto(saved);
+        return toDetailDto(saved);
     }
 
     /*────────────────────────────
@@ -129,7 +138,7 @@ public class EventNoticeService {
 
         notice.update(req.title(), req.content());
 
-        return toDto(notice);
+        return toDetailDto(notice);
     }
 
     /*────────────────────────────
@@ -162,16 +171,34 @@ public class EventNoticeService {
      | 이벤트별 공지 목록 조회
      *────────────────────────────*/
     @Transactional
-    public Page<EventNoticeResponseDto> getNoticesByEvent(Long eventId, Pageable pageable) {
+    public EventNoticeListResponseDto getNoticesByEvent(Long eventId, UUID userId, Pageable pageable) {
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> BusinessException.withMessage(
+                        ErrorCode.NOT_FOUND,
+                        "이벤트를 찾을 수 없습니다."
+                ));
+
+        boolean writable = (userId != null &&
+                event.getUser() != null &&
+                userId.equals(event.getUser().getId()));
+
         Page<EventNotice> page = eventNoticeRepository.findByEventId(eventId, pageable);
-        return page.map(this::toDto);
+
+        Page<EventNoticeInfoDto> noticeDtos = page.map(this::toInfoDto);
+
+        return new EventNoticeListResponseDto(
+                eventId,
+                writable,
+                noticeDtos
+        );
     }
 
     /*────────────────────────────
      | 최신 공지 5개 조회
      *────────────────────────────*/
     @Transactional
-    public List<EventNoticeResponseDto> getLatestNoticesForEvent(Long eventId) {
+    public List<EventNoticeInfoDto> getLatestNoticesForEvent(Long eventId) {
         Pageable pageable = PageRequest.of(
                 0,
                 5,
@@ -181,25 +208,30 @@ public class EventNoticeService {
         Page<EventNotice> page = eventNoticeRepository.findByEventId(eventId, pageable);
 
         return page.getContent().stream()
-                .map(this::toDto)
+                .map(this::toInfoDto)
                 .toList();
     }
 
     /*────────────────────────────
      | Mapper
      *────────────────────────────*/
-    private EventNoticeResponseDto toDto(EventNotice notice) {
-        String writerNickname = notice.getUser() != null
-                ? notice.getUser().getNickname()
-                : null;
 
+    private EventNoticeInfoDto toInfoDto(EventNotice notice) {
+        return new EventNoticeInfoDto(
+                notice.getId(),
+                notice.getTitle(),
+                notice.getUser() != null ? notice.getUser().getNickname() : null,
+                notice.getCreatedAt(),
+                notice.getUpdatedAt()
+        );
+    }
+
+    private EventNoticeResponseDto toDetailDto(EventNotice notice) {
         return new EventNoticeResponseDto(
                 notice.getId(),
-                notice.getEvent().getId(),
-                notice.getEvent().getTitle(),
                 notice.getTitle(),
                 notice.getContent(),
-                writerNickname,
+                notice.getUser() != null ? notice.getUser().getNickname() : null,
                 notice.getCreatedAt(),
                 notice.getUpdatedAt()
         );

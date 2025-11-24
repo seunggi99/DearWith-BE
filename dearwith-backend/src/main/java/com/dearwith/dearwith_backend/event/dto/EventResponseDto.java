@@ -23,7 +23,7 @@ public record EventResponseDto(
         OrganizerDto organizer,
         Long bookmarkCount,
         boolean bookmarked,
-        List<EventNoticeResponseDto> notices
+        List<EventNoticeInfoDto> notices
 ) {
     public record ArtistDto(
             Long id,

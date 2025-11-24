@@ -14,4 +14,8 @@ public interface EventNoticeRepository extends JpaRepository<EventNotice, Long> 
     @Modifying
     @Query("delete from EventNotice n where n.event.id = :eventId")
     void deleteByEventId(@Param("eventId") Long eventId);
+
+    @Modifying
+    @Query("update EventNotice n set n.viewCount = n.viewCount + 1 where n.id = :id")
+    void incrementViewCount(@Param("id") Long id);
 }

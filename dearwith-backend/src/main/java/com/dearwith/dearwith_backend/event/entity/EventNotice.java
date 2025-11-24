@@ -36,6 +36,8 @@ public class EventNotice extends BaseDeletableEntity {
     @Column(length = 300)
     private String content;
 
+    private long viewCount;
+
     public void update(String title, String content) {
         this.title = title;
         this.content = content;

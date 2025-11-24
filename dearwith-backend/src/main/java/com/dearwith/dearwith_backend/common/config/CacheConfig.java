@@ -1,5 +1,6 @@
-package com.dearwith.dearwith_backend.external.x;
+package com.dearwith.dearwith_backend.common.config;
 
+import com.dearwith.dearwith_backend.external.x.XVerifyPayload;
 import com.dearwith.dearwith_backend.user.dto.EmailVerifyPayload;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -10,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Duration;
 
 @Configuration
-public class TicketCacheConfig {
+public class CacheConfig {
 
     @Bean
     public Cache<String, XVerifyPayload> xVerifyTicketCache(
@@ -31,6 +32,13 @@ public class TicketCacheConfig {
         return Caffeine.newBuilder()
                 .maximumSize(maxSize)
                 .expireAfterWrite(Duration.ofMinutes(ttlMinutes))
+                .build();
+    }
+    @Bean
+    public Cache<String, Boolean> viewLimitCache() {
+        return Caffeine.newBuilder()
+                .expireAfterWrite(Duration.ofMinutes(30))
+                .maximumSize(1_000_000)
                 .build();
     }
 }

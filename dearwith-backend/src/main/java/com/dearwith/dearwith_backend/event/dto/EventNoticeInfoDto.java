@@ -2,12 +2,10 @@ package com.dearwith.dearwith_backend.event.dto;
 
 import java.time.LocalDateTime;
 
-public record EventNoticeResponseDto (
+public record EventNoticeInfoDto(
         Long id,
         String title,
-        String content,
         String writerNickname,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
-) {
-}
+) { }

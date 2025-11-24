@@ -1,7 +1,9 @@
 package com.dearwith.dearwith_backend.event.controller;
 
+import com.dearwith.dearwith_backend.event.dto.EventNoticeListResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
+import com.dearwith.dearwith_backend.event.enums.EventNoticeSort;
 import com.dearwith.dearwith_backend.event.service.EventNoticeService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -17,30 +19,42 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping
+@RequestMapping("/api/events")
 @RequiredArgsConstructor
 public class EventNoticeController {
     private final EventNoticeService eventNoticeService;
-    @GetMapping("/api/events/notices/{noticeId}")
+    @GetMapping("/notices/{noticeId}")
     @Operation(summary = "이벤트 공지 상세 조회")
     public EventNoticeResponseDto getNotice(
+            @AuthenticationPrincipal(expression = "id") UUID userId,
             @PathVariable Long noticeId
     ) {
-        return eventNoticeService.getNoticeById(noticeId);
+        return eventNoticeService.getNoticeById(noticeId, userId);
     }
 
-    @GetMapping("/api/events/{eventId}/notices")
+    @GetMapping("/{eventId}/notices")
     @Operation(summary = "이벤트 공지 목록 조회")
-    public Page<EventNoticeResponseDto> getNotices(
+    public EventNoticeListResponseDto getNotices(
+            @AuthenticationPrincipal(expression = "id") UUID userId,
             @PathVariable Long eventId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "LATEST") EventNoticeSort sort
     ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return eventNoticeService.getNoticesByEvent(eventId, pageable);
+
+        Sort springSort = switch (sort) {
+            case LATEST -> Sort.by(Sort.Direction.DESC, "createdAt");
+            case OLDEST -> Sort.by(Sort.Direction.ASC, "createdAt");
+            case MOST_VIEWED -> Sort.by(Sort.Direction.DESC, "viewCount")
+                    .and(Sort.by(Sort.Direction.DESC, "createdAt"));
+        };
+
+        Pageable pageable = PageRequest.of(page, size, springSort);
+
+        return eventNoticeService.getNoticesByEvent(eventId, userId, pageable);
     }
 
-    @PostMapping("/api/events/{eventId}/notices")
+    @PostMapping("/{eventId}/notices")
     @Operation(summary = "이벤트 공지 등록")
     public EventNoticeResponseDto createNotice(
             @AuthenticationPrincipal(expression = "id") UUID userId,
@@ -50,7 +64,7 @@ public class EventNoticeController {
         return eventNoticeService.create(userId, eventId, req);
     }
 
-    @PatchMapping("/api/events/{eventId}/notices/{noticeId}")
+    @PatchMapping("/{eventId}/notices/{noticeId}")
     @Operation(summary = "이벤트 공지 수정")
     public EventNoticeResponseDto updateNotice(
             @AuthenticationPrincipal(expression = "id") UUID userId,
@@ -61,7 +75,7 @@ public class EventNoticeController {
         return eventNoticeService.update(userId, eventId, noticeId, req);
     }
 
-    @DeleteMapping("/api/events/{eventId}/notices/{noticeId}")
+    @DeleteMapping("/{eventId}/notices/{noticeId}")
     @Operation(summary = "이벤트 공지 삭제")
     public ResponseEntity<Void> deleteNotice(
             @AuthenticationPrincipal(expression = "id") UUID userId,
