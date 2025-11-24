@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.user.controller;
 
 
+import com.dearwith.dearwith_backend.user.dto.KakaoSignUpRequestDto;
 import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.auth.dto.SignUpRequestDto;
 import com.dearwith.dearwith_backend.auth.dto.SignUpResponseDto;
@@ -28,6 +29,13 @@ public class UserController {
     @PostMapping("/signup")
     public ResponseEntity<SignUpResponseDto> signUp(@RequestBody @Valid SignUpRequestDto request){
         return ResponseEntity.ok(userService.signUp(request));
+    }
+
+    @Operation(summary = "카카오 소셜 회원가입", description = UserApiDocs.SOCIAL_CREATE_DESC)
+    @PostMapping("/signup/kakao")
+    public ResponseEntity<SignUpResponseDto> kakaoSignUp(@RequestBody @Valid KakaoSignUpRequestDto request) {
+        SignUpResponseDto response = userService.kakaoSignUp(request);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "현재 로그인 회원 정보 조회", description = "JWT 토큰으로 받은 현재 로그인한 회원 정보 조회")

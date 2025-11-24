@@ -9,24 +9,17 @@ import com.dearwith.dearwith_backend.user.dto.SignInRequestDto;
 import com.dearwith.dearwith_backend.user.dto.SignInResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/auth")
 public class AuthController {
-    @Autowired
+
     private final EmailVerificationService emailService;
-
-    @Autowired
-    private AuthService authService;
-
-    public AuthController(EmailVerificationService emailService) {
-        this.emailService = emailService;
-    }
-
+    private final AuthService authService;
 
     @Operation(summary = "이메일 인증 코드 발송")
     @PostMapping("/signup/email/send")
@@ -37,9 +30,8 @@ public class AuthController {
 
     @Operation(summary = "이메일 인증 코드 검증")
     @PostMapping("/signup/email/verify")
-    public ResponseEntity<Void> verifyCode(@RequestBody @Valid EmailVerifyRequestDto request) {
-        emailService.verifyCode(request.getEmail(), request.getCode());
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<EmailTicketResponseDto> verifyCode(@RequestBody @Valid EmailVerifyRequestDto request) {
+        return ResponseEntity.ok(emailService.verifyCode(request.getEmail(), request.getCode()));
     }
 
     @Operation(summary = "로그인")
@@ -49,9 +41,8 @@ public class AuthController {
     }
 
     @PostMapping("/oauth/kakao")
-    public ResponseEntity<SignInResponseDto> kakaoSignIn(@RequestBody KakaoSignInRequestDto request) {
-        System.out.println("컨트롤러 진입 : " + request);
-        SignInResponseDto response = authService.kakaoSignIn(request.getCode());
+    public ResponseEntity<KakaoSignInResponseDto> kakaoSignIn(@RequestBody KakaoSignInRequestDto request) {
+        KakaoSignInResponseDto response = authService.kakaoSignIn(request.getCode());
         return ResponseEntity.ok(response);
     }
 

@@ -28,4 +28,7 @@ public class SignUpRequestDto {
 
     @Valid
     private List<AgreementDto> agreements;
+
+    @NotBlank(message = "이메일 인증 티켓이 필요합니다.")
+    private String emailTicket;
 }

@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -35,7 +36,7 @@ public class AuthService {
     private final UserRepository userRepository;
 
     public SignInResponseDto signIn(SignInRequestDto request){
-        // 1. 인증 처리 (예외는 전역 핸들러에서 처리)
+        // 1. 인증 처리
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
@@ -66,60 +67,79 @@ public class AuthService {
     }
 
 
-    public SignInResponseDto kakaoSignIn(String code) {
-        // 1. Kakao에서 받은 유저 정보 추출
-        String accessToken = kakaoAuthService.getAccessToken(code);
-        KakaoUserInfoDto kakaoUser = kakaoAuthService.getUserInfo(accessToken);
+    public KakaoSignInResponseDto kakaoSignIn(String code) {
+        AuthProvider provider = AuthProvider.KAKAO;
 
-        // 2. SocialAccount 존재 여부 확인
-        Optional<SocialAccount> existing = socialAccountService
-                .findByProviderAndSocialId(AuthProvider.KAKAO, String.valueOf(kakaoUser.getId()));
+        String accessToken;
+        KakaoUserInfoDto kakaoUser;
 
-        User user;
+        try {
+            // 1) 토큰 요청
+            accessToken = kakaoAuthService.getAccessToken(code);
 
-        if (existing.isPresent()) {
-            // 2-1. 기존 회원이면 user 조회
-            user = existing.get().getUser();
-        } else {
-            // 2-2. 신규 회원이면 가입 처리
-            user = User.builder()
-              //      .email(kakaoUser.getEmail()) // 없으면 null 가능
-                    .role(Role.USER)
-                    .userStatus(UserStatus.ACTIVE)
-                    .build();
+            if (accessToken == null || accessToken.isBlank()) {
+                throw new BusinessException(ErrorCode.SOCIAL_AUTH_FAILED, "카카오 인증 토큰이 비어 있음");
+            }
 
-            userService.save(user);
+            // 2) 사용자 정보 요청
+            kakaoUser = kakaoAuthService.getUserInfo(accessToken);
 
-            // 소셜 계정 연결
-            socialAccountService.connectSocialAccount(
-                    user,
-                    AuthProvider.KAKAO,
-                    String.valueOf(kakaoUser.getId())
-            );
+            if (kakaoUser == null) {
+                throw new BusinessException(ErrorCode.SOCIAL_AUTH_FAILED, "카카오 사용자 정보 조회 실패");
+            }
 
-            // 약관 동의도 필요하면 이 시점에서 처리
+        } catch (HttpClientErrorException e) {
+            // Kakao가 400, 401 등 내려준 경우
+            throw new BusinessException(ErrorCode.SOCIAL_AUTH_FAILED,
+                    "카카오 인증 실패: " + e.getStatusCode() + " / " + e.getMessage());
+        } catch (Exception e) {
+            // 기타 오류
+            throw new BusinessException(ErrorCode.SOCIAL_AUTH_FAILED,
+                    "카카오 로그인 처리 중 오류 발생: " + e.getMessage());
         }
 
-        // 3. 로그인 처리: 마지막 로그인 시간 갱신
-        userService.updateLastLoginAt(user);
+        String socialId = String.valueOf(kakaoUser.getId());
 
-        // 4. JWT 발급
-        TokenCreateRequestDto tokenDTO = TokenCreateRequestDto.builder()
-                .userId(user.getId())
-                .email(user.getEmail())
-                .role(user.getRole().name())
-                .build();
+        Optional<SocialAccount> existing =
+                socialAccountService.findByProviderAndSocialId(provider, socialId);
 
-        String token = jwtTokenProvider.generateToken(tokenDTO);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(tokenDTO);
+        if (existing.isPresent()) {
+            User user = existing.get().getUser();
 
-        return SignInResponseDto.builder()
-                .message("카카오 로그인 성공")
-                .userId(user.getId())
-                .nickname(user.getNickname())
-                .role(user.getRole())
-                .token(token)
-                .refreshToken(refreshToken)
+            userService.updateLastLoginAt(user);
+
+            TokenCreateRequestDto tokenDTO = TokenCreateRequestDto.builder()
+                    .userId(user.getId())
+                    .email(user.getEmail())
+                    .role(user.getRole().name())
+                    .build();
+
+            String token = jwtTokenProvider.generateToken(tokenDTO);
+            String refreshToken = jwtTokenProvider.generateRefreshToken(tokenDTO);
+
+            SignInResponseDto signIn = SignInResponseDto.builder()
+                    .message("카카오 로그인 성공")
+                    .userId(user.getId())
+                    .nickname(user.getNickname())
+                    .role(user.getRole())
+                    .token(token)
+                    .refreshToken(refreshToken)
+                    .build();
+
+            return KakaoSignInResponseDto.builder()
+                    .needSignUp(false)
+                    .signIn(signIn)
+                    .provider(provider)
+                    .socialId(socialId)
+                    .build();
+        }
+
+        // 신규 회원
+        return KakaoSignInResponseDto.builder()
+                .needSignUp(true)
+                .signIn(null)
+                .provider(provider)
+                .socialId(socialId)
                 .build();
     }
 
