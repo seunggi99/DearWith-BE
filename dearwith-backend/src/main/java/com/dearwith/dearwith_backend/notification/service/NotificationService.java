@@ -26,74 +26,73 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
+
     private final NotificationRepository notificationRepository;
     private final EventInfoAssembler eventInfoAssembler;
     private final EventRepository eventRepository;
+
     private static final Pattern EVENT_NOTICE_PATTERN =
             Pattern.compile("/events/(\\d+)(?:#notice-(\\d+))?");
 
-    // ================================================================
-    // 1) 안 읽은 알림 존재 여부 + 개수
-    // ================================================================
+    /* ================================================================
+       1) 안 읽은 알림 존재 여부
+     ================================================================ */
     public UnreadExistsResponseDto hasUnread(UUID userId) {
         long count = notificationRepository.countByUserIdAndReadFalse(userId);
         return new UnreadExistsResponseDto(count > 0, count);
     }
 
-    // ================================================================
-    // 2) 알림 목록 조회 (전체 / onlyUnread)
-    // ================================================================
+    /* ================================================================
+       2) 알림 목록 조회
+     ================================================================ */
     public Page<NotificationResponseDto> getNotifications(UUID userId, boolean onlyUnread, Pageable pageable) {
 
-        // 1) 알림 페이지 조회
         Page<Notification> page = onlyUnread
                 ? notificationRepository.findByUserIdAndReadFalse(userId, pageable)
                 : notificationRepository.findByUserId(userId, pageable);
 
-        List<Notification> notifications = page.getContent();
+        List<Notification> list = page.getContent();
 
-        // 2) 알림들에서 eventId만 먼저 뽑아서 배치 조회할 준비
-        Set<Long> eventIds = notifications.stream()
-                .map(this::parseEventLink)   // EventLink
+        // eventId 추출
+        Set<Long> eventIds = list.stream()
+                .map(this::parseEventLink)
                 .map(EventLink::eventId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        // 3) 이벤트 배치 조회
+        // 이벤트 배치 조회
         Map<Long, Event> eventMap = eventIds.isEmpty()
                 ? Map.of()
                 : eventRepository.findByIdIn(eventIds).stream()
                 .collect(Collectors.toMap(Event::getId, e -> e));
 
-        // 4) 매핑
         return page.map(n -> toDto(n, eventMap));
     }
 
-    // ================================================================
-    // 3) 단일 알림 읽음 처리
-    // ================================================================
+    /* ================================================================
+       3) 단일 알림 읽음 처리
+     ================================================================ */
     @Transactional
     public void markAsRead(UUID userId, Long notificationId) {
+        Notification n = notificationRepository.findByIdAndUserId(notificationId, userId)
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "해당 알림을 찾을 수 없습니다.",
+                        "NOTIFICATION_NOT_FOUND"
+                ));
 
-        Notification notification = notificationRepository
-                .findByIdAndUserId(notificationId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
-
-        if (!notification.isRead()) {
-            notification.setRead(true);
-            notification.setReadAt(LocalDateTime.now());
+        if (!n.isRead()) {
+            n.setRead(true);
+            n.setReadAt(LocalDateTime.now());
         }
     }
 
-    // ================================================================
-    // 4) 전체 알림 읽음 처리
-    // ================================================================
+    /* ================================================================
+       4) 전체 읽음 처리
+     ================================================================ */
     @Transactional
     public void markAllAsRead(UUID userId) {
-
-        List<Notification> list = notificationRepository
-                .findByUserIdAndReadFalse(userId);
-
+        List<Notification> list = notificationRepository.findByUserIdAndReadFalse(userId);
         LocalDateTime now = LocalDateTime.now();
 
         for (Notification n : list) {
@@ -102,25 +101,26 @@ public class NotificationService {
         }
     }
 
-    // ================================================================
-    // 5) 단일 알림 삭제
-    // ================================================================
+    /* ================================================================
+       5) 단일 삭제
+     ================================================================ */
     @Transactional
     public void deleteOne(UUID userId, Long notificationId) {
+        Notification n = notificationRepository.findByIdAndUserId(notificationId, userId)
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "해당 알림을 찾을 수 없습니다.",
+                        "NOTIFICATION_NOT_FOUND"
+                ));
 
-        Notification notification = notificationRepository
-                .findByIdAndUserId(notificationId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
-
-        notificationRepository.delete(notification);
+        notificationRepository.delete(n);
     }
 
-    // ================================================================
-    // 6) 전체 알림 삭제 (옵션: 읽은 것만 삭제)
-    // ================================================================
+    /* ================================================================
+       6) 전체 삭제
+     ================================================================ */
     @Transactional
     public void deleteAll(UUID userId, boolean onlyRead) {
-
         if (onlyRead) {
             notificationRepository.deleteByUserIdAndReadTrue(userId);
         } else {
@@ -128,34 +128,32 @@ public class NotificationService {
         }
     }
 
-    // =========================================================
-    // [알림 생성] 이벤트 공지 등록 알림
-    // =========================================================
+    /* ================================================================
+       7) 알림 생성 (개인)
+     ================================================================ */
     @Transactional
     public void sendEventNoticeCreated(
-            UUID targetUserId,   // 알림 받을 유저
+            UUID targetUserId,
             Long eventId,
             Long noticeId,
             String eventTitle,
             String noticeTitle
     ) {
-        String title   = eventTitle;      // 알림 상단: 이벤트 제목
-        String content = noticeTitle;     // 알림 하단: 공지 제목
-        String linkUrl = "/events/" + eventId + "#notice-" + noticeId;
-
         Notification n = new Notification();
         n.setUserId(targetUserId);
         n.setType(NotificationType.EVENT_NOTICE_CREATED);
-        n.setTitle(title);
-        n.setContent(content);
-        n.setLinkUrl(linkUrl);
+        n.setTitle(eventTitle);
+        n.setContent(noticeTitle);
+        n.setLinkUrl("/events/" + eventId + "#notice-" + noticeId);
         n.setTargetId(noticeId);
         n.setRead(false);
-        n.setReadAt(null);
 
         notificationRepository.save(n);
     }
 
+    /* ================================================================
+       8) 알림 생성 (여러명)
+     ================================================================ */
     @Transactional
     public void sendEventNoticeCreatedToMany(
             List<UUID> targetUserIds,
@@ -167,21 +165,18 @@ public class NotificationService {
         if (targetUserIds == null || targetUserIds.isEmpty()) return;
 
         for (UUID uid : targetUserIds) {
-            sendEventNoticeCreated(
-                    uid,
-                    eventId,
-                    noticeId,
-                    eventTitle,
-                    noticeTitle
-            );
+            sendEventNoticeCreated(uid, eventId, noticeId, eventTitle, noticeTitle);
         }
     }
 
+    /* ================================================================
+       9) DTO 변환
+     ================================================================ */
     private NotificationResponseDto toDto(Notification n, Map<Long, Event> eventMap) {
 
         Long eventId = null;
         Long noticeId = null;
-        List<ImageGroupDto> coverImage = null;
+        List<ImageGroupDto> cover = null;
 
         if (n.getType() == NotificationType.EVENT_NOTICE_CREATED) {
             EventLink link = parseEventLink(n);
@@ -191,7 +186,7 @@ public class NotificationService {
             if (eventId != null) {
                 Event event = eventMap.get(eventId);
                 if (event != null) {
-                    coverImage = eventInfoAssembler.buildCoverImageGroups(event);
+                    cover = eventInfoAssembler.buildCoverImageGroups(event);
                 }
             }
         }
@@ -206,10 +201,15 @@ public class NotificationService {
                 n.isRead(),
                 n.getReadAt(),
                 n.getCreatedAt(),
-                coverImage
+                cover
         );
     }
 
+    /* ================================================================
+       10) 링크 파싱
+       - 규약이 깨져도 예외 던지면 안 됨 (프론트/백에서 URL 오염 가능)
+       - null 반환하고 정상 동작해야 UX 유지됨
+     ================================================================ */
     private EventLink parseEventLink(Notification n) {
         if (n.getType() != NotificationType.EVENT_NOTICE_CREATED) {
             return new EventLink(null, null);
@@ -224,20 +224,13 @@ public class NotificationService {
             Matcher m = EVENT_NOTICE_PATTERN.matcher(url);
             if (m.find()) {
                 Long eventId = Long.valueOf(m.group(1));
-                Long noticeId = null;
-
-                if (m.group(2) != null) {
-                    noticeId = Long.valueOf(m.group(2));
-                }
-
+                Long noticeId = (m.group(2) != null) ? Long.valueOf(m.group(2)) : null;
                 return new EventLink(eventId, noticeId);
             }
-        } catch (Exception ignore) {
-        }
+        } catch (Exception ignore) { }
 
         return new EventLink(null, null);
     }
-
 
     private record EventLink(Long eventId, Long noticeId) {}
 }

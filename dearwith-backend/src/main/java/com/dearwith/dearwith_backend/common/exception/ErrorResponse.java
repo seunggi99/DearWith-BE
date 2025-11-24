@@ -40,4 +40,14 @@ public class ErrorResponse {
                 OffsetDateTime.now()
         );
     }
+
+    public static ErrorResponse of(ErrorCode errorCode, String message, String detail, String path) {
+        return new ErrorResponse(
+                errorCode.name(),
+                message != null ? message : errorCode.getMessage(),
+                detail,
+                path,
+                OffsetDateTime.now()
+        );
+    }
 }

@@ -18,6 +18,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ImageService {
+
     private final ImageRepository imageRepository;
     private final ImageAssetService imageAssetService;
     private final AssetUrlService assetUrlService;
@@ -26,7 +27,11 @@ public class ImageService {
     @Transactional
     public Image registerCommittedImage(String finalKey, UUID userId) {
         var user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "존재하지 않는 사용자입니다.",
+                        "USER_NOT_FOUND"
+                ));
 
         String url = assetUrlService.generatePublicUrl(finalKey);
 
@@ -43,8 +48,13 @@ public class ImageService {
     @Transactional
     public void markDeleted(Image image) {
         if (image.getDeletedAt() != null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "이미 삭제된 이미지입니다. imageId=" + image.getId());
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.IMAGE_ALREADY_DELETED,
+                    ErrorCode.IMAGE_ALREADY_DELETED.getMessage(),
+                    "IMAGE_ALREADY_DELETED:" + image.getId()
+            );
         }
+
         imageAssetService.moveOriginalAndDerivedToTrash(image.getS3Key());
         image.setDeletedAt(LocalDateTime.now());
         imageRepository.save(image);
@@ -55,20 +65,29 @@ public class ImageService {
         String inlineKey = imageAssetService.promoteTmpToInline(tmpKey);
 
         Image img = imageRepository.findById(imageId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이미지 없음: " + imageId));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "존재하지 않는 이미지입니다.",
+                        "IMAGE_NOT_FOUND:" + imageId
+                ));
+
         img.setS3Key(inlineKey);
         img.setStatus(ImageStatus.COMMITTED);
         img.setImageUrl(assetUrlService.generatePublicUrl(inlineKey));
 
         imageRepository.flush();
-
         return inlineKey;
     }
 
     @Transactional
     public void softDeleteIfNotYet(Long imageId) {
         Image img = imageRepository.findById(imageId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이미지 없음: " + imageId));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "존재하지 않는 이미지입니다.",
+                        "IMAGE_NOT_FOUND:" + imageId
+                ));
+
         if (img.getDeletedAt() == null) {
             markDeleted(img);
         }

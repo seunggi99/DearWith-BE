@@ -1,9 +1,7 @@
 package com.dearwith.dearwith_backend.review.service;
 
-
 import com.dearwith.dearwith_backend.auth.service.AuthService;
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
-import com.dearwith.dearwith_backend.common.dto.ImageVariantDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.entity.Event;
@@ -47,33 +45,34 @@ public class ReviewService {
     private final HotEventService hotEventService;
     private final ImageVariantAssembler imageVariantAssembler;
 
+    /*──────────────────────────────────────────────
+     | 1. 리뷰 생성
+     *──────────────────────────────────────────────*/
     @Transactional
     public void create(UUID userId, Long eventId, ReviewCreateRequestDto req) {
-        // 0) 유효성
-        if (req.content() == null || req.content().isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "리뷰 내용은 비어 있을 수 없습니다.");
-        }
-        if (req.content().length() > 300) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "리뷰는 300자 이하만 가능합니다.");
-        }
-        if (req.tags() != null && req.tags().size() > 4) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "태그는 최대 4개까지 가능합니다.");
-        }
-        if (req.images() != null && req.images().size() > 2) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "이미지는 최대 2개까지만 등록할 수 있습니다.");
-        }
+
+        String normalizedContent = Normalizer.normalize(req.content().trim(), Normalizer.Form.NFC);
 
         // 1) 유저, 이벤트 조회
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "유저를 찾을 수 없습니다."));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "사용자를 찾을 수 없습니다.",
+                        "USER_NOT_FOUND"
+                ));
+
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이벤트를 찾을 수 없습니다."));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "이벤트를 찾을 수 없습니다.",
+                        "EVENT_NOT_FOUND"
+                ));
 
         // 2) 리뷰 엔티티 생성
         Review review = Review.builder()
                 .user(user)
                 .event(event)
-                .content(req.content().trim())
+                .content(normalizedContent)
                 .build();
 
         // 태그 추가
@@ -92,9 +91,14 @@ public class ReviewService {
             reviewImageAppService.create(saved, imageDtos, user);
         }
 
+        // 5) 핫 이벤트 점수 반영
         hotEventService.increaseEventScore(eventId, HotEventService.Action.REVIEW);
     }
 
+    /*──────────────────────────────────────────────
+     | 2. 이벤트 포토 리뷰 썸네일 목록
+     *──────────────────────────────────────────────*/
+    @Transactional(readOnly = true)
     public EventPhotoReviewResponseDto getEventPhotoReviews(Long eventId, Pageable pageable) {
         Page<ReviewImageMapping> mappings =
                 reviewImageMappingRepository.findVisibleLatestByEvent(eventId, pageable);
@@ -122,21 +126,18 @@ public class ReviewService {
                 .build();
     }
 
-    /**
-     * 이벤트별 리뷰 페이지 조회 (최신/인기 정렬은 Pageable.sort로 전달)
-     * - 1차: ID 페이징 (가볍게)
-     * - 2차: ID 모음으로 작성자/이미지 fetch join
-     * - 3차: 원래 ID 순서 유지하여 DTO 매핑
-     */
+    /*──────────────────────────────────────────────
+     | 3. 이벤트별 리뷰 목록 (최신/인기 정렬)
+     *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
     public Page<EventReviewResponseDto> getReviewsByEvent(Long eventId, UUID userId, Pageable pageable) {
-        // 1) ID만 가볍게 페이징(정렬 포함)
+        // 1) ID 페이징
         Page<Long> idPage = reviewRepository.findIdsByEvent(eventId, pageable);
         if (idPage.isEmpty()) {
             return Page.empty(pageable);
         }
 
-        // 2) 상세 fetch (작성자 + 이미지 일괄 로딩)
+        // 2) 상세 fetch (작성자 + 이미지)
         List<Long> orderedIds = idPage.getContent();
 
         Set<Long> likedIdSet = Collections.emptySet();
@@ -147,61 +148,58 @@ public class ReviewService {
         List<Review> fetched = reviewRepository.findWithUserAndImagesByIdIn(orderedIds);
         reviewRepository.preloadTagsByReviewIds(orderedIds);
 
-        // 2-1) id -> Review 매핑
         Map<Long, Review> byId = new HashMap<>(fetched.size());
-        for (Review r : fetched) byId.put(r.getId(), r);
+        for (Review r : fetched) {
+            byId.put(r.getId(), r);
+        }
 
-        // 3) 원래 ID 순서대로 DTO 변환
+        // 3) 원래 순서대로 DTO 매핑
         List<EventReviewResponseDto> dtoList = new ArrayList<>(orderedIds.size());
         for (Long id : orderedIds) {
             Review r = byId.get(id);
             if (r == null) continue;
 
             boolean liked = (userId != null) && likedIdSet.contains(id);
-            EventReviewResponseDto dto = mapToEventReviewResponseDto(r, userId, liked);
-            dtoList.add(dto);
+            dtoList.add(mapToEventReviewResponseDto(r, userId, liked));
         }
 
         return new PageImpl<>(dtoList, pageable, idPage.getTotalElements());
     }
 
-    /**
-     * Review -> EventReviewResponseDto 매핑
-     * - 작성자 닉네임/프로필, 작성시간, 내용, 태그(없으면 빈 리스트), 좋아요 수, 본인 수정 가능 여부
-     * - 리뷰 이미지: displayOrder 오름차순으로 정렬하여 노출
-     *
-     * 프로필 이미지나 태그 컬럼/연관관계 이름은 프로젝트에 맞게 수정하세요.
-     */
     private EventReviewResponseDto mapToEventReviewResponseDto(Review r, UUID userId, boolean liked) {
-        var user = r.getUser();
+        User user = r.getUser();
 
         String profileImageUrl = null;
         try {
-            profileImageUrl = user.getProfileImage() != null ? user.getProfileImage().getImageUrl() : null;
-        } catch (Exception ignore) {}
+            profileImageUrl = (user != null && user.getProfileImage() != null)
+                    ? user.getProfileImage().getImageUrl()
+                    : null;
+        } catch (Exception ignore) {
+        }
 
-            List<ImageGroupDto> images = r.getImages() == null
-                    ? List.of()
-                    : r.getImages().stream()
-                    .sorted(Comparator.comparingInt(ReviewImageMapping::getDisplayOrder))
-                    .map(m -> {
-                        var img = m.getImage();
-                        if (img == null || img.getImageUrl() == null) return null;
+        List<ImageGroupDto> images =
+                (r.getImages() == null)
+                        ? List.of()
+                        : r.getImages().stream()
+                        .sorted(Comparator.comparingInt(ReviewImageMapping::getDisplayOrder))
+                        .map(m -> {
+                            Image img = m.getImage();
+                            if (img == null || img.getImageUrl() == null) return null;
 
-                        return ImageGroupDto.builder()
-                                .id(img.getId())
-                                .variants(
-                                        imageVariantAssembler.toVariants(
-                                                img.getImageUrl(),
-                                                ImageVariantProfile.REVIEW_LIST
-                                        )
-                                )
-                                .build();
-                    })
-                    .filter(Objects::nonNull)
-                    .toList();
+                            return ImageGroupDto.builder()
+                                    .id(img.getId())
+                                    .variants(
+                                            imageVariantAssembler.toVariants(
+                                                    img.getImageUrl(),
+                                                    ImageVariantProfile.REVIEW_LIST
+                                            )
+                                    )
+                                    .build();
+                        })
+                        .filter(Objects::nonNull)
+                        .toList();
 
-        List<String> tags = r.getTags() != null ? r.getTags() : List.of();
+        List<String> tags = (r.getTags() != null) ? r.getTags() : List.of();
 
         boolean editable = (user != null && user.getId() != null && user.getId().equals(userId));
 
@@ -220,14 +218,25 @@ public class ReviewService {
                 .build();
     }
 
+    /*──────────────────────────────────────────────
+     | 4. 리뷰 좋아요
+     *──────────────────────────────────────────────*/
     @Transactional
     public ReviewLikeResponseDto like(Long reviewId, UUID userId) {
 
         Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "리뷰를 찾을 수 없습니다.",
+                        "REVIEW_NOT_FOUND"
+                ));
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "사용자를 찾을 수 없습니다.",
+                        "USER_NOT_FOUND"
+                ));
 
         try {
             reviewLikeRepository.save(
@@ -237,11 +246,14 @@ public class ReviewService {
                             .build()
             );
         } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(ErrorCode.ALREADY_LIKED);
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.ALREADY_LIKED,
+                    "이미 좋아요를 누른 리뷰입니다.",
+                    "REVIEW_ALREADY_LIKED"
+            );
         }
 
         reviewRepository.incrementLike(reviewId);
-
         Integer likeCount = reviewRepository.getLikeCount(reviewId);
 
         return new ReviewLikeResponseDto(
@@ -251,10 +263,17 @@ public class ReviewService {
         );
     }
 
+    /*──────────────────────────────────────────────
+     | 5. 리뷰 좋아요 취소
+     *──────────────────────────────────────────────*/
     @Transactional
     public ReviewLikeResponseDto unlike(Long reviewId, UUID userId) {
         ReviewLike like = reviewLikeRepository.findByReviewIdAndUserId(reviewId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "좋아요를 찾을 수 없습니다."));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "좋아요를 찾을 수 없습니다.",
+                        "REVIEW_LIKE_NOT_FOUND"
+                ));
 
         reviewLikeRepository.delete(like);
         reviewRepository.decrementLike(like.getReview().getId());
@@ -268,10 +287,17 @@ public class ReviewService {
         );
     }
 
+    /*──────────────────────────────────────────────
+     | 6. 리뷰 수정
+     *──────────────────────────────────────────────*/
     @Transactional
-    public void update(UUID userId, Long reviewId, ReviewUpdateRequestDto req){
+    public void update(UUID userId, Long reviewId, ReviewUpdateRequestDto req) {
         Review review = reviewRepository.findByIdAndUserIdWithTags(reviewId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없거나 권한이 없습니다. id=" + reviewId));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "리뷰를 찾을 수 없거나 권한이 없습니다.",
+                        "REVIEW_NOT_FOUND_OR_NOT_OWNER"
+                ));
 
         authService.validateOwner(review.getUser(), userId, "리뷰를 수정할 권한이 없습니다.");
 
@@ -281,7 +307,8 @@ public class ReviewService {
             if (c.isBlank()) {
                 review.setContent(null);
             } else {
-                review.setContent(Normalizer.normalize(c, Normalizer.Form.NFC));
+                String normalized = Normalizer.normalize(c, Normalizer.Form.NFC);
+                review.setContent(normalized);
             }
         }
 
@@ -306,19 +333,25 @@ public class ReviewService {
         if (req.images() != null) {
             if (req.images().isEmpty()) {
                 reviewImageAppService.deleteAll(reviewId);
-
             } else {
                 reviewImageAppService.update(review, req.images(), userId);
             }
         }
 
         reviewRepository.save(review);
-
     }
+
+    /*──────────────────────────────────────────────
+     | 7. 리뷰 삭제 (Soft delete)
+     *──────────────────────────────────────────────*/
     @Transactional
     public void delete(Long reviewId, UUID userId) {
         Review review = reviewRepository.findByIdAndUserId(reviewId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없거나 권한이 없습니다. id=" + reviewId));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "리뷰를 찾을 수 없거나 권한이 없습니다.",
+                        "REVIEW_NOT_FOUND_OR_NOT_OWNER"
+                ));
 
         authService.validateOwner(review.getUser(), userId, "리뷰를 삭제할 권한이 없습니다.");
 
@@ -332,6 +365,6 @@ public class ReviewService {
         review.softDelete();
         reviewRepository.save(review);
 
-        hotEventService.decreaseEventScore(reviewId, HotEventService.Action.REVIEW);
+        hotEventService.decreaseEventScore(review.getEvent().getId(), HotEventService.Action.REVIEW);
     }
 }

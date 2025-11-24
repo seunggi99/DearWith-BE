@@ -45,7 +45,7 @@ public class AssetOps {
 
         // 2) DB 갱신
         Image img = imageRepository.findById(cmd.getImageId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이미지 없음: " + cmd.getImageId()));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(ErrorCode.NOT_FOUND, "이미지를 찾을 수 없습니다.","이미지 없음: " + cmd.getImageId()));
 
         img.setS3Key(inlineKey);
         img.setStatus(ImageStatus.COMMITTED);

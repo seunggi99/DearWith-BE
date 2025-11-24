@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
@@ -35,7 +37,11 @@ public class KakaoAuthService {
     private final String USER_INFO_URI = "https://kapi.kakao.com/v2/user/me";
 
 
+    /*──────────────────────────────────────────────
+     | 1) 카카오 Access Token 가져오기
+     *──────────────────────────────────────────────*/
     public String getAccessToken(String authorizationCode) {
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
@@ -48,57 +54,153 @@ public class KakaoAuthService {
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
-        ResponseEntity<KakaoTokenResponseDto> response = restTemplate.postForEntity(
-                TOKEN_URI, request, KakaoTokenResponseDto.class
-        );
+        try {
+            ResponseEntity<KakaoTokenResponseDto> response = restTemplate.postForEntity(
+                    TOKEN_URI, request, KakaoTokenResponseDto.class
+            );
 
-        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-            throw new BusinessException(ErrorCode.KAKAO_AUTH_FAILED);
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                throw BusinessException.withAll(
+                        ErrorCode.KAKAO_AUTH_FAILED,
+                        null,
+                        "KAKAO_TOKEN_NULL",
+                        "Kakao token API returned non-2xx or null body",
+                        null
+                );
+            }
+
+            String accessToken = response.getBody().getAccess_token();
+            if (accessToken == null || accessToken.isBlank()) {
+                throw BusinessException.withMessage(
+                        ErrorCode.KAKAO_AUTH_FAILED,
+                        "카카오 인증 정보를 가져올 수 없습니다."
+                );
+            }
+
+            return accessToken;
+
+        } catch (HttpClientErrorException e) {
+            throw BusinessException.withAll(
+                    ErrorCode.KAKAO_AUTH_FAILED,
+                    null,
+                    "KAKAO_TOKEN_HTTP_ERROR",
+                    "Kakao token API error: status=" + e.getStatusCode() + ", body=" + e.getResponseBodyAsString(),
+                    e
+            );
+
+        } catch (RestClientException e) {
+            throw BusinessException.withAll(
+                    ErrorCode.KAKAO_AUTH_FAILED,
+                    null,
+                    "KAKAO_TOKEN_RESTCLIENT_ERROR",
+                    "Kakao token request failed: " + e.getMessage(),
+                    e
+            );
+
+        } catch (Exception e) {
+            throw BusinessException.withAll(
+                    ErrorCode.KAKAO_AUTH_FAILED,
+                    null,
+                    "KAKAO_TOKEN_UNKNOWN_ERROR",
+                    "Unexpected token API error: " + e.getMessage(),
+                    e
+            );
         }
-
-        return response.getBody().getAccess_token();
     }
 
+
+
+    /*──────────────────────────────────────────────
+     | 2) 카카오 사용자 정보 가져오기
+     *──────────────────────────────────────────────*/
     public KakaoUserInfoDto getUserInfo(String accessToken) {
-        // Authorization 헤더 구성
+
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
 
         HttpEntity<Void> request = new HttpEntity<>(headers);
 
-        // 사용자 정보 요청
-        ResponseEntity<Map> response = restTemplate.exchange(
-                USER_INFO_URI, HttpMethod.GET, request, Map.class
-        );
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    USER_INFO_URI, HttpMethod.GET, request, Map.class
+            );
 
-        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
-            throw new BusinessException(ErrorCode.KAKAO_AUTH_FAILED);
-        }
-
-        Map<String, Object> body = response.getBody();
-
-        // 기본 ID 추출
-        Long id = Long.valueOf(body.get("id").toString());
-        Map<String, Object> kakaoAccount = (Map<String, Object>) body.get("kakao_account");
-
-        // 이메일, 닉네임 추출 (비즈앱이 아닐 경우 null일 수 있음)
-        String email = null;
-        String nickname = "unknown";
-
-        if (kakaoAccount != null) {
-            Object emailObj = kakaoAccount.get("email");
-            if (emailObj != null) email = emailObj.toString();
-
-            Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
-            if (profile != null && profile.get("nickname") != null) {
-                nickname = profile.get("nickname").toString();
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                throw BusinessException.withAll(
+                        ErrorCode.KAKAO_AUTH_FAILED,
+                        null,
+                        "KAKAO_USERINFO_NULL",
+                        "Kakao user info API returned non-2xx or null body",
+                        null
+                );
             }
-        }
 
-        return KakaoUserInfoDto.builder()
-                .id(id)
-                .email(email) // 비즈앱이 아니면 null로 저장
-                .nickname(nickname)
-                .build();
+            Map<String, Object> body = response.getBody();
+
+            // ID
+            Object idObj = body.get("id");
+            if (idObj == null) {
+                throw BusinessException.withAll(
+                        ErrorCode.KAKAO_AUTH_FAILED,
+                        null,
+                        "KAKAO_ID_NULL",
+                        "Kakao user info missing id field",
+                        null
+                );
+            }
+
+            Long id = Long.valueOf(idObj.toString());
+
+            // kakao_account
+            Map<String, Object> kakaoAccount = (Map<String, Object>) body.get("kakao_account");
+
+            String email = null;
+            String nickname = "사용자";
+
+            if (kakaoAccount != null) {
+                Object emailObj = kakaoAccount.get("email");
+                if (emailObj != null) {
+                    email = emailObj.toString();
+                }
+
+                Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
+                if (profile != null && profile.get("nickname") != null) {
+                    nickname = profile.get("nickname").toString();
+                }
+            }
+
+            return KakaoUserInfoDto.builder()
+                    .id(id)
+                    .email(email)
+                    .nickname(nickname)
+                    .build();
+
+        } catch (HttpClientErrorException e) {
+            throw BusinessException.withAll(
+                    ErrorCode.KAKAO_AUTH_FAILED,
+                    null,
+                    "KAKAO_USERINFO_HTTP_ERROR",
+                    "Kakao user info API error: status=" + e.getStatusCode() + ", body=" + e.getResponseBodyAsString(),
+                    e
+            );
+
+        } catch (RestClientException e) {
+            throw BusinessException.withAll(
+                    ErrorCode.KAKAO_AUTH_FAILED,
+                    null,
+                    "KAKAO_USERINFO_RESTCLIENT_ERROR",
+                    "Kakao user info request failed: " + e.getMessage(),
+                    e
+            );
+
+        } catch (Exception e) {
+            throw BusinessException.withAll(
+                    ErrorCode.KAKAO_AUTH_FAILED,
+                    null,
+                    "KAKAO_USERINFO_UNKNOWN_ERROR",
+                    "Unexpected user info API error: " + e.getMessage(),
+                    e
+            );
+        }
     }
 }

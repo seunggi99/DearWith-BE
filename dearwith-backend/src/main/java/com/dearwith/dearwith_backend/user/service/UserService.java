@@ -1,10 +1,10 @@
 package com.dearwith.dearwith_backend.user.service;
 
 import com.dearwith.dearwith_backend.auth.dto.AgreementDto;
+import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.user.dto.KakaoSignUpRequestDto;
 import com.dearwith.dearwith_backend.auth.dto.SignUpRequestDto;
 import com.dearwith.dearwith_backend.auth.dto.SignUpResponseDto;
-import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.user.dto.EmailVerifyPayload;
 import com.dearwith.dearwith_backend.user.entity.Agreement;
@@ -31,23 +31,30 @@ import java.util.stream.Collectors;
 @Transactional
 @RequiredArgsConstructor
 public class UserService {
+
     private final UserRepository userRepository;
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
     private final SocialAccountService socialAccountService;
     private final EmailVerifyTicketService emailVerifyTicketService;
 
+    /*──────────────────────────────────────────────
+     | 1. 일반 회원가입
+     *──────────────────────────────────────────────*/
     public SignUpResponseDto signUp(SignUpRequestDto request) {
 
+        // 1) 이메일 인증 티켓 검증
         emailVerifyTicketService.confirmForPurposeAndEmail(
                 request.getEmailTicket(),
                 EmailVerifyPayload.EmailVerificationPurpose.SIGNUP,
                 request.getEmail()
         );
 
+        // 2) 약관 / 중복 검사
         validateRequiredAgreements(request.getAgreements());
         validateDuplicateUserByEmail(request.getEmail());
         validateDuplicateUserByNickname(request.getNickname());
 
+        // 3) User 생성
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -66,6 +73,9 @@ public class UserService {
                 .build();
     }
 
+    /*──────────────────────────────────────────────
+     | 2. 카카오 회원가입
+     *──────────────────────────────────────────────*/
     @Transactional
     public SignUpResponseDto kakaoSignUp(KakaoSignUpRequestDto request) {
 
@@ -75,7 +85,7 @@ public class UserService {
         // 2) 닉네임 중복 체크
         validateDuplicateUserByNickname(request.getNickname());
 
-        // 3) User 생성
+        // 3) User 생성 (이메일/패스워드는 null)
         User user = User.builder()
                 .email(null)
                 .password(null)
@@ -90,7 +100,7 @@ public class UserService {
         // 4) 약관 저장
         addAgreements(user, request.getAgreements());
 
-        // 5) 소셜 계정 연결
+        // 5) 소셜 계정 연결 (provider/socialId 유효성은 내부에서 한 번 더 검증)
         socialAccountService.connectSocialAccount(
                 user,
                 request.getProvider(),
@@ -103,21 +113,38 @@ public class UserService {
                 .build();
     }
 
+    /*──────────────────────────────────────────────
+     | 3. 조회/저장 관련 유틸
+     *──────────────────────────────────────────────*/
+
+    // 로그인 등에서 사용: "가입되지 않은 이메일입니다." 케이스
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> BusinessException.withMessage(
+                        ErrorCode.INVALID_EMAIL,
+                        ErrorCode.INVALID_EMAIL.getMessage()    // "가입되지 않은 이메일입니다."
+                ));
     }
+
     public List<User> findAll() {
         return userRepository.findAll();
     }
 
     public User findOne(UUID userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> BusinessException.withMessage(
+                        ErrorCode.NOT_FOUND,
+                        "존재하지 않는 사용자입니다."
+                ));
     }
+
     public User save(User user) {
         return userRepository.save(user);
     }
+
+    /*──────────────────────────────────────────────
+     | 4. 정보 수정 / 삭제
+     *──────────────────────────────────────────────*/
 
     @Transactional
     public void updateLastLoginAt(User user) {
@@ -128,7 +155,11 @@ public class UserService {
     @Transactional
     public void updateNickname(UUID userId, String newNickname) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> BusinessException.withMessage(
+                        ErrorCode.NOT_FOUND,
+                        "존재하지 않는 사용자입니다."
+                ));
+
         validateDuplicateUserByNickname(newNickname);
         user.updateNickname(newNickname);
         userRepository.save(user);
@@ -137,12 +168,21 @@ public class UserService {
     @Transactional
     public void deleteById(UUID id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> BusinessException.withMessage(
+                        ErrorCode.NOT_FOUND,
+                        "존재하지 않는 사용자입니다."
+                ));
+
         user.markDeleted();
         userRepository.save(user);
     }
+
     @Transactional
     public void addAgreements(User user, List<AgreementDto> agreementDto) {
+        if (agreementDto == null || agreementDto.isEmpty()) {
+            return;
+        }
+
         List<Agreement> agreements = agreementDto.stream()
                 .map(dto -> Agreement.builder()
                         .type(dto.getType())
@@ -153,6 +193,10 @@ public class UserService {
 
         user.getAgreements().addAll(agreements);
     }
+
+    /*──────────────────────────────────────────────
+     | 5. 조회용 DTO 변환
+     *──────────────────────────────────────────────*/
 
     // 회원 본인 정보 조회
     public UserResponseDto getCurrentUser(UUID userId) {
@@ -167,22 +211,30 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    /*──────────────────────────────────────────────
+     | 6. 검증 유틸
+     *──────────────────────────────────────────────*/
+
     public void validateDuplicateUserByEmail(String email) {
         if (userRepository.existsByEmail(email)) {
-            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+            throw BusinessException.of(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
     }
 
     public void validateDuplicateUserByNickname(String nickname) {
         if (userRepository.existsByNickname(nickname)) {
-            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+            throw BusinessException.of(ErrorCode.NICKNAME_ALREADY_EXISTS);
         }
     }
 
     public void validateRequiredAgreements(List<AgreementDto> agreementDto) {
+        if (agreementDto == null || agreementDto.isEmpty()) {
+            throw BusinessException.of(ErrorCode.REQUIRED_AGREEMENT_NOT_CHECKED);
+        }
+
         Set<AgreementType> agreedTypes = agreementDto.stream()
                 .filter(AgreementDto::isAgreed)
-                .map(dto -> dto.getType())
+                .map(AgreementDto::getType)
                 .collect(Collectors.toSet());
 
         List<AgreementType> requiredTypes = Arrays.stream(AgreementType.values())
@@ -192,7 +244,7 @@ public class UserService {
         boolean allRequired = requiredTypes.stream().allMatch(agreedTypes::contains);
 
         if (!allRequired) {
-            throw new BusinessException(ErrorCode.REQUIRED_AGREEMENT_NOT_CHECKED);
+            throw BusinessException.of(ErrorCode.REQUIRED_AGREEMENT_NOT_CHECKED);
         }
     }
 }

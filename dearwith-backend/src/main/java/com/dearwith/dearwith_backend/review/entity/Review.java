@@ -83,7 +83,7 @@ public class Review extends BaseDeletableEntity {
     public void addTag(String tag) {
         if (tags == null) tags = new ArrayList<>();
         if (tags.size() >= 4) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "태그는 최대 4개까지만 등록할 수 있습니다.");
+            throw BusinessException.withMessage(ErrorCode.INVALID_INPUT, "태그는 최대 4개까지만 등록할 수 있습니다.");
         }
         tags.add(tag);
     }

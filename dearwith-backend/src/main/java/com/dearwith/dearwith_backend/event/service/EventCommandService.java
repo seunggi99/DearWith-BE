@@ -5,7 +5,6 @@ import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
 import com.dearwith.dearwith_backend.auth.service.AuthService;
-import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
@@ -20,7 +19,6 @@ import com.dearwith.dearwith_backend.external.x.XVerifyPayload;
 import com.dearwith.dearwith_backend.external.x.XVerifyTicketService;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentUpdateRequestDto;
-import com.dearwith.dearwith_backend.image.service.ImageAttachmentService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import jakarta.persistence.EntityManager;
@@ -42,12 +40,10 @@ public class EventCommandService {
     private final ArtistGroupRepository artistGroupRepository;
     private final EventArtistMappingRepository eventArtistMappingRepository;
     private final EventArtistGroupMappingRepository eventArtistGroupMappingRepository;
-    private final EventImageMappingRepository mappingRepository;
     private final EventBenefitRepository benefitRepository;
     private final EventMapper mapper;
     private final ArtistService artistService;
     private final XVerifyTicketService xVerifyTicketService;
-    private final ImageAttachmentService imageAttachmentService;
     private final AuthService authService;
     private final UserRepository userRepository;
     private final EventImageAppService eventImageAppService;
@@ -58,32 +54,44 @@ public class EventCommandService {
     @PersistenceContext
     private final EntityManager em;
 
+    /*──────────────────────────────────────────────
+     | 1. 이벤트 생성
+     *──────────────────────────────────────────────*/
     @Transactional
     public EventResponseDto create(UUID userId, EventCreateRequestDto req) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "유저를 찾을 수 없습니다."));
+                .orElseThrow(() -> BusinessException.withMessage(
+                        ErrorCode.NOT_FOUND,
+                        "존재하지 않는 사용자입니다."
+                ));
 
-        // 0) Organizer 필수 확인
-        if (req.organizer() == null) {
-            throw new BusinessException(ErrorCode.ORGANIZER_REQUIRED);
-        }
-
-        // 0-1) X 인증 티켓 확인/소모
+        // 0) X 인증 티켓 확인/소모
         XVerifyPayload xPayload = null;
         if (req.organizer().xTicket() != null && !req.organizer().xTicket().isBlank()) {
             try {
                 xPayload = xVerifyTicketService.confirmAndConsume(req.organizer().xTicket(), userId);
+            } catch (BusinessException e) {
+                throw e;
             } catch (Exception e) {
-                throw new BusinessException(ErrorCode.X_TICKET_EXPIRED, e.getMessage());
+                throw BusinessException.withAll(
+                        ErrorCode.INTERNAL_SERVER_ERROR,
+                        null,
+                        "X_TICKET_VERIFY_FAILED",
+                        "X ticket verify failed: " + e.getMessage(),
+                        e
+                );
             }
         }
 
-        // 1) Event 매핑 + 날짜 검증
+        // 1) Event 매핑 + 날짜 검증 (USER 오류)
         Event event = mapper.toEvent(userId, req);
-        if (event.getStartDate() == null) throw new BusinessException(ErrorCode.EVENT_START_REQUIRED);
-        if (event.getEndDate() != null && event.getEndDate().isBefore(event.getStartDate()))
-            throw new BusinessException(ErrorCode.EVENT_DATE_RANGE_INVALID);
+        if (event.getStartDate() == null) {
+            throw BusinessException.of(ErrorCode.EVENT_START_REQUIRED);
+        }
+        if (event.getEndDate() != null && event.getEndDate().isBefore(event.getStartDate())) {
+            throw BusinessException.of(ErrorCode.EVENT_DATE_RANGE_INVALID);
+        }
 
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
         LocalDate start = event.getStartDate();
@@ -121,7 +129,6 @@ public class EventCommandService {
             var imageDtos = req.images().stream()
                     .map(d -> new ImageAttachmentRequestDto(d.tmpKey(), d.displayOrder()))
                     .toList();
-            //imageAttachmentService.setEventImages(event, imageDtos, userId);
             eventImageAppService.create(event, imageDtos, user);
         }
 
@@ -129,7 +136,7 @@ public class EventCommandService {
         if (req.benefits() != null) {
             LocalDate eventStart = event.getStartDate();
             if (eventStart == null) {
-                throw new IllegalStateException("이벤트 시작일이 설정되지 않았습니다.");
+                throw BusinessException.of(ErrorCode.EVENT_START_REQUIRED);
             }
 
             for (var b : req.benefits()) {
@@ -143,7 +150,7 @@ public class EventCommandService {
                         dayIndex = 1;
                     }
                     if (dayIndex < 1) {
-                        throw new BusinessException(ErrorCode.BENEFIT_DAYINDEX_INVALID);
+                        throw BusinessException.of(ErrorCode.BENEFIT_DAYINDEX_INVALID);
                     }
                     visibleFrom = eventStart.plusDays(dayIndex - 1L);
                 }
@@ -164,12 +171,27 @@ public class EventCommandService {
 
         // 4. 아티스트 매핑
         if (req.artistIds() != null && !req.artistIds().isEmpty()) {
-            List<Artist> artists = artistService.findAllByIds(req.artistIds());
-            // 존재하지 않는 ID 필터링
+            List<Long> artistIds = req.artistIds();
+            Set<Long> uniqueArtistIds = new LinkedHashSet<>(artistIds);
+
+            if (artistIds.size() != uniqueArtistIds.size()) {
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_INPUT,
+                        null,
+                        "ARTIST_ID_DUPLICATED"
+                );
+            }
+
+            List<Artist> artists = artistService.findAllByIds(new ArrayList<>(uniqueArtistIds));
+
             Set<Long> foundIds = artists.stream().map(Artist::getId).collect(Collectors.toSet());
-            List<Long> missing = req.artistIds().stream().filter(id -> !foundIds.contains(id)).toList();
+            List<Long> missing = uniqueArtistIds.stream().filter(id -> !foundIds.contains(id)).toList();
             if (!missing.isEmpty()) {
-                throw new BusinessException(ErrorCode.ARTIST_NOT_FOUND, "존재하지 않는 아티스트 ID: " + missing);
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.ARTIST_NOT_FOUND,
+                        ErrorCode.ARTIST_NOT_FOUND.getMessage(),
+                        "MISSING_ARTIST_IDS"
+                );
             }
 
             for (Artist artist : artists) {
@@ -183,10 +205,25 @@ public class EventCommandService {
 
         // 4-1) 그룹 매핑
         if (req.artistGroupIds() != null && !req.artistGroupIds().isEmpty()) {
-            Set<Long> uniqueGroupIds = new LinkedHashSet<>(req.artistGroupIds());
+            List<Long> groupIds = req.artistGroupIds();
+            Set<Long> uniqueGroupIds = new LinkedHashSet<>(groupIds);
+
+            // FRONT 오류: 중복된 그룹 ID
+            if (groupIds.size() != uniqueGroupIds.size()) {
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_INPUT,
+                        null,
+                        "ARTIST_GROUP_ID_DUPLICATED"
+                );
+            }
+
             for (Long groupId : uniqueGroupIds) {
                 ArtistGroup group = artistGroupRepository.findById(groupId)
-                        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "아티스트 그룹을 찾을 수 없습니다."));
+                        .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                                ErrorCode.GROUP_NOT_FOUND,
+                                "존재하지 않는 아티스트 그룹입니다.",
+                                "GROUP_NOT_FOUND"
+                        ));
 
                 EventArtistGroupMapping groupMapping = EventArtistGroupMapping.builder()
                         .event(event)
@@ -205,17 +242,21 @@ public class EventCommandService {
         return eventQueryService.getEvent(saved.getId(), userId);
     }
 
+
+
+    /*──────────────────────────────────────────────
+     | 2. 이벤트 수정
+     *──────────────────────────────────────────────*/
     @Transactional
-    public EventResponseDto update(Long eventId, UUID userId, EventUpdateRequestDto req){
+    public EventResponseDto update(Long eventId, UUID userId, EventUpdateRequestDto req) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이벤트를 찾을 수 없습니다."));
+                .orElseThrow(() -> BusinessException.withMessage(
+                        ErrorCode.NOT_FOUND,
+                        "존재하지 않는 이벤트입니다."
+                ));
 
+        // 권한 체크: USER / SECURITY 영역
         authService.validateOwner(event.getUser(), userId, "이벤트 수정 권한이 없습니다.");
-
-        // 0) 이미지 개수 제한 (10개)
-        if (req.images() != null && req.images().size() > 10) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "이벤트 이미지는 최대 10개까지 등록할 수 있습니다.");
-        }
 
         // 1) 기본 필드 업데이트 (null 이면 변경 안 함)
         if (req.title() != null) {
@@ -236,7 +277,7 @@ public class EventCommandService {
 
         // 1-1) 장소 정보 업데이트
         if (req.place() != null) {
-            EventUpdateRequestDto.PlaceDto p = req.place();
+            EventCreateRequestDto.PlaceDto p = req.place();
 
             var place = event.getPlaceInfo();
             if (place == null) {
@@ -257,30 +298,35 @@ public class EventCommandService {
         // 2) 아티스트 매핑 (null: 변경 없음, []: 모두 제거, 값: 전부 교체)
         if (req.artistIds() != null) {
             List<Long> artistIds = req.artistIds();
-
-            // 중복 방어
             Set<Long> uniqueArtistIds = new LinkedHashSet<>(artistIds);
+
             if (artistIds.size() != uniqueArtistIds.size()) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "artistIds에 중복된 값이 포함되어 있습니다.");
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_INPUT,
+                        null,
+                        "ARTIST_ID_DUPLICATED"
+                );
             }
 
             if (uniqueArtistIds.isEmpty()) {
                 event.getArtists().clear();
                 em.flush();
             } else {
-                // 1) 존재 여부 검증
                 var artists = artistService.findAllByIds(new ArrayList<>(uniqueArtistIds));
                 var foundIds = artists.stream().map(Artist::getId).collect(Collectors.toSet());
                 var missing = uniqueArtistIds.stream().filter(id -> !foundIds.contains(id)).toList();
                 if (!missing.isEmpty()) {
-                    throw new BusinessException(ErrorCode.ARTIST_NOT_FOUND, "존재하지 않는 아티스트 ID: " + missing);
+                    // USER 오류
+                    throw BusinessException.withMessageAndDetail(
+                            ErrorCode.ARTIST_NOT_FOUND,
+                            ErrorCode.ARTIST_NOT_FOUND.getMessage(),
+                            "MISSING_ARTIST_IDS"
+                    );
                 }
 
-                // 2) 기존 매핑 제거 + flush (UK 충돌 방지)
                 event.getArtists().clear();
                 em.flush();
 
-                // 3) 새 매핑 추가
                 for (Artist artist : artists) {
                     EventArtistMapping mapping = EventArtistMapping.builder()
                             .event(event)
@@ -296,8 +342,13 @@ public class EventCommandService {
             List<Long> groupIds = req.artistGroupIds();
             Set<Long> uniqueGroupIds = new LinkedHashSet<>(groupIds);
 
+            // FRONT 오류: 중복
             if (groupIds.size() != uniqueGroupIds.size()) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "artistGroupIds에 중복된 값이 포함되어 있습니다.");
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_INPUT,
+                        null,
+                        "ARTIST_GROUP_ID_DUPLICATED"
+                );
             }
 
             if (uniqueGroupIds.isEmpty()) {
@@ -309,7 +360,11 @@ public class EventCommandService {
 
                 for (Long groupId : uniqueGroupIds) {
                     ArtistGroup group = artistGroupRepository.findById(groupId)
-                            .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "아티스트 그룹을 찾을 수 없습니다. id=" + groupId));
+                            .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                                    ErrorCode.GROUP_NOT_FOUND,
+                                    "존재하지 않는 아티스트 그룹입니다.",
+                                    "GROUP_NOT_FOUND"
+                            ));
 
                     EventArtistGroupMapping groupMapping = EventArtistGroupMapping.builder()
                             .event(event)
@@ -327,10 +382,10 @@ public class EventCommandService {
             if (!req.benefits().isEmpty()) {
                 LocalDate eventStart = event.getStartDate();
                 if (eventStart == null) {
-                    throw new BusinessException(ErrorCode.EVENT_START_REQUIRED);
+                    throw BusinessException.of(ErrorCode.EVENT_START_REQUIRED);
                 }
 
-                for (EventUpdateRequestDto.BenefitDto b : req.benefits()) {
+                for (EventCreateRequestDto.BenefitDto b : req.benefits()) {
                     int displayOrder = (b.displayOrder() != null) ? b.displayOrder() : 0;
 
                     Integer dayIndex = b.dayIndex();
@@ -341,7 +396,7 @@ public class EventCommandService {
                             dayIndex = 1;
                         }
                         if (dayIndex < 1) {
-                            throw new BusinessException(ErrorCode.BENEFIT_DAYINDEX_INVALID);
+                            throw BusinessException.of(ErrorCode.BENEFIT_DAYINDEX_INVALID);
                         }
                         visibleFrom = eventStart.plusDays(dayIndex - 1L);
                     }
@@ -361,12 +416,11 @@ public class EventCommandService {
             }
         }
 
-        // 4) 이미지 업데이트 (리뷰와 동일 패턴: null=변경없음, []=전부삭제, 값=재구성)
+        // 4) 이미지 업데이트 (null=변경없음, []=전부삭제, 값=재구성)
         if (req.images() != null) {
             if (req.images().isEmpty()) {
                 eventImageAppService.deleteAll(eventId);
             } else {
-                // id / tmpKey XOR 체크는 EventImageAppService.update 안에서 이미 하고 있음
                 List<ImageAttachmentUpdateRequestDto> imageReqs = req.images().stream()
                         .map(d -> new ImageAttachmentUpdateRequestDto(d.id(), d.tmpKey(), d.displayOrder()))
                         .toList();
@@ -375,17 +429,16 @@ public class EventCommandService {
             }
         }
 
-        // 5) 상태(status) 재계산
+        // 5) 상태(status) 재계산 (USER 입력에 의해 달라지는 부분)
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
         LocalDate start = event.getStartDate();
         LocalDate end   = event.getEndDate();
 
         if (start == null) {
-            throw new BusinessException(ErrorCode.EVENT_START_REQUIRED);
+            throw BusinessException.of(ErrorCode.EVENT_START_REQUIRED);
         }
 
         EventStatus status;
-
         if (end == null) {
             status = (today.isBefore(start)) ? EventStatus.SCHEDULED : EventStatus.IN_PROGRESS;
         } else if (today.isBefore(start)) {
@@ -405,10 +458,20 @@ public class EventCommandService {
 
         return eventQueryService.getEvent(saved.getId(), userId);
     }
+
+
+
+    /*──────────────────────────────────────────────
+     | 3. 이벤트 삭제 (Soft delete)
+     *──────────────────────────────────────────────*/
     @Transactional
-    public void delete(Long eventId, UUID userId){
+    public void delete(Long eventId, UUID userId) {
+        // USER 오류: 없는 이벤트
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이벤트를 찾을 수 없습니다."));
+                .orElseThrow(() -> BusinessException.withMessage(
+                        ErrorCode.NOT_FOUND,
+                        "존재하지 않는 이벤트입니다."
+                ));
 
         authService.validateOwner(event.getUser(), userId, "이벤트 삭제 권한이 없습니다.");
 
@@ -436,10 +499,13 @@ public class EventCommandService {
     }
 
 
+    /*──────────────────────────────────────────────
+     | 4. 도메인 정합성 검증 / 정규화
+     *──────────────────────────────────────────────*/
     private void validateAndNormalize(Event event) {
         if (event.getStartDate() != null && event.getEndDate() != null
                 && event.getEndDate().isBefore(event.getStartDate())) {
-            throw new BusinessException(ErrorCode.EVENT_DATE_RANGE_INVALID);
+            throw BusinessException.of(ErrorCode.EVENT_DATE_RANGE_INVALID);
         }
 
         if (event.getOrganizer() == null) {

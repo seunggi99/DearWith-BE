@@ -20,11 +20,13 @@ import com.dearwith.dearwith_backend.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class EventImageAppService {
+
     private final AssetOps assetOps;
     private final ImageRepository imageRepository;
     private final AfterCommitExecutor afterCommitExecutor;
@@ -42,12 +44,15 @@ public class EventImageAppService {
             return;
         }
 
-        // displayOrder 중복 체크
         Set<Integer> seen = new HashSet<>();
         for (ImageAttachmentRequestDto dto : images) {
             Integer ord = dto.displayOrder() == null ? 0 : dto.displayOrder();
             if (!seen.add(ord)) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "displayOrder가 중복되었습니다.");
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_INPUT,
+                        null,
+                        "EVENT_IMAGE_DISPLAY_ORDER_DUPLICATED"
+                );
             }
         }
 
@@ -57,6 +62,15 @@ public class EventImageAppService {
 
         for (ImageAttachmentRequestDto dto : images) {
             String tmpKey = dto.tmpKey();
+
+            // tmpKey 유효성 검증 (null/blank 방어)
+            if (tmpKey == null || tmpKey.isBlank()) {
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_INPUT,
+                        null,
+                        "EVENT_IMAGE_TMPKEY_EMPTY"
+                );
+            }
 
             Image img = new Image();
             img.setUser(user);
@@ -81,7 +95,7 @@ public class EventImageAppService {
 
                 s3Waiter.waitUntilExists(inlineKey);
 
-                // 이벤트용 프리셋으로 변경 (프로젝트에서 사용하는 값으로 맞춰줘)
+                // 이벤트용 프리셋으로 파생본 생성
                 imageVariantService.generateVariants(inlineKey, AssetVariantPreset.EVENT);
             });
         }
@@ -100,17 +114,24 @@ public class EventImageAppService {
             return;
         }
 
-        // displayOrder & 요청 형식 검증
         Set<Integer> orders = new HashSet<>();
         for (var r : reqs) {
             if (!orders.add(r.displayOrder())) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "displayOrder가 중복되었습니다.");
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_INPUT,
+                        null,
+                        "EVENT_IMAGE_DISPLAY_ORDER_DUPLICATED"
+                );
             }
 
             boolean hasId  = r.id() != null;
             boolean hasTmp = r.tmpKey() != null && !r.tmpKey().isBlank();
             if (hasId == hasTmp) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "각 항목은 id 또는 tmpKey 중 하나만 제공해야 합니다.");
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_INPUT,
+                        null,
+                        "EVENT_IMAGE_ID_OR_TMPKEY_XOR_REQUIRED"
+                );
             }
         }
 
@@ -142,7 +163,7 @@ public class EventImageAppService {
         for (var r : reqs) {
             if (r.tmpKey() != null && !r.tmpKey().isBlank()) {
                 Image img = new Image();
-                img.setUser(event.getUser()); // 이벤트 작성자/주최자 필드에 맞게 수정
+                img.setUser(event.getUser());
                 img.setS3Key(r.tmpKey());
                 img.setStatus(ImageStatus.TMP);
                 imageRepository.save(img);

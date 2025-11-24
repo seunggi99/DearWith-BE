@@ -25,91 +25,43 @@ public class ImageAttachmentService {
     private final ImageAssetService imageAssetService;
     private final ImageService imageService;
 
-    @Transactional
-    public void setEventImages(Event event, List<ImageAttachmentRequestDto> images, UUID userId) {
-        attachImages(
-                images,
-                userId,
-                () -> event.getCoverImage() != null,
-                event::setCoverImage,
-                (img, order) -> event.addImageMapping(
-                        EventImageMapping.builder()
-                                .event(event)
-                                .image(img)
-                                .displayOrder(order)
-                                .build()
-                )
-        );
-    }
+    /**
+     * 아티스트 프로필 이미지 교체
+     */
     @Transactional
     public Image setArtistProfileImage(Artist artist, String tmpKey, UUID userId) {
         if (tmpKey == null || tmpKey.isBlank()) return null;
+
         if (!tmpKey.startsWith("tmp/")) {
-            throw new BusinessException(ErrorCode.INVALID_TMP_KEY, "tmpKey=" + tmpKey);
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.INVALID_TMP_KEY,
+                    ErrorCode.INVALID_TMP_KEY.getMessage(),
+                    "ARTIST_PROFILE_TMPKEY_INVALID"
+            );
         }
 
-        final String inlineKey = commitTmpToInline(tmpKey);
+        String inlineKey = commitTmpToInline(tmpKey);
         Image image = imageService.registerCommittedImage(inlineKey, userId);
         artist.setProfileImage(image);
         return image;
     }
 
-    @Transactional
-    public void attachImages(List<ImageAttachmentRequestDto> images,
-                             UUID userId,
-                             Supplier<Boolean> hasCover,
-                             Consumer<Image> setCover,
-                             BiConsumer<Image, Integer> addMapping) {
-        if (images == null || images.isEmpty()) return;
-
-        // 1) tmpKey 검증 + 중복 체크
-        Set<String> dupCheck = new HashSet<>();
-        for (ImageAttachmentRequestDto dto : images) {
-            String tmpKey = dto.tmpKey();
-            if (tmpKey == null || !tmpKey.startsWith("tmp/")) {
-                throw new BusinessException(ErrorCode.INVALID_TMP_KEY, "tmpKey=" + tmpKey);
-            }
-            if (!dupCheck.add(tmpKey)) {
-                throw new BusinessException(ErrorCode.DUPLICATE_IMAGE_KEY, tmpKey);
-            }
-        }
-
-        boolean coverAlready = hasCover.get();
-        Image firstImageForCover = null;
-
-        // 2) 각 이미지 처리
-        for (ImageAttachmentRequestDto dto : images) {
-            String inlineKey = commitTmpToInline(dto.tmpKey());
-
-            Image image = imageService.registerCommittedImage(inlineKey, userId);
-
-            addMapping.accept(image, dto.displayOrder());
-
-            if (!coverAlready && firstImageForCover == null) {
-                firstImageForCover = image;
-            }
-        }
-
-        // 3) 커버 자동 지정
-        if (!coverAlready && firstImageForCover != null) {
-            setCover.accept(firstImageForCover);
-        }
-    }
-
+    /**
+     * tmpKey를 inline 경로로 승격
+     */
     private String commitTmpToInline(String tmpKey) {
         try {
             return imageAssetService.promoteTmpToInline(tmpKey);
-        } catch (IllegalArgumentException e) {
-            String msg = e.getMessage() == null ? "" : e.getMessage();
-            if (msg.contains("size")) {
-                throw new BusinessException(ErrorCode.IMAGE_TOO_LARGE, msg);
-            } else if (msg.contains("content type")) {
-                throw new BusinessException(ErrorCode.UNSUPPORTED_IMAGE_TYPE, msg);
-            } else {
-                throw new BusinessException(ErrorCode.S3_COMMIT_FAILED, msg);
-            }
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.S3_COMMIT_FAILED, e.getMessage());
+            throw BusinessException.withAll(
+                    ErrorCode.S3_OPERATION_FAILED,
+                    ErrorCode.S3_OPERATION_FAILED.getMessage(),
+                    "COMMIT_TMP_TO_INLINE_FAILED",
+                    "commitTmpToInline failed: " + e.getMessage(),
+                    e
+            );
         }
     }
 }

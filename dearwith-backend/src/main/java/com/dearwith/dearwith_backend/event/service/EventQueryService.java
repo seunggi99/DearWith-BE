@@ -9,8 +9,8 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.assembler.EventInfoAssembler;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
-import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
+import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.mapper.EventMapper;
 import com.dearwith.dearwith_backend.event.repository.*;
@@ -45,13 +45,15 @@ public class EventQueryService {
     private final ArtistBookmarkRepository artistBookmarkRepository;
     private final ArtistGroupBookmarkRepository artistGroupBookmarkRepository;
 
-    // 메인페이지(추천/핫/신규)
+    /*──────────────────────────────────────────────
+     | 메인페이지 추천 이벤트
+     *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
     public List<EventInfoDto> getRecommendedEvents(UUID userId) {
 
         LocalDate today = LocalDate.now();
 
-        // 비로그인(= userId == null) → 바로 fallback
+        // 비로그인 fallback
         if (userId == null) {
             List<Event> fallback = eventRepository.findGlobalRecommendedFallback(
                     today,
@@ -60,25 +62,20 @@ public class EventQueryService {
             return buildEventInfoList(fallback, null);
         }
 
-        // 0) 유저 북마크 기반 조회
         List<Long> artistIds = artistBookmarkRepository.findArtistIdsByUserId(userId);
         List<Long> groupIds  = artistGroupBookmarkRepository.findGroupIdsByUserId(userId);
 
-        // 북마크 없으면 → fallback 전체 추천
         if (artistIds.isEmpty() && groupIds.isEmpty()) {
             List<Event> fallback = eventRepository.findGlobalRecommendedFallback(
-                    LocalDate.now(),
+                    today,
                     PageRequest.of(0, 10)
             );
             return buildEventInfoList(fallback, userId);
         }
 
-        // 빈 리스트 방지
         if (artistIds.isEmpty()) artistIds = List.of(-1L);
-        if (groupIds.isEmpty())  groupIds  = List.of(-1L);
+        if (groupIds.isEmpty())  groupIds = List.of(-1L);
 
-
-        // 1) 개인화 추천 최대 10개
         PageRequest limit10 = PageRequest.of(0, 10);
 
         List<Event> personalized = eventRepository.findRecommendedForUser(
@@ -88,9 +85,7 @@ public class EventQueryService {
                 limit10
         ).getContent();
 
-        // 2) 부족하면 fallback 정렬로 채우기
         if (personalized.size() < 10) {
-
             List<Long> alreadyIds = personalized.stream()
                     .map(Event::getId)
                     .toList();
@@ -109,6 +104,9 @@ public class EventQueryService {
         return buildEventInfoList(personalized, userId);
     }
 
+    /*──────────────────────────────────────────────
+     | 핫 이벤트
+     *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
     public List<EventInfoDto> getHotEvents(UUID userId) {
         List<EventInfoDto> hotEvents = hotEventService.getHotEvents(10);
@@ -117,21 +115,32 @@ public class EventQueryService {
                 .map(EventInfoDto::getId)
                 .toList();
 
+        if (ids.isEmpty()) return List.of();
+
         List<Event> events = eventRepository.findAllById(ids);
 
         return buildEventInfoList(events, userId);
     }
 
+    /*──────────────────────────────────────────────
+     | 최신 이벤트
+     *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
     public List<EventInfoDto> getNewEvents(UUID userId) {
         List<Event> events = eventRepository.findTop10ByOrderByCreatedAtDesc();
         return buildEventInfoList(events, userId);
     }
 
+    /*──────────────────────────────────────────────
+     | 이벤트 상세
+     *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
     public EventResponseDto getEvent(Long eventId, UUID userId) {
         Event e = eventRepository.findById(eventId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이벤트를 찾을 수 없습니다. id=" + eventId));
+                .orElseThrow(() -> BusinessException.withMessage(
+                        ErrorCode.NOT_FOUND,
+                        "이벤트를 찾을 수 없습니다."
+                ));
 
         List<EventImageMapping> mappings =
                 mappingRepository.findByEvent_IdOrderByDisplayOrderAsc(eventId);
@@ -154,11 +163,30 @@ public class EventQueryService {
 
         hotEventService.onEventViewed(eventId, userId);
 
-        return mapper.toResponse(e, images, benefits, artists, artistGroups, notices, bookmarked);
+        return mapper.toResponse(
+                e,
+                images,
+                benefits,
+                artists,
+                artistGroups,
+                notices,
+                bookmarked
+        );
     }
 
+    /*──────────────────────────────────────────────
+     | 검색
+     *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
     public Page<EventInfoDto> search(UUID userId, String query, Pageable pageable) {
+        if (query == null || query.isBlank()) {
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.INVALID_INPUT,
+                    "검색어를 입력해주세요.",
+                    "EMPTY_QUERY"
+            );
+        }
+
         Page<Event> page = eventRepository.searchByTitle(query, pageable);
 
         Set<Long> bookmarked = bookmarkedIds(userId, page);
@@ -170,43 +198,56 @@ public class EventQueryService {
                 )
         );
     }
+
+    /*──────────────────────────────────────────────
+     | 아티스트별 이벤트
+     *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
     public Page<EventInfoDto> getEventsByArtist(Long artistId, UUID userId, Pageable pageable) {
+
         if (!artistRepository.existsById(artistId)) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "아티스트를 찾을 수 없습니다.");
+            throw BusinessException.withMessage(
+                    ErrorCode.NOT_FOUND,
+                    "아티스트를 찾을 수 없습니다."
+            );
         }
 
         Page<Event> page = eventRepository.findPageByArtistId(artistId, pageable);
+
         return buildEventInfoPageWithBatch(page, userId);
     }
 
+    /*──────────────────────────────────────────────
+     | 그룹별 이벤트
+     *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
     public Page<EventInfoDto> getEventsByGroup(Long groupId, UUID userId, Pageable pageable) {
         if (!artistGroupRepository.existsById(groupId)) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "아티스트 그룹을 찾을 수 없습니다.");
+            throw BusinessException.withMessage(
+                    ErrorCode.NOT_FOUND,
+                    "아티스트 그룹을 찾을 수 없습니다."
+            );
         }
 
         Page<Event> page = eventRepository.findPageByGroup(groupId, pageable);
+
         return buildEventInfoPageWithBatch(page, userId);
     }
 
-    /**
-     * 공통: Top N, 비페이징 이벤트 목록을 EventInfoDto 리스트로 변환한다.
-     */
+    /*──────────────────────────────────────────────
+     | 공통 EventInfo 빌더 (List)
+     *──────────────────────────────────────────────*/
     private List<EventInfoDto> buildEventInfoList(List<Event> events, UUID userId) {
         if (events == null || events.isEmpty()) {
             return List.of();
         }
 
-        // 1) 이벤트 ID 모으기
         List<Long> eventIds = events.stream()
                 .map(Event::getId)
                 .toList();
 
-        // 2) 북마크 일괄 조회
         Set<Long> bookmarked = bookmarkedIds(userId, eventIds);
 
-        // 3) assembler로 DTO 변환 + bookmarked 주입
         return events.stream()
                 .map(e -> eventInfoAssembler.assemble(
                         e,
@@ -215,9 +256,9 @@ public class EventQueryService {
                 .toList();
     }
 
-    /**
-     * 공통: 페이징 + 대량 이벤트 목록을 Batch 방식으로 EventInfoDto 페이지로 변환한다.
-     */
+    /*──────────────────────────────────────────────
+     | 공통 EventInfo 빌더 (Page)
+     *──────────────────────────────────────────────*/
     private Page<EventInfoDto> buildEventInfoPageWithBatch(
             Page<Event> page,
             UUID userId
@@ -226,31 +267,28 @@ public class EventQueryService {
             return new PageImpl<>(List.of(), page.getPageable(), 0);
         }
 
-        // 1) 이벤트 ID 수집
-        List<Long> eventIds = page.getContent().stream()
-                .map(Event::getId)
-                .toList();
+        List<Long> eventIds = page.getContent().stream().map(Event::getId).toList();
 
-        // 2) 아티스트 이름 배치 조회
         List<EventArtistMappingRepository.EventArtistNamesRow> artistNames =
                 eventArtistMappingRepository.findArtistNamesByEventIds(eventIds);
 
         Map<Long, List<String>> artistNamesEnMap = new HashMap<>();
         Map<Long, List<String>> artistNamesKrMap = new HashMap<>();
-        for (EventArtistMappingRepository.EventArtistNamesRow row : artistNames) {
+
+        for (var row : artistNames) {
             artistNamesEnMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>())
                     .add(row.getNameEn());
             artistNamesKrMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>())
                     .add(row.getNameKr());
         }
 
-        // 3) 그룹 이름 배치 조회
         List<EventArtistGroupMappingRepository.EventGroupNamesRow> groupNames =
                 eventArtistGroupMappingRepository.findGroupNamesByEventIds(eventIds);
 
         Map<Long, List<String>> groupNamesEnMap = new HashMap<>();
         Map<Long, List<String>> groupNamesKrMap = new HashMap<>();
-        for (EventArtistGroupMappingRepository.EventGroupNamesRow row : groupNames) {
+
+        for (var row : groupNames) {
             groupNamesEnMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>())
                     .add(row.getNameEn());
             groupNamesKrMap.computeIfAbsent(row.getEventId(), k -> new ArrayList<>())
@@ -262,10 +300,8 @@ public class EventQueryService {
         groupNamesEnMap.replaceAll((k, v) -> v.stream().filter(Objects::nonNull).distinct().toList());
         groupNamesKrMap.replaceAll((k, v) -> v.stream().filter(Objects::nonNull).distinct().toList());
 
-        // 4) 북마크 일괄 조회
         Set<Long> bookmarked = bookmarkedIds(userId, eventIds);
 
-        // 5) DTO 매핑
         List<EventInfoDto> dtoList = page.getContent().stream()
                 .map(e -> eventInfoAssembler.assembleWithBatch(
                         e,
@@ -281,9 +317,6 @@ public class EventQueryService {
         return new PageImpl<>(dtoList, page.getPageable(), page.getTotalElements());
     }
 
-    /**
-     * 목록 API에서 북마크 여부를 한 번에 조회하기 위한 배치 메서드.
-     */
     private Set<Long> bookmarkedIds(UUID userId, Collection<Long> eventIds) {
         if (userId == null || eventIds == null || eventIds.isEmpty()) {
             return Collections.emptySet();
@@ -292,22 +325,14 @@ public class EventQueryService {
         return new HashSet<>(ids);
     }
 
-    /**
-     * Page<Event> 바로 넣어 쓰는 편의 오버로드.
-     */
     private Set<Long> bookmarkedIds(UUID userId, Page<Event> page) {
         if (page == null || page.isEmpty()) return Collections.emptySet();
-        List<Long> eventIds = page.getContent().stream().map(Event::getId).toList();
-        return bookmarkedIds(userId, eventIds);
+        List<Long> ids = page.getContent().stream().map(Event::getId).toList();
+        return bookmarkedIds(userId, ids);
     }
 
-    /**
-     * 단건 상세용: exists 체크
-     */
     private boolean isBookmarked(Long eventId, UUID userId) {
-        if (userId == null) {
-            return false;
-        }
+        if (userId == null) return false;
         return eventBookmarkRepository.existsByEventIdAndUserId(eventId, userId);
     }
 

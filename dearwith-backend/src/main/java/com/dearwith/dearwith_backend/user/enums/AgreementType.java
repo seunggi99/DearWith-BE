@@ -28,7 +28,7 @@ public enum AgreementType {
         try {
             return AgreementType.valueOf(value.toUpperCase());
         } catch (IllegalArgumentException | NullPointerException e) {
-            throw new BusinessException(ErrorCode.INVALID_AGREEMENT_TYPE);
+            throw BusinessException.of(ErrorCode.INVALID_AGREEMENT_TYPE);
         }
     }
 }

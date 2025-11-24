@@ -82,7 +82,7 @@ public class ArtistController {
         Page<EventInfoDto> eventPage = eventQueryService.getEventsByArtist(artistId, userId, pageable);
 
         Artist artist = artistRepository.findById(artistId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> BusinessException.of(ErrorCode.NOT_FOUND));
 
         return ArtistEventsResponseDto.builder()
                 .artistId(artist.getId())

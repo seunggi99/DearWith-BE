@@ -11,7 +11,8 @@ import com.dearwith.dearwith_backend.image.dto.ImageAttachmentUpdateRequestDto;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.image.enums.ImageStatus;
 import com.dearwith.dearwith_backend.image.repository.ImageRepository;
-import com.dearwith.dearwith_backend.image.service.*;
+import com.dearwith.dearwith_backend.image.service.ImageService;
+import com.dearwith.dearwith_backend.image.service.ImageVariantService;
 import com.dearwith.dearwith_backend.review.entity.Review;
 import com.dearwith.dearwith_backend.review.entity.ReviewImageMapping;
 import com.dearwith.dearwith_backend.review.enums.ReviewStatus;
@@ -28,6 +29,7 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class ReviewImageAppService {
+
     private final AssetOps assetOps;
     private final ImageRepository imageRepository;
     private final AfterCommitExecutor afterCommitExecutor;
@@ -36,9 +38,11 @@ public class ReviewImageAppService {
     private final ReviewImageMappingRepository reviewImageMappingRepository;
     private final ImageVariantService imageVariantService;
 
+    /**
+     * 리뷰 생성 시 이미지 등록
+     */
     @Transactional
     public void create(Review review, List<ImageAttachmentRequestDto> images, User user) {
-
         if (images == null || images.isEmpty()) {
             return;
         }
@@ -47,7 +51,11 @@ public class ReviewImageAppService {
         for (ImageAttachmentRequestDto dto : images) {
             Integer ord = dto.displayOrder() == null ? 0 : dto.displayOrder();
             if (!seen.add(ord)) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "displayOrder가 중복되었습니다.");
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_INPUT,
+                        ErrorCode.INVALID_INPUT.getMessage(),
+                        "REVIEW_IMAGE_DISPLAY_ORDER_DUPLICATED"
+                );
             }
         }
 
@@ -57,6 +65,14 @@ public class ReviewImageAppService {
 
         for (ImageAttachmentRequestDto dto : images) {
             String tmpKey = dto.tmpKey();
+
+            if (tmpKey == null || tmpKey.isBlank() || !tmpKey.startsWith("tmp/")) {
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_TMP_KEY,
+                        ErrorCode.INVALID_TMP_KEY.getMessage(),
+                        "REVIEW_IMAGE_TMPKEY_INVALID"
+                );
+            }
 
             Image img = new Image();
             img.setUser(user);
@@ -86,34 +102,66 @@ public class ReviewImageAppService {
                 try {
                     imageVariantService.generateVariants(inlineKey, AssetVariantPreset.REVIEW);
                 } catch (Throwable t) {
-                    log.error("[variants] generation failed but ignored. imageId={}, key={}", ni.id(), inlineKey, t);
+                    log.error(
+                            "[variants] generation failed but ignored. imageId={}, key={}",
+                            ni.id(), inlineKey, t
+                    );
                 }
             });
         }
     }
 
+    /**
+     * 리뷰 수정 시 이미지 일괄 갱신
+     *  - reqs: 남길/추가할 이미지 전체 목록
+     *  - 비어 있으면 모두 삭제
+     */
     @Transactional
-    public void update(Review review, List<ImageAttachmentUpdateRequestDto> reqs, UUID userId){
+    public void update(Review review, List<ImageAttachmentUpdateRequestDto> reqs, UUID userId) {
         if (reqs == null) return;
         if (reqs.isEmpty()) {
             deleteAll(review.getId());
             return;
         }
 
+        // displayOrder & 요청 형식 검증
         Set<Integer> orders = new HashSet<>();
         for (var r : reqs) {
-            if (!orders.add(r.displayOrder()))
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "displayOrder가 중복되었습니다.");
+            Integer ord = (r.displayOrder() == null) ? 0 : r.displayOrder();
+            if (!orders.add(ord)) {
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_INPUT,
+                        ErrorCode.INVALID_INPUT.getMessage(),
+                        "REVIEW_IMAGE_DISPLAY_ORDER_DUPLICATED"
+                );
+            }
 
             boolean hasId  = r.id() != null;
             boolean hasTmp = r.tmpKey() != null && !r.tmpKey().isBlank();
-            if (hasId == hasTmp)
-                throw new BusinessException(ErrorCode.INVALID_INPUT, "각 항목은 id 또는 tmpKey 중 하나만 제공해야 합니다.");
+
+            if (hasTmp && !r.tmpKey().startsWith("tmp/")) {
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_TMP_KEY,
+                        ErrorCode.INVALID_TMP_KEY.getMessage(),
+                        "REVIEW_IMAGE_TMPKEY_INVALID"
+                );
+            }
+
+            if (hasId == hasTmp) {
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.INVALID_INPUT,
+                        ErrorCode.INVALID_INPUT.getMessage(),
+                        "REVIEW_IMAGE_ID_OR_TMPKEY_XOR_REQUIRED"
+                );
+            }
         }
 
         // 1) 이전 스냅샷
-        List<ReviewImageMapping> beforeMappings = reviewImageMappingRepository.findByReviewId(review.getId());
-        List<Long> beforeIds = beforeMappings.stream().map(m -> m.getImage().getId()).toList();
+        List<ReviewImageMapping> beforeMappings =
+                reviewImageMappingRepository.findByReviewId(review.getId());
+        List<Long> beforeIds = beforeMappings.stream()
+                .map(m -> m.getImage().getId())
+                .toList();
 
         // 2) 기존 매핑 삭제
         reviewImageMappingRepository.deleteByReviewId(review.getId());
@@ -125,27 +173,50 @@ public class ReviewImageAppService {
         // 3-1) 기존 유지(id)
         for (var r : reqs) {
             if (r.id() != null) {
-                finalIds.add(r.id());
-                orderById.put(r.id(), r.displayOrder());
+                Long imageId = r.id();
+
+                // 존재하는 이미지인지 검증
+                if (!imageRepository.existsById(imageId)) {
+                    throw BusinessException.withMessageAndDetail(
+                            ErrorCode.NOT_FOUND,
+                            "존재하지 않는 이미지입니다.",
+                            "REVIEW_IMAGE_ID_NOT_FOUND"
+                    );
+                }
+
+                Integer ord = (r.displayOrder() == null) ? 0 : r.displayOrder();
+                finalIds.add(imageId);
+                orderById.put(imageId, ord);
             }
         }
 
-        // 3-2) 신규 추가
+        // 3-2) 신규 추가(tmpKey)
         record NewImage(Long id, String tmpKey) {}
         List<NewImage> created = new ArrayList<>();
 
         for (var r : reqs) {
             if (r.tmpKey() != null && !r.tmpKey().isBlank()) {
+                String tmpKey = r.tmpKey();
+
+                if (!tmpKey.startsWith("tmp/")) {
+                    throw BusinessException.withMessageAndDetail(
+                            ErrorCode.INVALID_TMP_KEY,
+                            ErrorCode.INVALID_TMP_KEY.getMessage(),
+                            "REVIEW_IMAGE_TMPKEY_INVALID"
+                    );
+                }
+
                 Image img = new Image();
                 img.setUser(review.getUser());
-                img.setS3Key(r.tmpKey());
+                img.setS3Key(tmpKey);
                 img.setStatus(ImageStatus.TMP);
                 imageRepository.save(img);
 
+                Integer ord = (r.displayOrder() == null) ? 0 : r.displayOrder();
                 finalIds.add(img.getId());
-                orderById.put(img.getId(), r.displayOrder());
+                orderById.put(img.getId(), ord);
 
-                created.add(new NewImage(img.getId(), r.tmpKey()));
+                created.add(new NewImage(img.getId(), tmpKey));
             }
         }
 
@@ -161,7 +232,7 @@ public class ReviewImageAppService {
             reviewImageMappingRepository.save(m);
         }
 
-        // 5) after-commit: TMP → inline 승격 + URL 세팅 + S3 존재 대기 + 변환 생성(리뷰 프리셋)
+        // 5) after-commit: TMP → inline 승격 + 파생본 생성(리뷰 프리셋)
         for (NewImage ni : created) {
             afterCommitExecutor.run(() -> assetOps.commitExistingAndGenerateVariants(
                     AssetOps.CommitCommand.builder()
@@ -175,13 +246,18 @@ public class ReviewImageAppService {
 
         // 6) 고아 처리 (before - final)
         Set<Long> finalSet = new HashSet<>(finalIds);
-        List<Long> removed = beforeIds.stream().filter(id -> !finalSet.contains(id)).toList();
+        List<Long> removed = beforeIds.stream()
+                .filter(id -> !finalSet.contains(id))
+                .toList();
         handleOrphans(removed);
     }
+
     @Transactional
     public void deleteAll(Long reviewId) {
         List<Long> before = reviewImageMappingRepository.findByReviewId(reviewId)
-                .stream().map(m -> m.getImage().getId()).toList();
+                .stream()
+                .map(m -> m.getImage().getId())
+                .toList();
 
         reviewImageMappingRepository.deleteByReviewId(reviewId);
         handleOrphans(before);
@@ -190,7 +266,9 @@ public class ReviewImageAppService {
     @Transactional
     public void delete(Long reviewId) {
         List<Long> before = reviewImageMappingRepository.findByReviewId(reviewId)
-                .stream().map(m -> m.getImage().getId()).toList();
+                .stream()
+                .map(m -> m.getImage().getId())
+                .toList();
 
         reviewImageMappingRepository.deleteByReviewId(reviewId);
         handleOrphans(before);
@@ -204,5 +282,4 @@ public class ReviewImageAppService {
             }
         }
     }
-
 }

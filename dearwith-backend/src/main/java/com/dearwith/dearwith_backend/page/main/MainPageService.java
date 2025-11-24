@@ -15,24 +15,26 @@ import com.dearwith.dearwith_backend.review.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class MainPageService {
+
     private final EventQueryService eventQueryService;
     private final ReviewRepository reviewRepository;
     private final ImageVariantAssembler imageVariantAssembler;
     private final ArtistUnifiedService artistUnifiedService;
 
     public MainPageResponseDto getMainPage(UUID userId) {
-        List<MonthlyAnniversaryDto> birthdayArtists = artistUnifiedService.getThisMonthArtistAndGroupAnniversaries();
+
+        List<MonthlyAnniversaryDto> birthdayArtists =
+                artistUnifiedService.getThisMonthArtistAndGroupAnniversaries();
+
         List<EventInfoDto> recommendedEvents = eventQueryService.getRecommendedEvents(userId);
         List<EventInfoDto> hotEvents = eventQueryService.getHotEvents(userId);
         List<EventInfoDto> newEvents = eventQueryService.getNewEvents(userId);
+
         List<MainPageReviewDto> latestReviews = getLatestReviewsForMainPage();
 
         return MainPageResponseDto.builder()
@@ -45,15 +47,21 @@ public class MainPageService {
     }
 
     private List<MainPageReviewDto> getLatestReviewsForMainPage() {
-        List<Review> reviews = reviewRepository
-                .findTop6ByStatusOrderByIdDesc(ReviewStatus.VISIBLE);
+
+        List<Review> reviews =
+                reviewRepository.findTop6ByStatusOrderByIdDesc(ReviewStatus.VISIBLE);
 
         return reviews.stream()
-                .map(this::toMainPageReviewDto)
+                .map(this::toMainPageReviewDtoSafely)
+                .filter(Objects::nonNull)
                 .toList();
     }
 
-    private MainPageReviewDto toMainPageReviewDto(Review review) {
+    private MainPageReviewDto toMainPageReviewDtoSafely(Review review) {
+
+        if (review.getEvent() == null) {
+            return null;
+        }
 
         List<ImageGroupDto> images = List.of();
 
@@ -69,7 +77,7 @@ public class MainPageService {
                                 .variants(
                                         imageVariantAssembler.toVariants(
                                                 img.getImageUrl(),
-                                                ImageVariantProfile.MAIN_REVIEW_THUMB    // 여기에 맞는 프로필 사용
+                                                ImageVariantProfile.MAIN_REVIEW_THUMB
                                         )
                                 )
                                 .build();
@@ -86,5 +94,4 @@ public class MainPageService {
                 .images(images)
                 .build();
     }
-
 }

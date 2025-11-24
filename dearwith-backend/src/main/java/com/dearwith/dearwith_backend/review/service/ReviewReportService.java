@@ -21,6 +21,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ReviewReportService {
+
     private static final int AUTO_HIDE_THRESHOLD = 5;
 
     private final ReviewRepository reviewRepository;
@@ -30,23 +31,40 @@ public class ReviewReportService {
     @Transactional
     public ReviewReportResponseDto reportReview(Long reviewId, UUID userId, ReviewReportRequestDto req) {
 
-        // 1) 리뷰 조회
+        /*----------------------------------------------------
+         * 1) 리뷰 조회
+         *---------------------------------------------------*/
         Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.NOT_FOUND, "리뷰를 찾을 수 없습니다. id=" + reviewId));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "리뷰를 찾을 수 없습니다.",
+                        "REVIEW_NOT_FOUND"
+                ));
 
-        // 2) 신고 유저 조회
+        /*----------------------------------------------------
+         * 2) 신고 유저 조회
+         *---------------------------------------------------*/
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다. id=" + userId));
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND,
+                        "사용자를 찾을 수 없습니다.",
+                        "USER_NOT_FOUND"
+                ));
 
-        // 3) 같은 유저가 같은 리뷰 중복 신고 방지
+        /*----------------------------------------------------
+         * 3) 중복 신고 방지
+         *---------------------------------------------------*/
         if (reviewReportRepository.existsByReviewIdAndUserId(reviewId, userId)) {
-            throw new BusinessException(ErrorCode.ALREADY_REPORTED,
-                    "이미 신고한 리뷰입니다. reviewId=" + reviewId + ", userId=" + userId);
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.ALREADY_REPORTED,
+                    "이미 신고한 리뷰입니다.",
+                    "REVIEW_ALREADY_REPORTED"
+            );
         }
 
-        // 4) 신고 엔티티 생성 (기본 status = PENDING)
+        /*----------------------------------------------------
+         * 4) 신고 엔티티 생성
+         *---------------------------------------------------*/
         ReviewReport report = ReviewReport.builder()
                 .review(review)
                 .user(user)
@@ -55,17 +73,20 @@ public class ReviewReportService {
                 .status(ReviewReportStatus.PENDING)
                 .build();
 
-        // 5) 리뷰 신고카운트 증가
+        /*----------------------------------------------------
+         * 5) 신고 카운트 증가
+         *---------------------------------------------------*/
         review.incReport();
 
         boolean autoHidden = false;
 
-        // 6) 신고카운트가 임계치 넘으면 자동 숨김 처리
-        if (review.getReportCount() >= AUTO_HIDE_THRESHOLD
-                && review.getStatus() == ReviewStatus.VISIBLE) {
+        /*----------------------------------------------------
+         * 6) 일정 횟수 이상 신고 시 자동 숨김 처리
+         *---------------------------------------------------*/
+        if (review.getReportCount() >= AUTO_HIDE_THRESHOLD &&
+                review.getStatus() == ReviewStatus.VISIBLE) {
 
             review.setStatus(ReviewStatus.AUTO_HIDDEN);
-
             report.setStatus(ReviewReportStatus.AUTO_HIDDEN);
             autoHidden = true;
         }
@@ -79,5 +100,4 @@ public class ReviewReportService {
                 autoHidden
         );
     }
-
 }

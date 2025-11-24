@@ -66,7 +66,7 @@ public class ArtistGroupController {
         Page<EventInfoDto> eventPage = eventQueryService.getEventsByGroup(groupId, userId, pageable);
 
         ArtistGroup group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> BusinessException.withMessage(ErrorCode.NOT_FOUND, "아티스트 그룹을 찾을 수 없습니다."));
 
         return GroupEventsResponseDto.builder()
                 .groupId(group.getId())

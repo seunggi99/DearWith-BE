@@ -7,27 +7,24 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.user.entity.SocialAccount;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.enums.AuthProvider;
-import com.dearwith.dearwith_backend.user.enums.Role;
-import com.dearwith.dearwith_backend.user.enums.UserStatus;
 import com.dearwith.dearwith_backend.user.dto.SignInRequestDto;
 import com.dearwith.dearwith_backend.user.dto.SignInResponseDto;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import com.dearwith.dearwith_backend.user.service.SocialAccountService;
 import com.dearwith.dearwith_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserService userService;
@@ -35,19 +32,23 @@ public class AuthService {
     private final KakaoAuthService kakaoAuthService;
     private final UserRepository userRepository;
 
-    public SignInResponseDto signIn(SignInRequestDto request){
-        // 1. 인증 처리
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
-        );
 
-        // 2. 인증 성공 → DB에서 User 조회
+    /*──────────────────────────────────────────────
+     | 1. 이메일 로그인
+     *──────────────────────────────────────────────*/
+    public SignInResponseDto signIn(SignInRequestDto request) {
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()
+                    )
+            );
+        } catch (Exception e) {
+            throw e;
+        }
+
         User user = userService.findByEmail(request.getEmail());
-
-        // 3. 토큰 발급 등 후처리
         TokenCreateRequestDto tokenDTO = toTokenDto(user);
 
         String token = jwtTokenProvider.generateToken(tokenDTO);
@@ -55,7 +56,6 @@ public class AuthService {
 
         userService.updateLastLoginAt(user);
 
-        // 4. 응답 DTO 리턴
         return SignInResponseDto.builder()
                 .message("로그인 성공")
                 .userId(user.getId())
@@ -67,35 +67,50 @@ public class AuthService {
     }
 
 
+    /*──────────────────────────────────────────────
+     | 2. 카카오 로그인
+     *──────────────────────────────────────────────*/
     public KakaoSignInResponseDto kakaoSignIn(String code) {
-        AuthProvider provider = AuthProvider.KAKAO;
 
+        AuthProvider provider = AuthProvider.KAKAO;
         String accessToken;
         KakaoUserInfoDto kakaoUser;
 
         try {
-            // 1) 토큰 요청
             accessToken = kakaoAuthService.getAccessToken(code);
 
             if (accessToken == null || accessToken.isBlank()) {
-                throw new BusinessException(ErrorCode.SOCIAL_AUTH_FAILED, "카카오 인증 토큰이 비어 있음");
+                throw BusinessException.withMessage(
+                        ErrorCode.KAKAO_AUTH_FAILED,
+                        "카카오 인증에 실패했습니다. 잠시 후 다시 시도해주세요."
+                );
             }
 
-            // 2) 사용자 정보 요청
             kakaoUser = kakaoAuthService.getUserInfo(accessToken);
 
             if (kakaoUser == null) {
-                throw new BusinessException(ErrorCode.SOCIAL_AUTH_FAILED, "카카오 사용자 정보 조회 실패");
+                throw BusinessException.withMessage(
+                        ErrorCode.KAKAO_AUTH_FAILED,
+                        "카카오 사용자 정보를 가져오지 못했습니다."
+                );
             }
 
         } catch (HttpClientErrorException e) {
-            // Kakao가 400, 401 등 내려준 경우
-            throw new BusinessException(ErrorCode.SOCIAL_AUTH_FAILED,
-                    "카카오 인증 실패: " + e.getStatusCode() + " / " + e.getMessage());
+            throw BusinessException.withAll(
+                    ErrorCode.KAKAO_AUTH_FAILED,
+                    null,
+                    "KAKAO_HTTP_ERROR",
+                    "Kakao API error: status=" + e.getStatusCode() + ", body=" + e.getResponseBodyAsString(),
+                    e
+            );
         } catch (Exception e) {
-            // 기타 오류
-            throw new BusinessException(ErrorCode.SOCIAL_AUTH_FAILED,
-                    "카카오 로그인 처리 중 오류 발생: " + e.getMessage());
+            throw BusinessException.withAll(
+                    ErrorCode.KAKAO_AUTH_FAILED,
+                    null,
+                    "KAKAO_UNKNOWN_ERROR",
+                    "Unknown Kakao login error: " + e.getMessage(),
+                    e
+            );
         }
 
         String socialId = String.valueOf(kakaoUser.getId());
@@ -103,16 +118,12 @@ public class AuthService {
         Optional<SocialAccount> existing =
                 socialAccountService.findByProviderAndSocialId(provider, socialId);
 
+        /* 기존 계정 있음 → 바로 로그인 처리 */
         if (existing.isPresent()) {
             User user = existing.get().getUser();
-
             userService.updateLastLoginAt(user);
 
-            TokenCreateRequestDto tokenDTO = TokenCreateRequestDto.builder()
-                    .userId(user.getId())
-                    .email(user.getEmail())
-                    .role(user.getRole().name())
-                    .build();
+            TokenCreateRequestDto tokenDTO = toTokenDto(user);
 
             String token = jwtTokenProvider.generateToken(tokenDTO);
             String refreshToken = jwtTokenProvider.generateRefreshToken(tokenDTO);
@@ -134,55 +145,72 @@ public class AuthService {
                     .build();
         }
 
-        // 신규 회원
+        /* 신규 회원 */
         return KakaoSignInResponseDto.builder()
                 .needSignUp(true)
-                .signIn(null)
                 .provider(provider)
                 .socialId(socialId)
+                .signIn(null)
                 .build();
     }
 
+
+    /*──────────────────────────────────────────────
+     | 3. 토큰 재발급
+     *──────────────────────────────────────────────*/
     public TokenReissueResponseDto reissueToken(JwtTokenDto refreshTokenDto) {
         String refreshToken = refreshTokenDto.getToken();
 
-        // 1. refreshToken에서 userId(PK) 추출
-        UUID userId = jwtTokenProvider.extractUserId(refreshToken);
+        UUID userId;
+        try {
+            userId = jwtTokenProvider.extractUserId(refreshToken);
+        } catch (Exception e) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+
+        }
 
         User user = userService.findOne(userId);
 
-        // 2. 토큰 유효성 검증 (토큰 주인과 일치 여부까지)
         if (!jwtTokenProvider.validateToken(refreshToken, user.getId())) {
-            throw new BusinessException(ErrorCode.TOKEN_INVALID);
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+
         }
 
-        // 3. 새 AccessToken 발급
         TokenCreateRequestDto tokenDTO = toTokenDto(user);
         String newAccessToken = jwtTokenProvider.generateToken(tokenDTO);
 
-        // 4. 응답 DTO 리턴
         return TokenReissueResponseDto.builder()
+                .message("토큰 재발급 성공")
                 .token(newAccessToken)
                 .refreshToken(refreshToken)
                 .expirationTime("10min")
-                .message("재발급 성공")
                 .build();
     }
 
 
+    /*──────────────────────────────────────────────
+     | 4. 토큰 유효성 검사
+     *──────────────────────────────────────────────*/
     public void validateToken(JwtTokenDto tokenDto) {
         String token = tokenDto.getToken();
 
-        // 1. 토큰에서 userId(PK) 추출
-        UUID userId = jwtTokenProvider.extractUserId(token);
+        UUID userId;
+        try {
+            userId = jwtTokenProvider.extractUserId(token);
+        } catch (Exception e) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
 
-        // 2. 토큰 유효성 검사 (PK 기준)
-        if (!jwtTokenProvider.validateToken(token, userId)) {
-            throw new BusinessException(ErrorCode.TOKEN_INVALID);
         }
-        // 아무런 예외가 없으면 OK(200) 응답
+
+        if (!jwtTokenProvider.validateToken(token, userId)) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
     }
 
+
+    /*──────────────────────────────────────────────
+     | 5. Helper
+     *──────────────────────────────────────────────*/
     private TokenCreateRequestDto toTokenDto(User user) {
         return TokenCreateRequestDto.builder()
                 .userId(user.getId())
@@ -191,17 +219,29 @@ public class AuthService {
                 .build();
     }
 
+
+    /*──────────────────────────────────────────────
+     | 6. Owner 검증
+     *──────────────────────────────────────────────*/
     public void validateOwner(User owner, UUID userId, String message) {
 
         User requester = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "User not found"));
+                .orElseThrow(() ->
+                        BusinessException.withMessage(
+                                ErrorCode.NOT_FOUND,
+                                "존재하지 않는 사용자입니다."
+                        )
+                );
 
         if (requester.isAdmin()) {
             return;
         }
 
         if (owner == null || owner.getId() == null || !owner.getId().equals(userId)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, message);
+            throw BusinessException.withMessage(
+                    ErrorCode.UNAUTHORIZED,
+                    message != null ? message : "권한이 없습니다."
+            );
         }
     }
 }

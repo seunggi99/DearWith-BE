@@ -25,6 +25,20 @@ public class EmailVerifyTicketService {
             EmailVerifyPayload.EmailVerificationPurpose purpose,
             @Nullable UUID userId
     ) {
+        if (email == null || email.isBlank()) {
+            throw BusinessException.withMessage(
+                    ErrorCode.INVALID_INPUT,
+                    "이메일 값이 비어 있습니다."
+            );
+        }
+        if (purpose == null) {
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.INVALID_INPUT,
+                    "이메일 인증 목적이 필요합니다.",
+                    "EMAIL_VERIFY_PURPOSE_REQUIRED"
+            );
+        }
+
         String ticket = UUID.randomUUID().toString().replace("-", "");
 
         EmailVerifyPayload payload = new EmailVerifyPayload(
@@ -43,6 +57,9 @@ public class EmailVerifyTicketService {
      */
     @Nullable
     public EmailVerifyPayload peek(String ticket) {
+        if (ticket == null || ticket.isBlank()) {
+            return null;
+        }
         return emailVerifyTicketCache.getIfPresent(ticket);
     }
 
@@ -57,15 +74,23 @@ public class EmailVerifyTicketService {
      * 티켓을 소비하면서 검증 (ownerUserId가 필요한 경우)
      */
     public EmailVerifyPayload confirmAndConsume(String ticket, @Nullable UUID requesterUserId) {
-        EmailVerifyPayload payload = emailVerifyTicketCache.getIfPresent(ticket);
-        if (payload == null) {
-            throw new BusinessException(ErrorCode.EMAIL_TICKET_EXPIRED_OR_INVALID);
+
+        if (ticket == null || ticket.isBlank()) {
+            throw BusinessException.of(ErrorCode.EMAIL_TICKET_EXPIRED_OR_INVALID);
         }
 
-        // owner 체크가 필요한 경우에만
+        EmailVerifyPayload payload = emailVerifyTicketCache.getIfPresent(ticket);
+        if (payload == null) {
+            throw BusinessException.of(ErrorCode.EMAIL_TICKET_EXPIRED_OR_INVALID);
+        }
+
         if (payload.userId() != null && requesterUserId != null) {
             if (!payload.userId().equals(requesterUserId)) {
-                throw new BusinessException(ErrorCode.EMAIL_TICKET_NOT_OWNER);
+                throw BusinessException.withMessageAndDetail(
+                        ErrorCode.EMAIL_TICKET_NOT_OWNER,
+                        null,
+                        "EMAIL_TICKET_NOT_OWNER"
+                );
             }
         }
 
@@ -84,10 +109,18 @@ public class EmailVerifyTicketService {
         EmailVerifyPayload payload = confirmAndConsume(ticket);
 
         if (payload.purpose() != expectedPurpose) {
-            throw new BusinessException(ErrorCode.EMAIL_TICKET_WRONG_PURPOSE);
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.EMAIL_TICKET_WRONG_PURPOSE,
+                    null,
+                    "EMAIL_TICKET_WRONG_PURPOSE"
+            );
         }
         if (!payload.email().equalsIgnoreCase(expectedEmail)) {
-            throw new BusinessException(ErrorCode.EMAIL_TICKET_EMAIL_MISMATCH);
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.EMAIL_TICKET_EMAIL_MISMATCH,
+                    null,
+                    "EMAIL_TICKET_EMAIL_MISMATCH"
+            );
         }
 
         return payload;
