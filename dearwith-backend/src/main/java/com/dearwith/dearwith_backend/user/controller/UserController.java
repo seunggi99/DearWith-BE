@@ -1,13 +1,9 @@
 package com.dearwith.dearwith_backend.user.controller;
 
 
-import com.dearwith.dearwith_backend.user.dto.KakaoSignUpRequestDto;
+import com.dearwith.dearwith_backend.user.dto.*;
 import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
-import com.dearwith.dearwith_backend.auth.dto.SignUpRequestDto;
-import com.dearwith.dearwith_backend.auth.dto.SignUpResponseDto;
 import com.dearwith.dearwith_backend.user.docs.UserApiDocs;
-import com.dearwith.dearwith_backend.user.dto.UpdateNicknameRequestDto;
-import com.dearwith.dearwith_backend.user.dto.UserResponseDto;
 import com.dearwith.dearwith_backend.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -55,6 +51,13 @@ public class UserController {
     public ResponseEntity<Void> updateNickname(@AuthenticationPrincipal CustomUserDetails principal,
                                                @RequestBody @Valid UpdateNicknameRequestDto req) {
         userService.updateNickname(principal.getId(), req.getNickname());
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "비밀번호 변경 (이메일 인증 필요)")
+    @PostMapping("/password/change")
+    public ResponseEntity<Void> changePassword(@RequestBody @Valid PasswordChangeRequestDto request) {
+        userService.changePassword(request);
         return ResponseEntity.noContent().build();
     }
 

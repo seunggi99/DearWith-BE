@@ -10,9 +10,4 @@ public record EmailVerifyPayload(
         EmailVerificationPurpose purpose,
         @Nullable UUID userId,
         Instant issuedAt
-) {
-    public enum EmailVerificationPurpose {
-        SIGNUP,
-        RESET_PASSWORD
-    }
-}
+) {}

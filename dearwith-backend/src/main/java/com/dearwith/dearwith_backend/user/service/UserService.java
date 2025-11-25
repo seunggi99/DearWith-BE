@@ -2,17 +2,13 @@ package com.dearwith.dearwith_backend.user.service;
 
 import com.dearwith.dearwith_backend.auth.dto.AgreementDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
-import com.dearwith.dearwith_backend.user.dto.KakaoSignUpRequestDto;
-import com.dearwith.dearwith_backend.auth.dto.SignUpRequestDto;
-import com.dearwith.dearwith_backend.auth.dto.SignUpResponseDto;
+import com.dearwith.dearwith_backend.user.dto.*;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
-import com.dearwith.dearwith_backend.user.dto.EmailVerifyPayload;
 import com.dearwith.dearwith_backend.user.entity.Agreement;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.enums.AgreementType;
 import com.dearwith.dearwith_backend.user.enums.Role;
 import com.dearwith.dearwith_backend.user.enums.UserStatus;
-import com.dearwith.dearwith_backend.user.dto.UserResponseDto;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,17 +38,17 @@ public class UserService {
      *──────────────────────────────────────────────*/
     public SignUpResponseDto signUp(SignUpRequestDto request) {
 
-        // 1) 이메일 인증 티켓 검증
-        emailVerifyTicketService.confirmForPurposeAndEmail(
-                request.getEmailTicket(),
-                EmailVerifyPayload.EmailVerificationPurpose.SIGNUP,
-                request.getEmail()
-        );
-
-        // 2) 약관 / 중복 검사
+        // 1) 약관 / 중복 검사
         validateRequiredAgreements(request.getAgreements());
         validateDuplicateUserByEmail(request.getEmail());
         validateDuplicateUserByNickname(request.getNickname());
+
+        // 2) 이메일 인증 티켓 검증
+        emailVerifyTicketService.confirmForPurposeAndEmail(
+                request.getEmailTicket(),
+                EmailVerificationPurpose.SIGNUP,
+                request.getEmail()
+        );
 
         // 3) User 생성
         User user = User.builder()
@@ -146,6 +142,25 @@ public class UserService {
      | 4. 정보 수정 / 삭제
      *──────────────────────────────────────────────*/
 
+
+    @Transactional
+    public void changePassword(PasswordChangeRequestDto request) {
+
+        // 1) 이메일 인증 티켓 검증
+        emailVerifyTicketService.confirmForPurposeAndEmail(
+                request.getEmailTicket(),
+                EmailVerificationPurpose.RESET_PASSWORD,
+                request.getEmail()
+        );
+
+        // 2) 유저 조회
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> BusinessException.withMessage(ErrorCode.NOT_FOUND, "가입되지 않은 이메일입니다."));
+
+        // 3) 비밀번호 변경
+        user.changePassword(passwordEncoder.encode(request.getNewPassword()));
+    }
+
     @Transactional
     public void updateLastLoginAt(User user) {
         user.updateLastLoginAt();
@@ -219,6 +234,10 @@ public class UserService {
         if (userRepository.existsByEmail(email)) {
             throw BusinessException.of(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
+    }
+
+    public boolean existsByEmail(String email) {
+        return userRepository.existsByEmail(email);
     }
 
     public void validateDuplicateUserByNickname(String nickname) {

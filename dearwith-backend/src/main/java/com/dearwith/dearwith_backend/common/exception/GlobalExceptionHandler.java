@@ -93,12 +93,12 @@ public class GlobalExceptionHandler {
         String detail = e.getBindingResult().getFieldErrors()
                 .stream()
                 .findFirst()
-                .map(f -> String.format("[%s] %s", f.getField(), f.getDefaultMessage()))
+                .map(FieldError::getDefaultMessage)
                 .orElse("요청 값 검증에 실패했습니다.");
 
         log.warn("[ValidationException] detail={} path={}", detail, path);
 
-        ErrorResponse body = ErrorResponse.of(VALIDATION_FAILED, VALIDATION_FAILED.getMessage(), detail, path);
+        ErrorResponse body = ErrorResponse.of(VALIDATION_FAILED, detail, detail, path);
         return ResponseEntity.status(BAD_REQUEST).body(body);
     }
 
@@ -115,7 +115,7 @@ public class GlobalExceptionHandler {
 
         log.warn("[ConstraintViolationException] detail={} path={}", detail, path);
 
-        ErrorResponse body = ErrorResponse.of(VALIDATION_FAILED, VALIDATION_FAILED.getMessage(), detail, path);
+        ErrorResponse body = ErrorResponse.of(VALIDATION_FAILED, detail, detail, path);
         return ResponseEntity.status(BAD_REQUEST).body(body);
     }
 
@@ -132,7 +132,7 @@ public class GlobalExceptionHandler {
 
         log.warn("[BindException] detail={} path={}", detail, path);
 
-        ErrorResponse body = ErrorResponse.of(VALIDATION_FAILED, VALIDATION_FAILED.getMessage(), detail, path);
+        ErrorResponse body = ErrorResponse.of(VALIDATION_FAILED, detail, detail, path);
         return ResponseEntity.status(BAD_REQUEST).body(body);
     }
 

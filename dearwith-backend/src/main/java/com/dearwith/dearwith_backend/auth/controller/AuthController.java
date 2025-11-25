@@ -20,18 +20,19 @@ public class AuthController {
 
     private final EmailVerificationService emailService;
     private final AuthService authService;
-
-    @Operation(summary = "이메일 인증 코드 발송")
+    @Operation(summary = "이메일 인증 코드 발송",
+            description = "purpose : SIGNUP(가입), RESET_PASSWORD(비밀번호 변경)")
     @PostMapping("/signup/email/send")
     public ResponseEntity<Void> sendCode(@RequestBody @Valid EmailRequestDto request) {
-        emailService.sendVerificationCode(request.getEmail());
+        emailService.sendVerificationCode(request);
         return ResponseEntity.ok().build();
     }
 
-    @Operation(summary = "이메일 인증 코드 검증")
+    @Operation(summary = "이메일 인증 코드 검증",
+            description = "purpose : SIGNUP(가입), RESET_PASSWORD(비밀번호 변경)")
     @PostMapping("/signup/email/verify")
     public ResponseEntity<EmailTicketResponseDto> verifyCode(@RequestBody @Valid EmailVerifyRequestDto request) {
-        return ResponseEntity.ok(emailService.verifyCode(request.getEmail(), request.getCode()));
+        return ResponseEntity.ok(emailService.verifyCode(request));
     }
 
     @Operation(summary = "로그인")

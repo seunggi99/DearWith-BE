@@ -1,12 +1,12 @@
 package com.dearwith.dearwith_backend.auth.dto;
 
 
+import com.dearwith.dearwith_backend.user.dto.EmailVerificationPurpose;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
+import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
 @Builder
@@ -14,4 +14,7 @@ public class EmailRequestDto {
     @NotBlank
     @Email
     private String email;
+
+    @NotNull
+    private EmailVerificationPurpose purpose;
 }

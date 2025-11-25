@@ -1,5 +1,6 @@
-package com.dearwith.dearwith_backend.auth.dto;
+package com.dearwith.dearwith_backend.user.dto;
 
+import com.dearwith.dearwith_backend.auth.dto.AgreementDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -29,6 +30,6 @@ public class SignUpRequestDto {
     @Valid
     private List<AgreementDto> agreements;
 
-    @NotBlank(message = "이메일 인증 티켓이 필요합니다.")
+    @NotBlank(message = "이메일 인증이 필요합니다.")
     private String emailTicket;
 }

@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.user.service;
 
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
+import com.dearwith.dearwith_backend.user.dto.EmailVerificationPurpose;
 import com.dearwith.dearwith_backend.user.dto.EmailVerifyPayload;
 import com.github.benmanes.caffeine.cache.Cache;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +23,7 @@ public class EmailVerifyTicketService {
      */
     public String issueTicket(
             String email,
-            EmailVerifyPayload.EmailVerificationPurpose purpose,
+            EmailVerificationPurpose purpose,
             @Nullable UUID userId
     ) {
         if (email == null || email.isBlank()) {
@@ -103,7 +104,7 @@ public class EmailVerifyTicketService {
      */
     public EmailVerifyPayload confirmForPurposeAndEmail(
             String ticket,
-            EmailVerifyPayload.EmailVerificationPurpose expectedPurpose,
+            EmailVerificationPurpose expectedPurpose,
             String expectedEmail
     ) {
         EmailVerifyPayload payload = confirmAndConsume(ticket);

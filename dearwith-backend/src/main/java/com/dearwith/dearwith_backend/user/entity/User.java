@@ -59,6 +59,10 @@ public class User extends BaseDeletableEntity {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
+
     // 연관관계 편의 메서드
     public void addAgreement(Agreement agreement) {
         agreements.add(agreement);
