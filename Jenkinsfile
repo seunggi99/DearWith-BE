@@ -68,8 +68,8 @@ pipeline {
           sh """
 ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} << 'EOF'
 cd ~/DearWith-BE/dearwith-backend
-docker compose pull
-docker compose up -d --no-deps dearwith-backend-app
+docker pull ${IMAGE_NAME}:latest
+docker-compose up -d --no-deps app
 
 EOF
           """
