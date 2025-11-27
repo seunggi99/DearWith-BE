@@ -64,4 +64,12 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     Integer getLikeCount(@Param("reviewId") Long reviewId);
 
     List<Review> findTop6ByStatusOrderByIdDesc(ReviewStatus status);
+
+
+    @Query("""
+        select r from Review r
+        join fetch r.user u
+        where r.id = :reviewId
+    """)
+    Optional<Review> findWithUserById(@Param("reviewId") Long reviewId);
 }

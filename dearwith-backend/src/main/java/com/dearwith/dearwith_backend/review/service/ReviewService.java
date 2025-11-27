@@ -103,12 +103,12 @@ public class ReviewService {
         Page<ReviewImageMapping> mappings =
                 reviewImageMappingRepository.findVisibleLatestByEvent(eventId, pageable);
 
-        List<ImageGroupDto> imageGroups = mappings.stream()
+        List<EventPhotoReviewItemDto> items = mappings.stream()
                 .map(rim -> {
                     Image img = rim.getImage();
                     if (img == null || img.getImageUrl() == null) return null;
 
-                    return ImageGroupDto.builder()
+                    ImageGroupDto imageGroup = ImageGroupDto.builder()
                             .id(img.getId())
                             .variants(
                                     imageVariantAssembler.toVariants(
@@ -117,12 +117,20 @@ public class ReviewService {
                                     )
                             )
                             .build();
+
+                    return EventPhotoReviewItemDto.builder()
+                            .reviewId(
+                                    rim.getReview() != null ? rim.getReview().getId() : null
+                            )
+                            .image(imageGroup)
+                            .build();
                 })
                 .filter(Objects::nonNull)
                 .toList();
 
+
         return EventPhotoReviewResponseDto.builder()
-                .images(imageGroups)
+                .images(items)
                 .build();
     }
 
@@ -366,5 +374,44 @@ public class ReviewService {
         reviewRepository.save(review);
 
         hotEventService.decreaseEventScore(review.getEvent().getId(), HotEventService.Action.REVIEW);
+    }
+
+    /*──────────────────────────────────────────────
+     | 8. 리뷰 상세(이미지 제외)
+     *──────────────────────────────────────────────*/
+    @Transactional(readOnly = true)
+    public EventReviewDetailResponseDto getEventReviewDetail(
+            Long reviewId,
+            UUID userId
+    ) {
+        Review r = reviewRepository.findWithUserById(reviewId)
+                .orElseThrow(() -> BusinessException.withMessage(ErrorCode.NOT_FOUND,"리뷰를 찾을 수 없습니다."));
+
+        boolean liked = (userId != null)
+                && reviewLikeRepository.existsByReviewIdAndUserId(reviewId, userId);
+
+        boolean editable = (userId != null)
+                && r.getUser() != null
+                && userId.equals(r.getUser().getId());
+
+        return EventReviewDetailResponseDto.builder()
+                .id(r.getId())
+                .nickname(r.getUser() != null ? r.getUser().getNickname() : null)
+                .profileImageUrl(
+                        r.getUser().getProfileImage() != null
+                                ? r.getUser().getProfileImage().getImageUrl()
+                                : null
+                )
+                .content(r.getContent())
+                .createdAt(r.getCreatedAt())
+                .updatedAt(r.getUpdatedAt())
+                .tags(
+                        r.getTags() == null
+                                ? List.of()
+                                : List.copyOf(r.getTags())
+                )                .likeCount(r.getLikeCount())
+                .liked(liked)
+                .editable(editable)
+                .build();
     }
 }

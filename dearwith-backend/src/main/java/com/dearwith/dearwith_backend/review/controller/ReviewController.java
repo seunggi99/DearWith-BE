@@ -65,6 +65,15 @@ public class ReviewController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/api/reviews/{reviewId}")
+    @Operation(summary = "리뷰 상세 조회 (이미지 제외)")
+    public ResponseEntity<EventReviewDetailResponseDto> getReviewDetail(
+            @PathVariable Long reviewId,
+            @AuthenticationPrincipal(expression = "id") UUID userId
+    ) {
+        EventReviewDetailResponseDto response = reviewService.getEventReviewDetail(reviewId, userId);
+        return ResponseEntity.ok(response);
+    }
     @Operation(summary = "리뷰 좋아요 추가")
     @PostMapping("/api/reviews/{reviewId}/like")
     public ReviewLikeResponseDto like(
@@ -105,13 +114,13 @@ public class ReviewController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/{reviewId}/report")
+    @PostMapping("/api/reviews/{reviewId}/report")
     @Operation(summary = "리뷰 신고",
             description = ReviewApiDocs.REPORT_DESC)
     public ReviewReportResponseDto reportReview(
             @PathVariable Long reviewId,
             @AuthenticationPrincipal(expression = "id") UUID userId,
-            @RequestBody ReviewReportRequestDto req
+            @RequestBody @Valid ReviewReportRequestDto req
     ) {
         return reviewReportService.reportReview(reviewId, userId, req);
     }
