@@ -4,6 +4,7 @@ package com.dearwith.dearwith_backend.image.asset;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
+import com.dearwith.dearwith_backend.external.aws.AwsS3ClientAdapter;
 import com.dearwith.dearwith_backend.external.aws.S3Waiter;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.image.enums.ImageStatus;
@@ -32,6 +33,8 @@ public class AssetOps {
     private final S3Waiter s3Waiter;
     private final AssetUrlService assetUrlService;
     private final EntityManager entityManager;
+    private final AwsS3ClientAdapter s3Adapter;
+
 
     /**
      * 기존 Image(row)를 받아 TMP → INLINE/COMMITTED로 승격하고,
@@ -63,6 +66,37 @@ public class AssetOps {
 
         log.debug("[asset-ops] committed imageId={}, key={}, preset={}", cmd.getImageId(), inlineKey, cmd.getPreset());
         return inlineKey;
+    }
+
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    public String commitSingleVariant(CommitCommand cmd) {
+
+        // 1) TMP → INLINE 승격 (하지만 inlineKey는 DB에 반영하지 않음)
+        final String inlineKey = imageAssetService.promoteTmpToInline(cmd.getTmpKey());
+
+        // 2) S3 존재 대기
+        s3Waiter.waitUntilExists(inlineKey);
+
+        // 3) 대표 파일(single variant) 생성
+        final String finalKey = imageVariantService.generateSingleVariant(inlineKey, cmd.getPreset());
+
+        // optional: inlineKey 삭제 (단일 정책이라면 삭제 권장)
+        s3Adapter.delete(inlineKey);
+
+        // 4) DB 업데이트 (최종 main 파일 기준)
+        Image img = imageRepository.findById(cmd.getImageId())
+                .orElseThrow(() -> BusinessException.withMessageAndDetail(
+                        ErrorCode.NOT_FOUND, "이미지를 찾을 수 없습니다.", "이미지 없음: " + cmd.getImageId()
+                ));
+
+        img.setS3Key(finalKey);
+        img.setStatus(ImageStatus.COMMITTED);
+        if (img.getUser() == null && cmd.getUserId() != null) {
+            img.setUser(entityManager.getReference(User.class, cmd.getUserId()));
+        }
+        img.setImageUrl(assetUrlService.generatePublicUrl(finalKey));
+
+        return finalKey;
     }
 
     @Value

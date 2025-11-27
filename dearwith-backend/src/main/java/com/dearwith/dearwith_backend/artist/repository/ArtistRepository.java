@@ -22,6 +22,15 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
     """)
     List<Artist> findArtistsByBirthMonth(@Param("month") int month);
 
+    @Query("""
+        select a
+        from Artist a
+        where a.debutDate is not null
+          and month(a.debutDate) = :month
+          and a.deletedAt is null
+    """)
+    List<Artist> findArtistsByDebutMonth(@Param("month") int month);
+
     // 이름으로 검색 (부분 일치)
     Page<Artist> findByNameKrContainingIgnoreCaseOrNameEnContainingIgnoreCase(
             String qKr, String qEn, Pageable pageable);

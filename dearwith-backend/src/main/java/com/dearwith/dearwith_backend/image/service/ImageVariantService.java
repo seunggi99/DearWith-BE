@@ -111,6 +111,79 @@ public class ImageVariantService {
                 originalKey, System.currentTimeMillis() - t0);
     }
 
+    public String generateSingleVariant(String originalKey, AssetVariantPreset preset) {
+
+        if (preset == null) {
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.IMAGE_PROCESSING_FAILED,
+                    ErrorCode.IMAGE_PROCESSING_FAILED.getMessage(),
+                    "IMAGE_VARIANT_PRESET_NULL"
+            );
+        }
+
+        VariantSpec spec = preset.specs().get(0);
+        long t0 = System.currentTimeMillis();
+        log.info("[single-variant] start originalKey={}, spec={}", originalKey, preset);
+
+        byte[] originalBytes = s3.read(originalKey);
+
+        BufferedImage src;
+        try {
+            src = ImageIO.read(new ByteArrayInputStream(originalBytes));
+            if (src == null) {
+                throw new IllegalStateException("ImageIO.read() returned null");
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[single-variant] failed to read source image. key={}, reason={}",
+                    originalKey, e.getMessage(), e);
+
+            throw BusinessException.withAll(
+                    ErrorCode.UNSUPPORTED_IMAGE_TYPE,
+                    ErrorCode.UNSUPPORTED_IMAGE_TYPE.getMessage(),
+                    "IMAGE_SINGLE_VARIANT_SOURCE_READ_FAILED:originalKey=" + originalKey,
+                    "Failed to read source image for single variant. key=" + originalKey + ", reason=" + e.getMessage(),
+                    e
+            );
+        }
+
+        String baseDir    = dirPrefix(originalKey);
+        String stem       = stemNoExt(originalKey);
+        String variantDir = baseDir + stem + "/";
+
+        try {
+            String fmt = normalizeFormat(spec.format());
+
+            byte[] out = resizeOrContain(src, spec, fmt);
+            String key = variantDir + spec.filename(); // inline/.../stem/main.webp
+
+            String contentType = "image/" + (fmt.equals("jpg") ? "jpeg" : fmt);
+
+            s3.put(key, out, contentType, cacheControl);
+
+            log.info("[single-variant] uploaded key={}, size={}B ({}ms)",
+                    key, out.length, System.currentTimeMillis() - t0);
+
+            return key;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception ex) {
+            log.error("[single-variant] failed filename={}, reason={}",
+                    spec.filename(), ex.toString(), ex);
+
+            throw BusinessException.withAll(
+                    ErrorCode.IMAGE_PROCESSING_FAILED,
+                    ErrorCode.IMAGE_PROCESSING_FAILED.getMessage(),
+                    "IMAGE_SINGLE_VARIANT_GENERATION_FAILED:" + spec.filename(),
+                    "Single variant generation failed. originalKey=" + originalKey
+                            + ", filename=" + spec.filename()
+                            + ", reason=" + ex.getMessage(),
+                    ex
+            );
+        }
+    }
+
     /* ===== helpers ===== */
 
     private byte[] resizeOrContain(BufferedImage src, VariantSpec spec, String fmt) throws Exception {

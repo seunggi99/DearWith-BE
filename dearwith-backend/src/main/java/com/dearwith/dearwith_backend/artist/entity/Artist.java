@@ -34,6 +34,6 @@ public class Artist extends BaseDeletableEntity {
     private LocalDate debutDate;   // 활동 시작일
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "created_by_user_id", nullable = false, columnDefinition = "BINARY(16)")
-    private User userId;
+    @JoinColumn(name = "user_id")
+    private User user;
 }

@@ -11,7 +11,7 @@ import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
-import com.dearwith.dearwith_backend.image.service.ImageAttachmentService;
+import com.dearwith.dearwith_backend.common.utill.KoreanRomanizer;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -19,8 +19,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-
+import org.springframework.stereotype.Service;;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -33,7 +32,7 @@ public class ArtistService {
     private final ArtistMapper artistMapper;
     private final ArtistGroupRepository groupRepository;
     private final ArtistGroupMappingRepository mappingRepository;
-    private final ImageAttachmentService imageAttachmentService;
+    private final ArtistImageAppService artistImageService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -67,7 +66,8 @@ public class ArtistService {
         }
 
         final String nameKr = req.nameKr().trim();
-        final String nameEn = nameKr;  // 기본 정책 (필요 시 변경 가능)
+
+        final String nameEn = KoreanRomanizer.toLatin(nameKr);
 
         // 생일 포맷 검증
         LocalDate birth = req.birthDate();
@@ -100,7 +100,7 @@ public class ArtistService {
                 .nameKr(nameKr)
                 .nameEn(nameEn)
                 .birthDate(birth)
-                .userId(creatorRef)
+                .user(creatorRef)
                 .build();
 
         // 프로필 이미지 TMP → inline → Image 등록
@@ -112,7 +112,7 @@ public class ArtistService {
                         req.imageTmpKey()
                 );
             }
-            imageAttachmentService.setArtistProfileImage(artist, req.imageTmpKey(), userId);
+            artistImageService.create(artist, req.imageTmpKey(), creatorRef);
         }
 
         // 저장
