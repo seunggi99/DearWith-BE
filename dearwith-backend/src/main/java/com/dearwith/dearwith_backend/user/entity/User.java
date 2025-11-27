@@ -141,4 +141,5 @@ public class User extends BaseDeletableEntity {
     public void updateServiceNotification(boolean enabled) {
         this.serviceNotificationEnabled = enabled;
     }
+    public void setProfileImage(Image newImage) {this.profileImage = newImage;}
 }

@@ -35,6 +35,7 @@ public class UserService {
     private final SocialAccountService socialAccountService;
     private final SocialAccountRepository socialAccountRepository;
     private final EmailVerifyTicketService emailVerifyTicketService;
+    private final UserImageAppService userImageAppService;
 
     /*──────────────────────────────────────────────
      | 1. 일반 회원가입
@@ -251,6 +252,36 @@ public class UserService {
                 .collect(Collectors.toList());
 
         user.getAgreements().addAll(agreements);
+    }
+
+    /*────────────────────────────
+     | 프로필 이미지 수정
+     *────────────────────────────*/
+    @Transactional
+    public void updateProfileImage(UUID userId, ProfileImageUpdateRequestDto dto) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> BusinessException.withMessage(
+                        ErrorCode.NOT_FOUND,
+                        "사용자를 찾을 수 없습니다."
+                ));
+
+        userImageAppService.update(user, dto.getTmpKey());
+    }
+
+    /*────────────────────────────
+     | 프로필 이미지 삭제
+     *────────────────────────────*/
+    @Transactional
+    public void deleteProfileImage(UUID userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> BusinessException.withMessage(
+                        ErrorCode.NOT_FOUND,
+                        "사용자를 찾을 수 없습니다."
+                ));
+
+        userImageAppService.delete(user);
     }
 
     /*──────────────────────────────────────────────

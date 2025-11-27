@@ -26,6 +26,11 @@ public enum AssetVariantPreset {
     ARTIST(VariantPresetSet.builder()
             .spec(VariantSpec.builder().filename("artist@1x.webp").maxWidth(128).maxHeight(128).format("webp").quality(80).build())
             .build()
+    ),
+
+    USER(VariantPresetSet.builder()
+            .spec(VariantSpec.builder().filename("user@1x.webp").maxWidth(128).maxHeight(128).format("webp").quality(80).build())
+            .build()
     );
 
     private final VariantPresetSet set;

@@ -8,11 +8,13 @@ import com.dearwith.dearwith_backend.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 
 @RestController
@@ -58,6 +60,26 @@ public class UserController {
     @PostMapping("/password/change")
     public ResponseEntity<Void> changePassword(@RequestBody @Valid PasswordChangeRequestDto request) {
         userService.changePassword(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "회원 프로필 사진 등록/수정")
+    @PatchMapping("/me/profile/image")
+    public ResponseEntity<Void> updateProfileImage(
+            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @RequestBody ProfileImageUpdateRequestDto request
+    ) {
+        userService.updateProfileImage(userId, request);
+        return ResponseEntity.noContent().build();
+
+    }
+
+    @Operation(summary = "회원 프로필 사진 삭제")
+    @DeleteMapping("/me/profile/image")
+    public ResponseEntity<Void> deleteProfileImage(
+            @AuthenticationPrincipal(expression = "id") UUID userId
+    ) {
+        userService.deleteProfileImage(userId);
         return ResponseEntity.noContent().build();
     }
 

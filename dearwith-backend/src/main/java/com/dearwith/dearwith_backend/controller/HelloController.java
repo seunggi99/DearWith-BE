@@ -9,6 +9,6 @@ import java.util.Map;
 public class HelloController {
     @GetMapping("/")
     public Map<String, String> hello() {
-        return Map.of("message", "DearWith Api V20251119");
+        return Map.of("message", "DearWith Api V20251128");
     }
 }

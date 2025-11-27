@@ -11,4 +11,11 @@ public interface ImageRepository extends JpaRepository<Image, Long> {
 
     @Query("SELECT COUNT(ag) FROM ArtistGroup ag WHERE ag.profileImage.id = :imageId")
     long countArtistGroupProfileUsages(@Param("imageId") Long imageId);
+
+    @Query("""
+        select count(u)
+        from User u
+        where u.profileImage.id = :imageId
+    """)
+    long countUserProfileUsages(Long imageId);
 }
