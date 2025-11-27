@@ -11,6 +11,7 @@ public record MonthlyAnniversaryDto(
         String nameEn,
         String imageUrl,
         Type type,
+        DateType dateType,
         LocalDate date,
         boolean isToday,
         Integer years
@@ -18,5 +19,9 @@ public record MonthlyAnniversaryDto(
     public enum Type {
         ARTIST,
         GROUP
+    }
+    public enum DateType {
+        DEBUT,
+        BIRTH
     }
 }

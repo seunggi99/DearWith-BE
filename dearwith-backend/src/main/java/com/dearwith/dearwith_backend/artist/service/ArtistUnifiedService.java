@@ -70,7 +70,36 @@ public class ArtistUnifiedService {
                             a.getNameEn(),
                             a.getProfileImage() != null ? a.getProfileImage().getImageUrl() : null,
                             MonthlyAnniversaryDto.Type.ARTIST,
+                            MonthlyAnniversaryDto.DateType.BIRTH,
                             birthDate,
+                            isToday,
+                            years
+                    );
+                })
+                .toList();
+
+        // 2) 이번 달 데뷔 아티스트
+        List<Artist> debutArtists = artistRepository.findArtistsByDebutMonth(thisMonth);
+
+        List<MonthlyAnniversaryDto> artistDebutDtos = debutArtists.stream()
+                .filter(a -> a.getDebutDate() != null)
+                .map(a -> {
+                    LocalDate debutDate = a.getDebutDate();
+
+                    boolean isToday = debutDate.getMonthValue() == thisMonth
+                            && debutDate.getDayOfMonth() == thisDay;
+
+                    Integer years = today.getYear() - debutDate.getYear();
+                    if (years < 0) years = 0;
+
+                    return new MonthlyAnniversaryDto(
+                            a.getId(),
+                            a.getNameKr(),
+                            a.getNameEn(),
+                            a.getProfileImage() != null ? a.getProfileImage().getImageUrl() : null,
+                            MonthlyAnniversaryDto.Type.ARTIST,
+                            MonthlyAnniversaryDto.DateType.DEBUT,
+                            debutDate,
                             isToday,
                             years
                     );
@@ -97,6 +126,7 @@ public class ArtistUnifiedService {
                             g.getNameEn(),
                             g.getProfileImage() != null ? g.getProfileImage().getImageUrl() : null,
                             MonthlyAnniversaryDto.Type.GROUP,
+                            MonthlyAnniversaryDto.DateType.DEBUT,
                             debutDate,
                             isToday,
                             years
@@ -107,6 +137,7 @@ public class ArtistUnifiedService {
         List<MonthlyAnniversaryDto> merged = new ArrayList<>();
         merged.addAll(artistDtos);
         merged.addAll(groupDtos);
+        merged.addAll(artistDebutDtos);
 
         merged.sort(
                 Comparator.comparing((MonthlyAnniversaryDto dto) -> dto.date().getDayOfMonth())
