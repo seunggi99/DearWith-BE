@@ -8,6 +8,7 @@ public record EventNoticeResponseDto (
         String content,
         String writerNickname,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        boolean editable
 ) {
 }

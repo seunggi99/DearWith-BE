@@ -25,6 +25,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -55,7 +56,10 @@ public class EventNoticeService {
             eventNoticeRepository.incrementViewCount(noticeId);
         }
 
-        return toDetailDto(notice);
+        boolean editable = userId != null
+                && Objects.equals(userId, notice.getUser().getId());
+
+        return toDetailDto(notice, editable);
     }
 
     /*────────────────────────────
@@ -110,7 +114,7 @@ public class EventNoticeService {
             );
         }
 
-        return toDetailDto(saved);
+        return toDetailDto(saved, true);
     }
 
     /*────────────────────────────
@@ -138,7 +142,7 @@ public class EventNoticeService {
 
         notice.update(req.title(), req.content());
 
-        return toDetailDto(notice);
+        return toDetailDto(notice,true);
     }
 
     /*────────────────────────────
@@ -226,14 +230,15 @@ public class EventNoticeService {
         );
     }
 
-    private EventNoticeResponseDto toDetailDto(EventNotice notice) {
+    private EventNoticeResponseDto toDetailDto(EventNotice notice, boolean editable) {
         return new EventNoticeResponseDto(
                 notice.getId(),
                 notice.getTitle(),
                 notice.getContent(),
                 notice.getUser() != null ? notice.getUser().getNickname() : null,
                 notice.getCreatedAt(),
-                notice.getUpdatedAt()
+                notice.getUpdatedAt(),
+                editable
         );
     }
 }
