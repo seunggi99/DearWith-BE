@@ -7,8 +7,10 @@ import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.user.entity.Agreement;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.enums.AgreementType;
+import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import com.dearwith.dearwith_backend.user.enums.Role;
 import com.dearwith.dearwith_backend.user.enums.UserStatus;
+import com.dearwith.dearwith_backend.user.repository.SocialAccountRepository;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +33,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final SocialAccountService socialAccountService;
+    private final SocialAccountRepository socialAccountRepository;
     private final EmailVerifyTicketService emailVerifyTicketService;
 
     /*──────────────────────────────────────────────
@@ -51,6 +54,8 @@ public class UserService {
         );
 
         // 3) User 생성
+        boolean pushAgreed = isPushAgreed(request.getAgreements());
+
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -58,6 +63,8 @@ public class UserService {
                 .role(Role.USER)
                 .userStatus(UserStatus.ACTIVE)
                 .lastLoginAt(null)
+                .eventNotificationEnabled(pushAgreed)
+                .serviceNotificationEnabled(pushAgreed)
                 .build();
 
         addAgreements(user, request.getAgreements());
@@ -73,7 +80,17 @@ public class UserService {
      | 2. 카카오 회원가입
      *──────────────────────────────────────────────*/
     @Transactional
-    public SignUpResponseDto kakaoSignUp(KakaoSignUpRequestDto request) {
+    public SignUpResponseDto socialSignUp(SocialSignUpRequestDto request) {
+
+        // 0) 지원하는 provider 인지 체크
+        if (request.getProvider() == null ||
+                (request.getProvider() != AuthProvider.KAKAO
+                        && request.getProvider() != AuthProvider.APPLE)) {
+            throw BusinessException.withMessage(
+                    ErrorCode.INVALID_SOCIAL_PROVIDER,
+                    "지원하지 않는 소셜 로그인 제공자입니다."
+            );
+        }
 
         // 1) 약관 체크
         validateRequiredAgreements(request.getAgreements());
@@ -81,7 +98,18 @@ public class UserService {
         // 2) 닉네임 중복 체크
         validateDuplicateUserByNickname(request.getNickname());
 
+        // 3) 이미 소셜 계정이 존재하는지 한 번 더 체크
+        if (socialAccountRepository.existsByProviderAndSocialId(
+                request.getProvider(), request.getSocialId())) {
+            throw BusinessException.withMessage(
+                    ErrorCode.DUPLICATE_SOCIAL_ACCOUNT,
+                    "이미 연결된 소셜 계정입니다."
+            );
+        }
+
         // 3) User 생성 (이메일/패스워드는 null)
+        boolean pushAgreed = isPushAgreed(request.getAgreements());
+
         User user = User.builder()
                 .email(null)
                 .password(null)
@@ -89,6 +117,8 @@ public class UserService {
                 .role(Role.USER)
                 .userStatus(UserStatus.ACTIVE)
                 .lastLoginAt(null)
+                .eventNotificationEnabled(pushAgreed)
+                .serviceNotificationEnabled(pushAgreed)
                 .build();
 
         save(user);
@@ -103,8 +133,15 @@ public class UserService {
                 request.getSocialId()
         );
 
+        String providerKor = switch (request.getProvider()) {
+            case KAKAO -> "카카오";
+            case APPLE -> "애플";
+            default -> "소셜";
+        };
+
+
         return SignUpResponseDto.builder()
-                .message("카카오 회원가입 성공")
+                .message(providerKor + " 회원가입 성공")
                 .nickname(user.getNickname())
                 .build();
     }
@@ -132,6 +169,13 @@ public class UserService {
                         ErrorCode.NOT_FOUND,
                         "존재하지 않는 사용자입니다."
                 ));
+    }
+
+    private boolean isPushAgreed(List<AgreementDto> agreements) {
+        if (agreements == null) return false;
+
+        return agreements.stream()
+                .anyMatch(a -> a.getType() == AgreementType.PUSH_NOTIFICATION && a.isAgreed());
     }
 
     public User save(User user) {

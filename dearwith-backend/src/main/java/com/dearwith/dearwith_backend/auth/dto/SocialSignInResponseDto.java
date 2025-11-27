@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class KakaoSignInResponseDto {
+public class SocialSignInResponseDto {
 
     /**
      * true  = 우리 서비스에 아직 회원이 아님 → 추가 정보 입력 + 약관 동의 필요

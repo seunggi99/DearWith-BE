@@ -27,10 +27,10 @@ public class UserController {
         return ResponseEntity.ok(userService.signUp(request));
     }
 
-    @Operation(summary = "카카오 소셜 회원가입", description = UserApiDocs.SOCIAL_CREATE_DESC)
-    @PostMapping("/signup/kakao")
-    public ResponseEntity<SignUpResponseDto> kakaoSignUp(@RequestBody @Valid KakaoSignUpRequestDto request) {
-        SignUpResponseDto response = userService.kakaoSignUp(request);
+    @Operation(summary = "소셜 회원가입", description = UserApiDocs.SOCIAL_CREATE_DESC)
+    @PostMapping("/signup/social")
+    public ResponseEntity<SignUpResponseDto> kakaoSignUp(@RequestBody @Valid SocialSignUpRequestDto request) {
+        SignUpResponseDto response = userService.socialSignUp(request);
         return ResponseEntity.ok(response);
     }
 

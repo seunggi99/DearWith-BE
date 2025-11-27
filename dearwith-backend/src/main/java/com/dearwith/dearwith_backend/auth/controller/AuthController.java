@@ -41,9 +41,19 @@ public class AuthController {
         return ResponseEntity.ok(authService.signIn(request));
     }
 
+    @Operation(summary = "카카오 로그인")
     @PostMapping("/oauth/kakao")
-    public ResponseEntity<KakaoSignInResponseDto> kakaoSignIn(@RequestBody KakaoSignInRequestDto request) {
-        KakaoSignInResponseDto response = authService.kakaoSignIn(request.getCode());
+    public ResponseEntity<SocialSignInResponseDto> kakaoSignIn(@RequestBody KakaoSignInRequestDto request) {
+        SocialSignInResponseDto response = authService.kakaoSignIn(request.getCode());
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "애플 로그인")
+    @PostMapping("/oauth/apple")
+    public ResponseEntity<SocialSignInResponseDto> appleSignIn(
+            @RequestBody AppleSignInRequestDto request
+    ) {
+        SocialSignInResponseDto response = authService.appleSignIn(request);
         return ResponseEntity.ok(response);
     }
 

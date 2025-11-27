@@ -4,6 +4,7 @@ import com.dearwith.dearwith_backend.auth.dto.AgreementDto;
 import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -17,9 +18,9 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class KakaoSignUpRequestDto {
+public class SocialSignUpRequestDto {
 
-    @NotBlank(message = "소셜 제공자가 필요합니다.")
+    @NotNull(message = "소셜 제공자가 필요합니다.")
     private AuthProvider provider;
 
     @NotBlank(message = "소셜 ID가 필요합니다.")
@@ -29,6 +30,6 @@ public class KakaoSignUpRequestDto {
     @Size(min = 2, message = "닉네임은 최소 2자 이상이어야 합니다.")
     private String nickname;
 
-    @NotBlank(message = "동의 내역은 필수입니다.")
+    @NotEmpty(message = "동의 내역은 필수입니다.")
     private List<@Valid AgreementDto> agreements;
 }

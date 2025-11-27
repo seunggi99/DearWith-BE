@@ -4,6 +4,10 @@ import com.dearwith.dearwith_backend.auth.JwtTokenProvider;
 import com.dearwith.dearwith_backend.auth.dto.*;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
+import com.dearwith.dearwith_backend.external.apple.AppleIdTokenClaims;
+import com.dearwith.dearwith_backend.external.apple.AppleIdTokenVerifier;
+import com.dearwith.dearwith_backend.external.apple.AppleTokenClient;
+import com.dearwith.dearwith_backend.external.apple.AppleTokenResponse;
 import com.dearwith.dearwith_backend.user.entity.SocialAccount;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.enums.AuthProvider;
@@ -16,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.Optional;
@@ -30,12 +35,15 @@ public class AuthService {
     private final UserService userService;
     private final SocialAccountService socialAccountService;
     private final KakaoAuthService kakaoAuthService;
+    private final AppleTokenClient appleTokenClient;
+    private final AppleIdTokenVerifier appleIdTokenVerifier;
     private final UserRepository userRepository;
 
 
     /*──────────────────────────────────────────────
      | 1. 이메일 로그인
      *──────────────────────────────────────────────*/
+    @Transactional
     public SignInResponseDto signIn(SignInRequestDto request) {
         try {
             authenticationManager.authenticate(
@@ -70,7 +78,8 @@ public class AuthService {
     /*──────────────────────────────────────────────
      | 2. 카카오 로그인
      *──────────────────────────────────────────────*/
-    public KakaoSignInResponseDto kakaoSignIn(String code) {
+    @Transactional
+    public SocialSignInResponseDto kakaoSignIn(String code) {
 
         AuthProvider provider = AuthProvider.KAKAO;
         String accessToken;
@@ -137,7 +146,7 @@ public class AuthService {
                     .refreshToken(refreshToken)
                     .build();
 
-            return KakaoSignInResponseDto.builder()
+            return SocialSignInResponseDto.builder()
                     .needSignUp(false)
                     .signIn(signIn)
                     .provider(provider)
@@ -146,7 +155,7 @@ public class AuthService {
         }
 
         /* 신규 회원 */
-        return KakaoSignInResponseDto.builder()
+        return SocialSignInResponseDto.builder()
                 .needSignUp(true)
                 .provider(provider)
                 .socialId(socialId)
@@ -154,10 +163,110 @@ public class AuthService {
                 .build();
     }
 
+    /*──────────────────────────────────────────────
+    | 2-2. 애플 로그인
+    *──────────────────────────────────────────────*/
+    @Transactional
+    public SocialSignInResponseDto appleSignIn(AppleSignInRequestDto request) {
+
+        AuthProvider provider = AuthProvider.APPLE;
+
+        // (1) 값 검증
+        if ((request.authorizationCode() == null || request.authorizationCode().isBlank())
+                && (request.idToken() == null || request.idToken().isBlank())) {
+            throw BusinessException.withMessage(
+                    ErrorCode.OPERATION_FAILED,
+                    "애플 로그인 정보가 올바르지 않습니다."
+            );
+        }
+
+        String idToken = request.idToken();
+
+        try {
+            // (2) id_token 없으면 authorization_code로 교환
+            if (idToken == null || idToken.isBlank()) {
+                AppleTokenResponse tokenResponse =
+                        appleTokenClient.exchangeCodeForToken(request.authorizationCode());
+
+                idToken = tokenResponse.idToken();
+                if (idToken == null || idToken.isBlank()) {
+                    throw BusinessException.withMessage(
+                            ErrorCode.OPERATION_FAILED,
+                            "애플 토큰 응답에 ID 토큰이 없습니다."
+                    );
+                }
+            }
+
+            // (3) id_token 검증 → sub(emailX), email, flags
+            AppleIdTokenClaims claims = appleIdTokenVerifier.verify(idToken);
+
+            String appleUserId = claims.sub();
+            if (appleUserId == null || appleUserId.isBlank()) {
+                throw BusinessException.withMessage(
+                        ErrorCode.OPERATION_FAILED,
+                        "애플 계정 정보에 사용자 식별자가 없습니다."
+                );
+            }
+
+            String socialId = appleUserId;
+
+            // (4) 기존 소셜 계정 체크
+            Optional<SocialAccount> existing =
+                    socialAccountService.findByProviderAndSocialId(provider, socialId);
+
+            if (existing.isPresent()) {
+                // (4-1) 기존 회원 로그인 처리
+                User user = existing.get().getUser();
+                userService.updateLastLoginAt(user);
+
+                TokenCreateRequestDto tokenDTO = toTokenDto(user);
+
+                String token = jwtTokenProvider.generateToken(tokenDTO);
+                String refreshToken = jwtTokenProvider.generateRefreshToken(tokenDTO);
+
+                SignInResponseDto signIn = SignInResponseDto.builder()
+                        .message("애플 로그인 성공")
+                        .userId(user.getId())
+                        .nickname(user.getNickname())
+                        .role(user.getRole())
+                        .token(token)
+                        .refreshToken(refreshToken)
+                        .build();
+
+                return SocialSignInResponseDto.builder()
+                        .needSignUp(false)
+                        .provider(provider)
+                        .socialId(socialId)
+                        .signIn(signIn)
+                        .build();
+            }
+
+            // (4-2) 신규 회원 → 추가 정보 입력 화면으로
+            return SocialSignInResponseDto.builder()
+                    .needSignUp(true)
+                    .provider(provider)
+                    .socialId(socialId)
+                    .signIn(null)
+                    .build();
+
+        } catch (BusinessException e) {
+            throw e;
+
+        } catch (Exception e) {
+            throw BusinessException.withAll(
+                    ErrorCode.OPERATION_FAILED,
+                    null,
+                    "APPLE_LOGIN_ERROR",
+                    "애플 로그인 처리 중 오류: " + e.getMessage(),
+                    e
+            );
+        }
+    }
 
     /*──────────────────────────────────────────────
      | 3. 토큰 재발급
      *──────────────────────────────────────────────*/
+    @Transactional(readOnly = true)
     public TokenReissueResponseDto reissueToken(JwtTokenDto refreshTokenDto) {
         String refreshToken = refreshTokenDto.getToken();
 
@@ -191,6 +300,7 @@ public class AuthService {
     /*──────────────────────────────────────────────
      | 4. 토큰 유효성 검사
      *──────────────────────────────────────────────*/
+    @Transactional(readOnly = true)
     public void validateToken(JwtTokenDto tokenDto) {
         String token = tokenDto.getToken();
 
@@ -223,6 +333,7 @@ public class AuthService {
     /*──────────────────────────────────────────────
      | 6. Owner 검증
      *──────────────────────────────────────────────*/
+    @Transactional(readOnly = true)
     public void validateOwner(User owner, UUID userId, String message) {
 
         User requester = userRepository.findById(userId)

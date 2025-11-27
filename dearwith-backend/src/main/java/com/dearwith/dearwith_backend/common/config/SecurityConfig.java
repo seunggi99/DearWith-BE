@@ -96,7 +96,8 @@ public class SecurityConfig {
                                 "/auth/**",
                                 "/users/all",
                                 "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+                                "/auth/oauth/**"
                         ).permitAll()
 
                         // ===== 로그인 필수 (X 인증 플로우 등) =====

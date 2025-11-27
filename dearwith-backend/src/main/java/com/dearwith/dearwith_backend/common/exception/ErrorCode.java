@@ -35,6 +35,7 @@ public enum ErrorCode {
     // 소셜 / 외부 인증
     SOCIAL_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "소셜 로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."),
     KAKAO_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "카카오 로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."),
+    INVALID_SOCIAL_PROVIDER(HttpStatus.BAD_REQUEST, "지원하지 않는 소셜 로그인 제공자입니다."),
 
     // 인증 티켓 (X, 이메일)
     X_TICKET_EXPIRED(HttpStatus.UNAUTHORIZED, "X 인증 티켓이 만료되었거나 유효하지 않습니다."),

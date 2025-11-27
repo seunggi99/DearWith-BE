@@ -54,6 +54,12 @@ public class User extends BaseDeletableEntity {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<SocialAccount> socialAccounts;
 
+    @Builder.Default
+    private boolean eventNotificationEnabled = true;   // 이벤트/콘텐츠 관련 알림
+
+    @Builder.Default
+    private boolean serviceNotificationEnabled = true; // 서비스/공지 관련 알림
+
     public void updateNickname(String newNickname) {
         this.nickname = newNickname;
         this.updatedAt = LocalDateTime.now();

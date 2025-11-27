@@ -114,6 +114,18 @@ app:
   search:
     recent:
       ttl-days: 7
+  auth:
+    apple:
+      team-id: ${APPLE_TEAM_ID}
+      signin:
+        key-id: ${APPLE_SIGNIN_KEY_ID}
+        private-key: ${APPLE_SIGNIN_PRIVATE_KEY_BASE64}
+        client-id: com.dearwith.app
+        token-url: https://appleid.apple.com/auth/token
+        jwks-url: https://appleid.apple.com/auth/keys
+      push:
+        key-id: ${APPLE_PUSH_KEY_ID}
+        private-key: ${APPLE_PUSH_PRIVATE_KEY_BASE64}
 
 decorator:
   datasource:
