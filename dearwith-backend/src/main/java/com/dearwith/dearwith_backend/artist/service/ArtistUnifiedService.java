@@ -274,7 +274,9 @@ public class ArtistUnifiedService {
                     artist.getNameEn(),
                     imageUrl,
                     ArtistUnifiedDto.Type.ARTIST,
-                    bookmarkedAt
+                    bookmarkedAt,
+                    artist.getBirthDate(),
+                    artist.getDebutDate()
             ));
         }
 
@@ -292,7 +294,9 @@ public class ArtistUnifiedService {
                     group.getNameEn(),
                     imageUrl,
                     ArtistUnifiedDto.Type.GROUP,
-                    bookmarkedAt
+                    bookmarkedAt,
+                    null,
+                    group.getDebutDate()
             ));
         }
 
@@ -325,8 +329,10 @@ public class ArtistUnifiedService {
     @Transactional(readOnly = true)
     public Page<ArtistUnifiedDto> searchUnified(String query, Pageable pageable) {
 
-        Page<ArtistDto> artistPage = artistService.search(query, PageRequest.of(0, Integer.MAX_VALUE));
-        Page<ArtistGroupDto> groupPage = artistGroupService.search(query, PageRequest.of(0, Integer.MAX_VALUE));
+        Page<ArtistDto> artistPage =
+                artistService.search(query, PageRequest.of(0, Integer.MAX_VALUE));
+        Page<ArtistGroupDto> groupPage =
+                artistGroupService.search(query, PageRequest.of(0, Integer.MAX_VALUE));
 
         List<ArtistUnifiedDto> merged = new ArrayList<>();
 
@@ -337,7 +343,9 @@ public class ArtistUnifiedService {
                     dto.nameEn(),
                     dto.imageUrl(),
                     ArtistUnifiedDto.Type.ARTIST,
-                    null
+                    null,
+                    dto.birthDate(),
+                    dto.debutDate()
             ));
         }
 
@@ -348,7 +356,9 @@ public class ArtistUnifiedService {
                     dto.nameEn(),
                     dto.imageUrl(),
                     ArtistUnifiedDto.Type.GROUP,
-                    null
+                    null,
+                    null,
+                    dto.debutDate()
             ));
         }
 

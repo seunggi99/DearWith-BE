@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.artist.dto;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public record ArtistUnifiedDto(
@@ -8,7 +9,9 @@ public record ArtistUnifiedDto(
         String nameEn,
         String imageUrl,
         Type type,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        LocalDate birthDate,
+        LocalDate debutDate
 ) {
     public enum Type {
         ARTIST,
