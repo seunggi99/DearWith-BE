@@ -1,8 +1,6 @@
 package com.dearwith.dearwith_backend.artist.repository;
 
 import com.dearwith.dearwith_backend.artist.entity.ArtistBookmark;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,4 +20,8 @@ public interface ArtistBookmarkRepository extends JpaRepository<ArtistBookmark, 
         where ab.user.id = :userId
     """)
     List<Long> findArtistIdsByUserId(@Param("userId") UUID userId);
+
+    @Query("select count(b) from ArtistBookmark b " +
+            "where b.user.id = :userId")
+    long countByUserId(@Param("userId") UUID userId);
 }

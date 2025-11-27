@@ -133,4 +133,12 @@ public class User extends BaseDeletableEntity {
     public boolean isAdmin() {
         return this.role == Role.ADMIN;
     }
+
+    public void updateEventNotification(boolean enabled) {
+        this.eventNotificationEnabled = enabled;
+    }
+
+    public void updateServiceNotification(boolean enabled) {
+        this.serviceNotificationEnabled = enabled;
+    }
 }

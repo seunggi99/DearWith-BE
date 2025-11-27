@@ -21,4 +21,7 @@ public interface ArtistGroupBookmarkRepository extends JpaRepository<ArtistGroup
     """)
     List<Long> findGroupIdsByUserId(@Param("userId") UUID userId);
 
+    @Query("select count(b) from ArtistGroupBookmark b " +
+            "where b.user.id = :userId")
+    long countByUserId(@Param("userId") UUID userId);
 }

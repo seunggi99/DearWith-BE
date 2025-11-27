@@ -72,4 +72,8 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
         where r.id = :reviewId
     """)
     Optional<Review> findWithUserById(@Param("reviewId") Long reviewId);
+
+    @Query("select count(r) from Review r " +
+            "where r.user.id = :userId")
+    long countByUserId(@Param("userId") UUID userId);
 }

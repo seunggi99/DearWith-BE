@@ -56,4 +56,7 @@ public interface EventBookmarkRepository extends JpaRepository<EventBookmark, Lo
     @Modifying
     @Query("delete from EventBookmark b where b.event.id = :eventId")
     void deleteByEventId(@Param("eventId") Long eventId);
-}
+
+    @Query("select count(b) from EventBookmark b " +
+            "where b.user.id = :userId")
+    long countByUserId(@Param("userId") UUID userId);}
