@@ -38,8 +38,8 @@ public class SecurityConfig {
             res.setStatus(401);
             res.setContentType("application/json;charset=UTF-8");
             String body = """
-                {"timestamp":"%s","status":401,"error":"Unauthorized","message":"로그인이 필요합니다.","path":"%s"}
-                """.formatted(OffsetDateTime.now(), req.getRequestURI());
+                    {"timestamp":"%s","status":401,"error":"Unauthorized","message":"로그인이 필요합니다.","path":"%s"}
+                    """.formatted(OffsetDateTime.now(), req.getRequestURI());
             res.getWriter().write(body);
         };
     }
@@ -50,8 +50,8 @@ public class SecurityConfig {
             res.setStatus(403);
             res.setContentType("application/json;charset=UTF-8");
             String body = """
-                {"timestamp":"%s","status":403,"error":"Forbidden","message":"접근 권한이 없습니다.","path":"%s"}
-                """.formatted(OffsetDateTime.now(), req.getRequestURI());
+                    {"timestamp":"%s","status":403,"error":"Forbidden","message":"접근 권한이 없습니다.","path":"%s"}
+                    """.formatted(OffsetDateTime.now(), req.getRequestURI());
             res.getWriter().write(body);
         };
     }
@@ -82,7 +82,7 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .oauth2Login(oa -> oa.disable())
 
-                // 미인증은 무조건 401로 깔끔히: 익명 비활성화(선택이지만 권장)
+                // 미인증은 무조건 401: 익명 비활성화
                 .anonymous(anon -> anon.disable())
 
                 .exceptionHandling(ex -> ex
@@ -93,33 +93,96 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // ===== 공개 =====
                         .requestMatchers(
+                                "/",
                                 "/auth/**",
-                                "/users/all",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/auth/oauth/**"
+                                "/oauth2/**",              // X 인증, 콜백 포함
+                                "/users/signup",
+                                "/users/signup/socials",
+                                "/users/check/**",
+                                "/api/search/artists",
+                                "/api/search/artists/artists-groups",
+                                "/api/places/**"
                         ).permitAll()
 
-                        // ===== 로그인 필수 (X 인증 플로우 등) =====
+                        // 조회용 공개 API
+                        .requestMatchers(HttpMethod.GET,
+                                // 메인
+                                "/api/main",
+
+                                // 이벤트
+                                "/api/events",                 // 이벤트 목록
+                                "/api/events/*",               // 이벤트 상세
+                                "/api/events/*/reviews",       // 리뷰 목록
+                                "/api/events/*/photoReviews",  // 포토리뷰 목록
+
+                                // 리뷰 단건 조회
+                                "/api/reviews/*",
+
+                                // 이벤트 공지
+                                "/api/events/*/notices",       // 특정 이벤트 공지 목록
+                                "/api/events/notices/*",       // 공지 상세
+
+                                // 아티스트 / 그룹
+                                "/api/artists",                // 아티스트 목록
+                                "/api/groups",                 // 그룹 목록
+                                "/api/artists/*/events",       // 특정 아티스트의 이벤트 목록
+                                "/api/groups/*/events"         // 특정 그룹의 이벤트 목록
+                        ).permitAll()
+
+                        // ===== 로그인 필수 =====
                         .requestMatchers(
+                                "/users/me",
                                 "/users/me/**",
-                            //    "/api/main",
-                                "/api/events/*/bookmark",
+                                "/users/password/change",
                                 "/api/uploads/*",
-                                "/api/reviews/*/like",
+
+                                // 최근 검색
+                                "/api/search/recent",
                                 "/api/search/recent/**",
-                                "/api/artists/*/bookmark",
-                                "/api/artists/groups/*/bookmark",
-                                "/api/artists/bookmark",
+
+                                // 마이 페이지
+                                "/api/my",
+
+                                // 알림 - 전체 로그인 필요
                                 "/api/notifications/**"
-                            //    "/oauth2/x/authorize",
-                            //    "/oauth2/callback/x",
-                            //    "/api/events/organizer/verify-x"
                         ).authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/events").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/events/*/reviews").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/artists").authenticated()
-                        // 개발 중 나머지
+
+                        // 쓰기/수정/삭제는 명시적으로 보호
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/events",                 // 이벤트 등록
+                                "/api/events/*",
+                                "/api/events/*/reviews",       // 리뷰 생성
+                                "/api/events/*/notices",       // 공지 등록
+                                "/api/reviews/*",              // 리뷰 신고 등 POST가 있다면
+                                "/api/artists",                // 아티스트 등록
+                                "/api/artists/*/bookmark",     // 아티스트 북마크 추가
+                                "/api/artists/groups/*/bookmark" // 그룹 북마크 추가
+                        ).authenticated()
+
+                        .requestMatchers(HttpMethod.PATCH,
+                                "/api/events/*",               // 이벤트 수정
+                                "/api/events/*/notices/*",     // 공지 수정
+                                "/api/reviews/*"               // 리뷰 수정
+                        ).authenticated()
+
+                        .requestMatchers(HttpMethod.DELETE,
+                                "/api/events/*",               // 이벤트 삭제
+                                "/api/events/*/notices/*",     // 공지 삭제
+                                "/api/reviews/*",              // 리뷰 삭제
+                                "/api/artists/*/bookmark",     // 아티스트 북마크 해제
+                                "/api/artists/groups/*/bookmark" // 그룹 북마크 해제
+                        ).authenticated()
+
+                        // 아티스트/이벤트/리뷰 북마크, 좋아요, 신고 등
+                        .requestMatchers(
+                                "/api/events/bookmark",          // 내 이벤트 북마크 목록
+                                "/api/events/*/bookmark",        // 이벤트 북마크 토글
+                                "/api/artists/bookmark",         // 북마크한 아티스트/그룹 조회
+                                "/api/reviews/*/like",           // 리뷰 좋아요
+                                "/api/reviews/*/report"          // 리뷰 신고
+                        ).authenticated()
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
