@@ -11,7 +11,7 @@ import lombok.Data;
 @Data
 @Builder
 public class EmailVerifyRequestDto {
-    @NotBlank
+    @NotBlank(message = "이메일을 입력해주세요.")
     @Email
     private String email;
 

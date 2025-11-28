@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -92,6 +93,25 @@ public class EventCommandService {
         }
         if (event.getEndDate() != null && event.getEndDate().isBefore(event.getStartDate())) {
             throw BusinessException.of(ErrorCode.EVENT_DATE_RANGE_INVALID);
+        }
+
+        LocalTime open = event.getOpenTime();
+        LocalTime close = event.getCloseTime();
+
+        if (open != null && close != null) {
+            if (open.isAfter(close)) {
+                throw BusinessException.withMessage(
+                        ErrorCode.INVALID_TIME_RANGE,
+                        "시작 시간을 다시 입력해주세요."
+                );
+            }
+
+            if (close.isBefore(open)) {
+                throw BusinessException.withMessage(
+                        ErrorCode.INVALID_TIME_RANGE,
+                        "종료 시간을 다시 입력해주세요."
+                );
+            }
         }
 
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));

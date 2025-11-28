@@ -14,7 +14,7 @@ public record ReviewUpdateRequestDto(
         String content,
         @Nullable
         @Size(max = 4)
-        List<@NotBlank String> tags,
+        List<@NotBlank(message = "태그를 입력해주세요.") String> tags,
         @Nullable
         @Size(max = 2)
         List<@Valid ImageAttachmentUpdateRequestDto> images

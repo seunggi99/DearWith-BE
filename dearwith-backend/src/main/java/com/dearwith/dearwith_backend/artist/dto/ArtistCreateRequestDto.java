@@ -6,7 +6,8 @@ import java.time.LocalDate;
 
 public record ArtistCreateRequestDto (
 
-        @NotBlank String nameKr,
+        @NotBlank(message = "이름을 입력해주세요.")
+        String nameKr,
         String groupId,
         String groupName,
         String imageTmpKey,

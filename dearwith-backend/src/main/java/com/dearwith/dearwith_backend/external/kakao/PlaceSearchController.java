@@ -22,7 +22,7 @@ public class PlaceSearchController {
 
     @GetMapping("/search")
     public List<KakaoPlace> search(
-            @RequestParam @NotBlank String query,
+            @RequestParam @NotBlank(message = "검색어를 입력해주세요.") String query,
             @RequestParam(required = false) @DecimalMin(value = "-180") @DecimalMax("180") Double x,
             @RequestParam(required = false) @DecimalMin(value = "-90")  @DecimalMax("90")  Double y,
             @RequestParam(required = false) @Min(0) @Max(20000) Integer radius,
@@ -35,7 +35,7 @@ public class PlaceSearchController {
 
     @GetMapping("/address")
     public List<KakaoPlace> byAddress(
-            @RequestParam @NotBlank String query,
+            @RequestParam @NotBlank(message = "검색어를 입력해주세요.") String query,
             @RequestParam(defaultValue = "1")  @Min(1)  @Max(45) Integer page,
             @RequestParam(defaultValue = "10") @Min(1)  @Max(30) Integer size
     ) {

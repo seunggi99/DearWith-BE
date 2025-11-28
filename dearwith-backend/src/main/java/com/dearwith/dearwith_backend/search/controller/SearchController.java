@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.search.controller;
 
 import com.dearwith.dearwith_backend.search.service.RecentSearchService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +19,7 @@ public class SearchController {
     @PostMapping("/recent/add")
     @Operation(summary = "최근 검색어 추가")
     public void add(@AuthenticationPrincipal(expression = "id") UUID userId,
-                    @RequestBody String query) {
+                    @RequestBody @NotBlank(message = "검색어를 입력해주세요.") String query) {
         recentSearchService.add(userId, query);
     }
 

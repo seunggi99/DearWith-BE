@@ -59,6 +59,7 @@ public enum ErrorCode {
     INVALID_EVENT_STATUS(HttpStatus.BAD_REQUEST, "유효하지 않은 이벤트 상태입니다."),
     ORGANIZER_REQUIRED(HttpStatus.BAD_REQUEST, "주최자 정보는 필수입니다."),
     BENEFIT_DAYINDEX_INVALID(HttpStatus.BAD_REQUEST, "LIMITED 특전의 dayIndex는 1 이상이어야 합니다."),
+    INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "이벤트 운영 시간 범위가 올바르지 않습니다."),
 
     /* =========================
      * 5. 도메인: 아티스트 / 그룹 / 북마크 / 좋아요 / 신고

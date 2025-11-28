@@ -14,5 +14,5 @@ public record ReviewCreateRequestDto(
         @Size(max = 2,message = "이미지는 최대 2개까지만 등록할 수 있습니다.")
         List<@Valid ImageAttachmentRequestDto> images,
         @Size(max = 4,message = "태그는 최대 4개까지 가능합니다.")
-        List<@NotBlank String> tags
+        List<@NotBlank(message = "태크를 입력해주세요.") String> tags
 ) {}
