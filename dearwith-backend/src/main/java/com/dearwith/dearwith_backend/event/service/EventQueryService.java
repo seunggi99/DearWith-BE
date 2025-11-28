@@ -173,7 +173,8 @@ public class EventQueryService {
                 artists,
                 artistGroups,
                 notices,
-                bookmarked
+                bookmarked,
+                assetUrlService
         );
     }
 

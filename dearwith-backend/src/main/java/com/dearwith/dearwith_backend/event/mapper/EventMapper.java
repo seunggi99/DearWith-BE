@@ -10,6 +10,7 @@ import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
+import org.checkerframework.checker.units.qual.C;
 import org.mapstruct.*;
 
 import java.util.*;
@@ -65,7 +66,8 @@ public interface EventMapper {
             List<EventArtistMapping> artistMappings,
             List<EventArtistGroupMapping> artistGroupMappings,
             List<EventNoticeInfoDto> notices,
-            boolean bookmarked
+            boolean bookmarked,
+            @Context AssetUrlService assetUrlService
     );
 
     // PlaceInfo -> Response.PlaceDto
