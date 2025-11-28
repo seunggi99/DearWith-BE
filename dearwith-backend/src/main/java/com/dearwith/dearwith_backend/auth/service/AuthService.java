@@ -13,6 +13,7 @@ import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import com.dearwith.dearwith_backend.user.dto.SignInRequestDto;
 import com.dearwith.dearwith_backend.user.dto.SignInResponseDto;
+import com.dearwith.dearwith_backend.user.enums.UserStatus;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import com.dearwith.dearwith_backend.user.service.SocialAccountService;
 import com.dearwith.dearwith_backend.user.service.UserService;
@@ -57,6 +58,7 @@ public class AuthService {
         }
 
         User user = userService.findByEmail(request.getEmail());
+        ensureNotDeleted(user);
         TokenCreateRequestDto tokenDTO = toTokenDto(user);
 
         String token = jwtTokenProvider.generateToken(tokenDTO);
@@ -130,6 +132,7 @@ public class AuthService {
         /* 기존 계정 있음 → 바로 로그인 처리 */
         if (existing.isPresent()) {
             User user = existing.get().getUser();
+            ensureNotDeleted(user);
             userService.updateLastLoginAt(user);
 
             TokenCreateRequestDto tokenDTO = toTokenDto(user);
@@ -217,6 +220,7 @@ public class AuthService {
             if (existing.isPresent()) {
                 // (4-1) 기존 회원 로그인 처리
                 User user = existing.get().getUser();
+                ensureNotDeleted(user);
                 userService.updateLastLoginAt(user);
 
                 TokenCreateRequestDto tokenDTO = toTokenDto(user);
@@ -329,6 +333,19 @@ public class AuthService {
                 .build();
     }
 
+    private void ensureNotDeleted(User user) {
+        if (user.getDeletedAt() != null) {
+            throw BusinessException.of(
+                    ErrorCode.USER_DELETED
+            );
+        }
+
+        if (user.getUserStatus() == UserStatus.SUSPENDED) {
+            throw BusinessException.of(
+                    ErrorCode.USER_SUSPENDED
+            );
+        }
+    }
 
     /*──────────────────────────────────────────────
      | 6. Owner 검증

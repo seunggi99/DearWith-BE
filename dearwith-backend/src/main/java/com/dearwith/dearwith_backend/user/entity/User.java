@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 
 
 @Entity
-@Where(clause = "deleted_at IS NULL")
 @Getter @NoArgsConstructor @AllArgsConstructor @Builder
 public class User extends BaseDeletableEntity {
     @Id
@@ -120,10 +119,6 @@ public class User extends BaseDeletableEntity {
     }
     public void markSuspended() {
         this.userStatus = UserStatus.SUSPENDED;
-    }
-
-    public void markDeleted() {
-        this.userStatus = UserStatus.DELETED;
     }
 
     public void updateLastLoginAt() {

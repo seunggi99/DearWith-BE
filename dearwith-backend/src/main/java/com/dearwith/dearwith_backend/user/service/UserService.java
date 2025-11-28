@@ -233,7 +233,7 @@ public class UserService {
                         "존재하지 않는 사용자입니다."
                 ));
 
-        user.markDeleted();
+        user.softDelete();
         userRepository.save(user);
     }
 

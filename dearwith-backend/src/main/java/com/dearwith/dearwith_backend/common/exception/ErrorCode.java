@@ -31,6 +31,8 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 가입된 이메일입니다."),
     NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
     DUPLICATE_SOCIAL_ACCOUNT(HttpStatus.CONFLICT, "이미 연결된 소셜 계정입니다."),
+    USER_DELETED(HttpStatus.UNAUTHORIZED, "탈퇴한 회원입니다."),
+    USER_SUSPENDED(HttpStatus.FORBIDDEN, "정지된 회원입니다."),
 
     // 소셜 / 외부 인증
     SOCIAL_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "소셜 로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."),
