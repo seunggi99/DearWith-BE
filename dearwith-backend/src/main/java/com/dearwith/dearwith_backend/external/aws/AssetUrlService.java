@@ -20,11 +20,7 @@ public class AssetUrlService {
     @Value("${app.aws.region}")
     private String region;
 
-    /**
-     * 기본값: "https://%s.s3.%s.amazonaws.com"
-     * - CloudFront 도입 시 "https://cdn.domain.com" 등으로 교체
-     */
-    @Value("${app.assets.public-base-url:https://%s.s3.%s.amazonaws.com}")
+    @Value("${app.aws.s3.base-url}")
     private String publicBaseUrlPattern;
 
     public String generatePublicUrl(String key) {
