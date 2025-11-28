@@ -38,7 +38,7 @@ public class ArtistImageAppService {
         // 1) 트랜잭션 안: TMP 이미지 row 생성
         Image img = new Image();
         img.setUser(user);
-        img.setS3Key(tmpKey);          // 일단 TMP key
+        img.setS3Key(tmpKey);
         img.setStatus(ImageStatus.TMP);
         imageRepository.save(img);
 

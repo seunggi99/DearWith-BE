@@ -16,7 +16,7 @@ import com.dearwith.dearwith_backend.event.repository.EventRepository;
 import com.dearwith.dearwith_backend.notification.service.NotificationService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;

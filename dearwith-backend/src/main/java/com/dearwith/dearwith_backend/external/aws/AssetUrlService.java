@@ -1,5 +1,8 @@
 package com.dearwith.dearwith_backend.external.aws;
 
+import com.dearwith.dearwith_backend.image.entity.Image;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -7,6 +10,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.IllegalFormatException;
 
+@Slf4j
 @Service
 public class AssetUrlService {
 
@@ -40,6 +44,16 @@ public class AssetUrlService {
             }
         } else {
             return appendPath(base, encoded);
+        }
+    }
+
+    public String generatePublicUrl(Image image) {
+        if (image == null) return null;
+        try {
+            return generatePublicUrl(image.getS3Key());
+        } catch (EntityNotFoundException ex) {
+            log.warn("Image entity not found for proxy. Treat as null. message={}", ex.getMessage());
+            return null;
         }
     }
 

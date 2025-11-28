@@ -33,11 +33,8 @@ public class ImageService {
                         "USER_NOT_FOUND"
                 ));
 
-        String url = assetUrlService.generatePublicUrl(finalKey);
-
         Image image = Image.builder()
                 .s3Key(finalKey)
-                .imageUrl(url)
                 .status(ImageStatus.COMMITTED)
                 .user(user)
                 .build();
@@ -73,7 +70,6 @@ public class ImageService {
 
         img.setS3Key(inlineKey);
         img.setStatus(ImageStatus.COMMITTED);
-        img.setImageUrl(assetUrlService.generatePublicUrl(inlineKey));
 
         imageRepository.flush();
         return inlineKey;

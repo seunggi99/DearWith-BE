@@ -113,6 +113,7 @@ public class KakaoAuthService {
     /*──────────────────────────────────────────────
      | 2) 카카오 사용자 정보 가져오기
      *──────────────────────────────────────────────*/
+    @SuppressWarnings("unchecked")
     public KakaoUserInfoDto getUserInfo(String accessToken) {
 
         HttpHeaders headers = new HttpHeaders();

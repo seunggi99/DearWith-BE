@@ -23,9 +23,6 @@ public class Image extends BaseDeletableEntity {
     @Column(nullable = false, unique = true, length = 255)
     private String s3Key;
 
-    @Column(nullable = true, length = 500)
-    private String imageUrl;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ImageStatus status;

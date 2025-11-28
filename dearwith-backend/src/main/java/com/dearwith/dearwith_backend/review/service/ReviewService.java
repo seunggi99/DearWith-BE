@@ -7,6 +7,7 @@ import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.entity.Event;
 import com.dearwith.dearwith_backend.event.repository.EventRepository;
 import com.dearwith.dearwith_backend.event.service.HotEventService;
+import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantAssembler;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantProfile;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
@@ -44,6 +45,7 @@ public class ReviewService {
     private final AuthService authService;
     private final HotEventService hotEventService;
     private final ImageVariantAssembler imageVariantAssembler;
+    private final AssetUrlService assetUrlService;
 
     /*──────────────────────────────────────────────
      | 1. 리뷰 생성
@@ -106,13 +108,12 @@ public class ReviewService {
         List<EventPhotoReviewItemDto> items = mappings.stream()
                 .map(rim -> {
                     Image img = rim.getImage();
-                    if (img == null || img.getImageUrl() == null) return null;
 
                     ImageGroupDto imageGroup = ImageGroupDto.builder()
                             .id(img.getId())
                             .variants(
                                     imageVariantAssembler.toVariants(
-                                            img.getImageUrl(),
+                                            assetUrlService.generatePublicUrl(img),
                                             ImageVariantProfile.REVIEW_PHOTO
                                     )
                             )
@@ -180,7 +181,7 @@ public class ReviewService {
         String profileImageUrl = null;
         try {
             profileImageUrl = (user != null && user.getProfileImage() != null)
-                    ? user.getProfileImage().getImageUrl()
+                    ? assetUrlService.generatePublicUrl(user.getProfileImage())
                     : null;
         } catch (Exception ignore) {
         }
@@ -192,13 +193,12 @@ public class ReviewService {
                         .sorted(Comparator.comparingInt(ReviewImageMapping::getDisplayOrder))
                         .map(m -> {
                             Image img = m.getImage();
-                            if (img == null || img.getImageUrl() == null) return null;
 
                             return ImageGroupDto.builder()
                                     .id(img.getId())
                                     .variants(
                                             imageVariantAssembler.toVariants(
-                                                    img.getImageUrl(),
+                                                    assetUrlService.generatePublicUrl(img),
                                                     ImageVariantProfile.REVIEW_LIST
                                             )
                                     )
@@ -399,7 +399,7 @@ public class ReviewService {
                 .nickname(r.getUser() != null ? r.getUser().getNickname() : null)
                 .profileImageUrl(
                         r.getUser().getProfileImage() != null
-                                ? r.getUser().getProfileImage().getImageUrl()
+                                ? assetUrlService.generatePublicUrl(r.getUser().getProfileImage())
                                 : null
                 )
                 .content(r.getContent())

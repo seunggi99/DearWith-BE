@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.page.my;
 
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
+import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import com.dearwith.dearwith_backend.event.repository.EventBookmarkRepository;
@@ -24,6 +25,7 @@ public class MyPageService {
     private final ArtistBookmarkRepository artistBookmarkRepository;
     private final ArtistGroupBookmarkRepository artistGroupBookmarkRepository;
     private final ReviewRepository reviewRepository;
+    private final AssetUrlService assetUrlService;
 
     @Transactional(readOnly = true)
     public MyPageResponseDto getMyPage(UUID userId) {
@@ -37,7 +39,7 @@ public class MyPageService {
         /* 프로필 */
         String profileImageUrl = null;
         if (user.getProfileImage() != null) {
-            profileImageUrl = user.getProfileImage().getImageUrl();
+            profileImageUrl = assetUrlService.generatePublicUrl(user.getProfileImage());
         }
 
         MyPageResponseDto.Profile profile = MyPageResponseDto.Profile.builder()

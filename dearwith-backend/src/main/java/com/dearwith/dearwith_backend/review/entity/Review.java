@@ -58,6 +58,7 @@ public class Review extends BaseDeletableEntity {
     @Column(name = "tag", length = 30, nullable = false)
     @OrderColumn(name = "display_order")
     @BatchSize(size = 100)
+    @Builder.Default
     private List<String> tags = new ArrayList<>();
 
     @Builder.Default

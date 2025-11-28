@@ -1,11 +1,13 @@
 package com.dearwith.dearwith_backend.event.mapper;
 
+import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeInfoDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
+import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
 import org.mapstruct.*;
@@ -90,16 +92,42 @@ public interface EventMapper {
     @Mapping(target = "id", source = "artist.id")
     @Mapping(target = "nameKr", source = "artist.nameKr")
     @Mapping(target = "nameEn", source = "artist.nameEn")
-    @Mapping(target = "profileImageUrl", source = "artist.profileImage.imageUrl")
-    EventResponseDto.ArtistDto toArtistDto(EventArtistMapping mapping);
-    List<EventResponseDto.ArtistDto> toArtistDtos(List<EventArtistMapping> mappings);
+    @Mapping(
+            target = "profileImageUrl",
+            expression =
+                    "java(assetUrlService.generatePublicUrl(" +
+                            "    mapping.getArtist().getProfileImage()" +
+                            "))"
+    )
+    EventResponseDto.ArtistDto toArtistDto(
+            EventArtistMapping mapping,
+            @Context AssetUrlService assetUrlService
+    );
+
+    List<EventResponseDto.ArtistDto> toArtistDtos(
+            List<EventArtistMapping> mappings,
+            @Context AssetUrlService assetUrlService
+    );
+
 
     // ---- Group 매핑 ----
-    @Mapping(target = "id",     source = "artistGroup.id")
+    @Mapping(target = "id", source = "artistGroup.id")
     @Mapping(target = "nameKr", source = "artistGroup.nameKr")
     @Mapping(target = "nameEn", source = "artistGroup.nameEn")
-    @Mapping(target = "profileImageUrl", source = "artistGroup.profileImage.imageUrl")
-    EventResponseDto.ArtistGroupDto toGroupDto(EventArtistGroupMapping mapping);
+    @Mapping(
+            target = "profileImageUrl",
+            expression =
+                    "java(assetUrlService.generatePublicUrl(" +
+                            "    mapping.getArtistGroup().getProfileImage()" +
+                            "))"
+    )
+    EventResponseDto.ArtistGroupDto toGroupDto(
+            EventArtistGroupMapping mapping,
+            @Context AssetUrlService assetUrlService
+    );
 
-    List<EventResponseDto.ArtistGroupDto> toGroupDtos(List<EventArtistGroupMapping> mappings);
+    List<EventResponseDto.ArtistGroupDto> toGroupDtos(
+            List<EventArtistGroupMapping> mappings,
+            @Context AssetUrlService assetUrlService
+    );
 }

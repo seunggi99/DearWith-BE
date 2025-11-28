@@ -5,6 +5,7 @@ import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
+import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
@@ -27,6 +28,7 @@ public class HotArtistService {
     private final RedisTemplate<String, String> redisTemplate;
     private final ArtistRepository artistRepository;
     private final ArtistGroupRepository artistGroupRepository;
+    private final AssetUrlService assetUrlService;
 
     // 같은 유저가 같은 아티스트/그룹에 대해 점수 올릴 수 있는 주기
     private static final Duration VIEW_DEDUP_DURATION = Duration.ofMinutes(30);
@@ -123,7 +125,7 @@ public class HotArtistService {
 
             String imageUrl = null;
             if (artist.getProfileImage() != null) {
-                imageUrl = artist.getProfileImage().getImageUrl();
+                imageUrl = assetUrlService.generatePublicUrl(artist.getProfileImage());
             }
 
             result.add(HotArtistDtoResponseDto.builder()
@@ -142,10 +144,7 @@ public class HotArtistService {
             ArtistGroup group = groupMap.get(id);
             if (group == null) return;
 
-            String imageUrl = null;
-            if (group.getProfileImage() != null) {
-                imageUrl = group.getProfileImage().getImageUrl();
-            }
+            String imageUrl = assetUrlService.generatePublicUrl(group.getProfileImage());
 
             result.add(HotArtistDtoResponseDto.builder()
                     .id(id)

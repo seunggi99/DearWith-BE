@@ -22,6 +22,7 @@ public class UploadController {
 
     private final ImageAssetService imageAssetService;
     private final ImageService imageService;
+    private final AssetUrlService assetUrlService;
 
     @PostMapping("/presign")
     @Operation(
@@ -65,7 +66,7 @@ public class UploadController {
                             @AuthenticationPrincipal(expression = "id") UUID userId) {
         String inlineKey = imageAssetService.promoteTmpToInline(req.tmpKey());
         Image saved = imageService.registerCommittedImage(inlineKey, userId);
-        return new CommitRes(saved.getId(), saved.getImageUrl());
+        return new CommitRes(saved.getId(), assetUrlService.generatePublicUrl(saved));
     }
 
     public record PresignReq(String filename, String contentType, String domain) {}

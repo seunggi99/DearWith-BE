@@ -9,13 +9,15 @@ import com.dearwith.dearwith_backend.artist.mapper.ArtistMapper;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupMappingRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
+import com.dearwith.dearwith_backend.common.dto.CreatedResponseDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.common.utill.KoreanRomanizer;
+import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +35,7 @@ public class ArtistService {
     private final ArtistGroupRepository groupRepository;
     private final ArtistGroupMappingRepository mappingRepository;
     private final ArtistImageAppService artistImageService;
+    private final AssetUrlService assetUrlService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -42,7 +45,7 @@ public class ArtistService {
        ============================================================ */
     public Page<ArtistDto> search(String query, Pageable pageable) {
         return artistRepository.searchByName(query, pageable)
-                .map(artistMapper::toDto);
+                .map(artist -> artistMapper.toDto(artist, assetUrlService));
     }
 
     public List<Artist> findAllByIds(List<Long> ids) {

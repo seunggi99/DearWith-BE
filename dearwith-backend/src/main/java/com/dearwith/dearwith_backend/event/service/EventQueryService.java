@@ -15,6 +15,7 @@ import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.mapper.EventMapper;
 import com.dearwith.dearwith_backend.event.repository.*;
+import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantAssembler;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantProfile;
 import com.dearwith.dearwith_backend.image.entity.Image;
@@ -45,6 +46,7 @@ public class EventQueryService {
     private final ImageVariantAssembler imageVariantAssembler;
     private final ArtistBookmarkRepository artistBookmarkRepository;
     private final ArtistGroupBookmarkRepository artistGroupBookmarkRepository;
+    private final AssetUrlService assetUrlService;
 
     /*──────────────────────────────────────────────
      | 메인페이지 추천 이벤트
@@ -345,13 +347,12 @@ public class EventQueryService {
         return mappings.stream()
                 .map(m -> {
                     Image img = m.getImage();
-                    if (img == null || img.getImageUrl() == null) return null;
 
                     return ImageGroupDto.builder()
                             .id(img.getId())
                             .variants(
                                     imageVariantAssembler.toVariants(
-                                            img.getImageUrl(),
+                                            assetUrlService.generatePublicUrl(img),
                                             ImageVariantProfile.EVENT_DETAIL
                                     )
                             )

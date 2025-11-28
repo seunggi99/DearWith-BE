@@ -3,6 +3,7 @@ package com.dearwith.dearwith_backend.event.assembler;
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.entity.Event;
+import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantAssembler;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantProfile;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import java.util.*;
 public class EventInfoAssembler {
 
     private final ImageVariantAssembler imageVariantAssembler;
+    private final AssetUrlService assetUrlService;
     /**
      * 1) 단일 Event → 단순 DTO 변환
      */
@@ -98,7 +100,7 @@ public class EventInfoAssembler {
         var cover = event.getCoverImage();
         if (cover == null) return null;
 
-        String baseUrl = cover.getImageUrl();
+        String baseUrl = assetUrlService.generatePublicUrl(cover);
 
         return ImageGroupDto.builder()
                 .id(cover.getId())

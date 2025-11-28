@@ -11,6 +11,7 @@ import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
+import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
@@ -36,6 +37,7 @@ public class ArtistUnifiedService {
     private final UserRepository userRepository;
     private final ArtistService artistService;
     private final ArtistGroupService artistGroupService;
+    private final AssetUrlService assetUrlService;
 
     /*──────────────────────────────────────────────
      | 1. 이번 달 기념일(아티스트 생일 + 그룹 데뷔일)
@@ -68,7 +70,7 @@ public class ArtistUnifiedService {
                             a.getId(),
                             a.getNameKr(),
                             a.getNameEn(),
-                            a.getProfileImage() != null ? a.getProfileImage().getImageUrl() : null,
+                            assetUrlService.generatePublicUrl(a.getProfileImage()),
                             MonthlyAnniversaryDto.Type.ARTIST,
                             MonthlyAnniversaryDto.DateType.BIRTH,
                             birthDate,
@@ -96,7 +98,7 @@ public class ArtistUnifiedService {
                             a.getId(),
                             a.getNameKr(),
                             a.getNameEn(),
-                            a.getProfileImage() != null ? a.getProfileImage().getImageUrl() : null,
+                            assetUrlService.generatePublicUrl(a.getProfileImage()),
                             MonthlyAnniversaryDto.Type.ARTIST,
                             MonthlyAnniversaryDto.DateType.DEBUT,
                             debutDate,
@@ -124,7 +126,7 @@ public class ArtistUnifiedService {
                             g.getId(),
                             g.getNameKr(),
                             g.getNameEn(),
-                            g.getProfileImage() != null ? g.getProfileImage().getImageUrl() : null,
+                            assetUrlService.generatePublicUrl(g.getProfileImage()),
                             MonthlyAnniversaryDto.Type.GROUP,
                             MonthlyAnniversaryDto.DateType.DEBUT,
                             debutDate,
@@ -296,7 +298,7 @@ public class ArtistUnifiedService {
             Artist artist = bm.getArtist();
             Image profileImage = artist.getProfileImage();
 
-            String imageUrl = (profileImage != null) ? profileImage.getImageUrl() : null;
+            String imageUrl = assetUrlService.generatePublicUrl(profileImage);
             LocalDateTime bookmarkedAt = bm.getCreatedAt();
 
             merged.add(new ArtistUnifiedDto(
@@ -316,7 +318,8 @@ public class ArtistUnifiedService {
             ArtistGroup group = bm.getArtistGroup();
             Image profileImage = group.getProfileImage();
 
-            String imageUrl = (profileImage != null) ? profileImage.getImageUrl() : null;
+            String imageUrl = assetUrlService.generatePublicUrl(profileImage);
+
             LocalDateTime bookmarkedAt = bm.getCreatedAt();
 
             merged.add(new ArtistUnifiedDto(

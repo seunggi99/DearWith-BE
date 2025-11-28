@@ -12,7 +12,8 @@ import com.dearwith.dearwith_backend.image.repository.ImageRepository;
 import com.dearwith.dearwith_backend.image.service.*;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,7 +42,7 @@ public class AssetOps {
      * S3 존재 대기 후 프리셋에 맞춰 파생본(variants)을 생성한다.
      * (트랜잭션 분리: REQUIRES_NEW)
      */
-    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String commitExistingAndGenerateVariants(CommitCommand cmd) {
         // 1) S3 키 승격(tmp → inline)
         final String inlineKey = imageAssetService.promoteTmpToInline(cmd.getTmpKey());
@@ -55,7 +56,7 @@ public class AssetOps {
         if (img.getUser() == null && cmd.getUserId() != null) {
             img.setUser(entityManager.getReference(User.class, cmd.getUserId()));
         }
-        img.setImageUrl(assetUrlService.generatePublicUrl(inlineKey));
+
         imageRepository.flush();
 
         // 3) S3 존재 대기
@@ -68,7 +69,7 @@ public class AssetOps {
         return inlineKey;
     }
 
-    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String commitSingleVariant(CommitCommand cmd) {
 
         // 1) TMP → INLINE 승격 (하지만 inlineKey는 DB에 반영하지 않음)
@@ -94,7 +95,6 @@ public class AssetOps {
         if (img.getUser() == null && cmd.getUserId() != null) {
             img.setUser(entityManager.getReference(User.class, cmd.getUserId()));
         }
-        img.setImageUrl(assetUrlService.generatePublicUrl(finalKey));
 
         return finalKey;
     }

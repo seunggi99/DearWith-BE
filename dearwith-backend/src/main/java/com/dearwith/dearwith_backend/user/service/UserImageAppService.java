@@ -29,12 +29,12 @@ public class UserImageAppService {
     @Transactional
     public void create(User user, String tmpKey) {
         if (tmpKey == null || tmpKey.isBlank()) {
-            return; // 이미지 없이 생성 가능
+            return;
         }
 
         Image img = new Image();
         img.setUser(user);
-        img.setS3Key(tmpKey);          // 일단 TMP key
+        img.setS3Key(tmpKey);
         img.setStatus(ImageStatus.TMP);
         imageRepository.save(img);
 
@@ -47,7 +47,6 @@ public class UserImageAppService {
                                 .imageId(img.getId())
                                 .tmpKey(tmpKey)
                                 .userId(user.getId())
-                                // 유저 프로필용 프리셋 (없으면 새로 정의해서 사용)
                                 .preset(AssetVariantPreset.USER)
                                 .build()
                 );

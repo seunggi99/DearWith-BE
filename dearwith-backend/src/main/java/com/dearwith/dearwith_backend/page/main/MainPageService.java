@@ -5,6 +5,7 @@ import com.dearwith.dearwith_backend.artist.service.ArtistUnifiedService;
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.service.EventQueryService;
+import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantAssembler;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantProfile;
 import com.dearwith.dearwith_backend.image.entity.Image;
@@ -25,7 +26,7 @@ public class MainPageService {
     private final ReviewRepository reviewRepository;
     private final ImageVariantAssembler imageVariantAssembler;
     private final ArtistUnifiedService artistUnifiedService;
-
+    private final AssetUrlService assetUrlService;
     public MainPageResponseDto getMainPage(UUID userId) {
 
         List<MonthlyAnniversaryDto> birthdayArtists =
@@ -70,13 +71,12 @@ public class MainPageService {
                     .sorted(Comparator.comparingInt(ReviewImageMapping::getDisplayOrder))
                     .map(m -> {
                         Image img = m.getImage();
-                        if (img == null || img.getImageUrl() == null) return null;
 
                         return ImageGroupDto.builder()
                                 .id(img.getId())
                                 .variants(
                                         imageVariantAssembler.toVariants(
-                                                img.getImageUrl(),
+                                                assetUrlService.generatePublicUrl(img),
                                                 ImageVariantProfile.MAIN_REVIEW_THUMB
                                         )
                                 )
