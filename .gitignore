@@ -21,3 +21,10 @@ gradle-app.setting
 .classpath
 
 **/.env
+
+# IntelliJ
+.idea/
+*.iml
+
+# macOS
+.DS_Store
