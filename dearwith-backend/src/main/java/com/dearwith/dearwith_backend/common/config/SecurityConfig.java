@@ -105,10 +105,6 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .oauth2Login(oa -> oa.disable())
-
-                // 미인증은 무조건 401: 익명 비활성화
-                .anonymous(anon -> anon.disable())
-
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(jwtAuthEntryPoint()) // 401 JSON
                         .accessDeniedHandler(accessDeniedHandler())    // 403 JSON

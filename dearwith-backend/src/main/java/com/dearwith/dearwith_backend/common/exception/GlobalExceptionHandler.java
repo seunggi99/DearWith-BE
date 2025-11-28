@@ -14,8 +14,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingPathVariableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -186,6 +188,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(BAD_REQUEST).body(body);
     }
 
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleNoResourceFound(
+            NoResourceFoundException ex,
+            HttpServletRequest request
+    ) {
+        return ErrorResponse.of(
+                ErrorCode.NOT_FOUND,
+                "지원하지 않는 API입니다.",
+                request.getRequestURI()
+        );
+    }
 
     /*──────────────────────────────────────────────
      | 5. RuntimeException
