@@ -12,7 +12,6 @@ import java.util.List;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface ArtistMapper {
-
     @Mapping(
             target = "imageUrl",
             expression = "java(assetUrlService.generatePublicUrl(artist.getProfileImage()))"
