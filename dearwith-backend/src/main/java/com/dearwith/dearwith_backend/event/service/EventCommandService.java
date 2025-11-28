@@ -5,6 +5,7 @@ import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
 import com.dearwith.dearwith_backend.auth.service.AuthService;
+import com.dearwith.dearwith_backend.common.dto.CreatedResponseDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
@@ -58,7 +59,7 @@ public class EventCommandService {
      | 1. 이벤트 생성
      *──────────────────────────────────────────────*/
     @Transactional
-    public EventResponseDto create(UUID userId, EventCreateRequestDto req) {
+    public CreatedResponseDto create(UUID userId, EventCreateRequestDto req) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> BusinessException.withMessage(
@@ -239,7 +240,9 @@ public class EventCommandService {
         // 5. 저장
         Event saved = eventRepository.save(event);
 
-        return eventQueryService.getEvent(saved.getId(), userId);
+        return CreatedResponseDto.builder()
+                .id(saved.getId())
+                .build();
     }
 
 
@@ -248,7 +251,7 @@ public class EventCommandService {
      | 2. 이벤트 수정
      *──────────────────────────────────────────────*/
     @Transactional
-    public EventResponseDto update(Long eventId, UUID userId, EventUpdateRequestDto req) {
+    public void update(Long eventId, UUID userId, EventUpdateRequestDto req) {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> BusinessException.withMessage(
                         ErrorCode.NOT_FOUND,
@@ -454,9 +457,7 @@ public class EventCommandService {
         validateAndNormalize(event);
 
         // 7) 저장
-        Event saved = eventRepository.save(event);
-
-        return eventQueryService.getEvent(saved.getId(), userId);
+        eventRepository.save(event);
     }
 
 

@@ -7,6 +7,7 @@ import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
 import com.dearwith.dearwith_backend.artist.service.HotArtistService;
+import com.dearwith.dearwith_backend.common.dto.CreatedResponseDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
@@ -19,11 +20,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
 import java.util.UUID;
 
 @RestController
@@ -52,14 +52,12 @@ public class ArtistController {
     @Operation(summary = "아티스트 등록",
             description = "그룹 검색 API를 통해 그룹을 선택하고, 아티스트 기본정보와 함께 아티스트를 등록합니다." +
                     "그룹 ID가 Null이고 groupName이 존재하는 경우, 새로운 그룹이 생성되어 매핑됩니다.")
-    public ResponseEntity<ArtistDto> createArtist(
+    @ResponseStatus(HttpStatus.CREATED)
+    public CreatedResponseDto createArtist(
             @Valid @RequestBody ArtistCreateRequestDto req,
             @AuthenticationPrincipal(expression = "id") UUID userId
-    ) {
-        ArtistDto response = artistService.create(userId, req);
-        return ResponseEntity
-                .created(URI.create("/api/artists/" + response.id()))
-                .body(response);
+    ) {;
+        return artistService.create(userId, req);
     }
 
     @GetMapping("/{artistId}/events")

@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.event.service;
 
 import com.dearwith.dearwith_backend.auth.service.AuthService;
 import com.dearwith.dearwith_backend.common.component.ViewCountLimiter;
+import com.dearwith.dearwith_backend.common.dto.CreatedResponseDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeInfoDto;
@@ -66,7 +67,7 @@ public class EventNoticeService {
      | 공지 생성
      *────────────────────────────*/
     @Transactional
-    public EventNoticeResponseDto create(UUID userId, Long eventId, EventNoticeRequestDto req) {
+    public CreatedResponseDto create(UUID userId, Long eventId, EventNoticeRequestDto req) {
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> BusinessException.withMessage(
@@ -114,14 +115,16 @@ public class EventNoticeService {
             );
         }
 
-        return toDetailDto(saved, true);
+        return CreatedResponseDto.builder()
+                .id(saved.getId())
+                .build();
     }
 
     /*────────────────────────────
      | 공지 수정
      *────────────────────────────*/
     @Transactional
-    public EventNoticeResponseDto update(UUID userId, Long eventId, Long noticeId, EventNoticeRequestDto req) {
+    public void update(UUID userId, Long eventId, Long noticeId, EventNoticeRequestDto req) {
 
         EventNotice notice = eventNoticeRepository.findById(noticeId)
                 .orElseThrow(() -> BusinessException.withMessage(
@@ -141,8 +144,6 @@ public class EventNoticeService {
                 "이벤트 공지를 수정할 권한이 없습니다.");
 
         notice.update(req.title(), req.content());
-
-        return toDetailDto(notice,true);
     }
 
     /*────────────────────────────

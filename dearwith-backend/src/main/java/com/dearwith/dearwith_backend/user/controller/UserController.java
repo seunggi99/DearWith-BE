@@ -50,58 +50,56 @@ public class UserController {
 
     @Operation(summary = "회원 닉네임 변경")
     @PatchMapping("/me/nickname")
-    public ResponseEntity<Void> updateNickname(@AuthenticationPrincipal CustomUserDetails principal,
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateNickname(@AuthenticationPrincipal CustomUserDetails principal,
                                                @RequestBody @Valid UpdateNicknameRequestDto req) {
         userService.updateNickname(principal.getId(), req.getNickname());
-        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "비밀번호 변경 (이메일 인증 필요)")
     @PostMapping("/password/change")
-    public ResponseEntity<Void> changePassword(@RequestBody @Valid PasswordChangeRequestDto request) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(@RequestBody @Valid PasswordChangeRequestDto request) {
         userService.changePassword(request);
-        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "회원 프로필 사진 등록/수정")
     @PatchMapping("/me/profile/image")
-    public ResponseEntity<Void> updateProfileImage(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateProfileImage(
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @RequestBody ProfileImageUpdateRequestDto request
     ) {
         userService.updateProfileImage(userId, request);
-        return ResponseEntity.noContent().build();
-
     }
 
     @Operation(summary = "회원 프로필 사진 삭제")
     @DeleteMapping("/me/profile/image")
-    public ResponseEntity<Void> deleteProfileImage(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteProfileImage(
             @AuthenticationPrincipal(expression = "id") UUID userId
     ) {
         userService.deleteProfileImage(userId);
-        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "회원 소프트 삭제(Status 변경)")
     @DeleteMapping("/me")
-    public ResponseEntity<Void> deleteUser(@AuthenticationPrincipal CustomUserDetails principal) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteUser(@AuthenticationPrincipal CustomUserDetails principal) {
         userService.deleteById(principal.getId());
-        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "이메일 중복 검사")
     @GetMapping("/check/email")
-    public ResponseEntity<Void> checkEmailDuplicate(@RequestParam String email) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void checkEmailDuplicate(@RequestParam String email) {
         userService.validateDuplicateUserByEmail(email);
-        return ResponseEntity.ok().build();
     }
 
     @Operation(summary = "닉네임 중복 검사")
     @GetMapping("/check/nickname")
-    public ResponseEntity<Void> checkNicknameDuplicate(@RequestParam String nickname) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void checkNicknameDuplicate(@RequestParam String nickname) {
         userService.validateDuplicateUserByNickname(nickname);
-        return ResponseEntity.ok().build();
     }
-
 }

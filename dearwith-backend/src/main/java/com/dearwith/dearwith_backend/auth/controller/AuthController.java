@@ -10,6 +10,7 @@ import com.dearwith.dearwith_backend.user.dto.SignInResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,9 +24,9 @@ public class AuthController {
     @Operation(summary = "이메일 인증 코드 발송",
             description = "purpose : SIGNUP(가입), RESET_PASSWORD(비밀번호 변경)")
     @PostMapping("/signup/email/send")
-    public ResponseEntity<Void> sendCode(@RequestBody @Valid EmailRequestDto request) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void sendCode(@RequestBody @Valid EmailRequestDto request) {
         emailService.sendVerificationCode(request);
-        return ResponseEntity.ok().build();
     }
 
     @Operation(summary = "이메일 인증 코드 검증",

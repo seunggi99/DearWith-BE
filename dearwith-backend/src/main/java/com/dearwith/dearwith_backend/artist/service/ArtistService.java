@@ -58,7 +58,7 @@ public class ArtistService {
        아티스트 생성
        ============================================================ */
     @Transactional
-    public ArtistDto create(UUID userId, ArtistCreateRequestDto req) {
+    public CreatedResponseDto create(UUID userId, ArtistCreateRequestDto req) {
 
         if (req.nameKr() == null || req.nameKr().trim().isEmpty()) {
             throw BusinessException.withMessageAndDetail(
@@ -172,7 +172,9 @@ public class ArtistService {
         }
 
         // 응답 DTO
-        return artistMapper.toDto(artist);
+        return CreatedResponseDto.builder()
+                .id(artist.getId())
+                .build();
     }
 
 }

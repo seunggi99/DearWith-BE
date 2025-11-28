@@ -27,13 +27,13 @@ public class ReviewController {
     private final ReviewReportService reviewReportService;
     @PostMapping("/api/events/{eventId}/reviews")
     @Operation(summary = "이벤트 리뷰 작성")
-    public ResponseEntity<Void> create(
+    @ResponseStatus(HttpStatus.CREATED)
+    public void create(
             @PathVariable Long eventId,
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @Valid @RequestBody ReviewCreateRequestDto req
     ) {
         reviewService.create(userId, eventId, req);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @GetMapping("/api/events/{eventId}/reviews")
@@ -95,23 +95,23 @@ public class ReviewController {
     @Operation(summary = "리뷰 수정",
             description = ReviewApiDocs.UPDATE_DESC)
     @PatchMapping("/api/reviews/{reviewId}")
-    public ResponseEntity<Void> updateReview(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateReview(
             @PathVariable Long reviewId,
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @Valid @RequestBody ReviewUpdateRequestDto req
     ) {
         reviewService.update(userId, reviewId, req);
-        return ResponseEntity.ok().build();
     }
 
     @Operation(summary = "리뷰 삭제")
     @DeleteMapping("/api/reviews/{reviewId}")
-    public ResponseEntity<Void> deleteReview(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteReview(
             @PathVariable Long reviewId,
             @AuthenticationPrincipal(expression = "id") UUID userId
     ) {
         reviewService.delete(reviewId, userId);
-        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/api/reviews/{reviewId}/report")

@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -49,33 +50,33 @@ public class NotificationController {
     // 3) 단일 알림 읽음 처리
     @PatchMapping("/{notificationId}/read")
     @Operation(summary = "단일 알림 읽음 처리")
-    public ResponseEntity<Void> markAsRead(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void markAsRead(
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @PathVariable Long notificationId
     ) {
         notificationService.markAsRead(userId, notificationId);
-        return ResponseEntity.ok().build();
     }
 
     // 4) 전체 알림 읽음 처리
     @PatchMapping("/read-all")
     @Operation(summary = "전체 알림 읽음 처리")
-    public ResponseEntity<Void> markAllAsRead(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void markAllAsRead(
             @AuthenticationPrincipal(expression = "id") UUID userId
     ) {
         notificationService.markAllAsRead(userId);
-        return ResponseEntity.ok().build();
     }
 
     // 5) 단일 알림 삭제
     @DeleteMapping("/{notificationId}")
     @Operation(summary = "단일 알림 삭제")
-    public ResponseEntity<Void> deleteOne(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteOne(
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @PathVariable Long notificationId
     ) {
         notificationService.deleteOne(userId, notificationId);
-        return ResponseEntity.ok().build();
     }
 
     // 6) 전체 알림 삭제 (옵션: 읽은 것만 삭제)
@@ -86,12 +87,12 @@ public class NotificationController {
                     - onlyRead=true 이면 '읽은 알림'만 삭제합니다.
                     - onlyRead=false 이면 모든 알림을 삭제합니다.
                     """)
-    public ResponseEntity<Void> deleteAll(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAll(
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @RequestParam(name = "onlyRead", defaultValue = "false") boolean onlyRead
     ) {
         notificationService.deleteAll(userId, onlyRead);
-        return ResponseEntity.ok().build();
     }
 
 }

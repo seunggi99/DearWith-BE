@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.event.controller;
 
+import com.dearwith.dearwith_backend.common.dto.CreatedResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeListResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
@@ -12,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -56,7 +58,8 @@ public class EventNoticeController {
 
     @PostMapping("/{eventId}/notices")
     @Operation(summary = "이벤트 공지 등록")
-    public EventNoticeResponseDto createNotice(
+    @ResponseStatus(HttpStatus.CREATED)
+    public CreatedResponseDto createNotice(
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @PathVariable Long eventId,
             @RequestBody @Valid EventNoticeRequestDto req
@@ -66,23 +69,24 @@ public class EventNoticeController {
 
     @PatchMapping("/{eventId}/notices/{noticeId}")
     @Operation(summary = "이벤트 공지 수정")
-    public EventNoticeResponseDto updateNotice(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateNotice(
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @PathVariable Long eventId,
             @PathVariable Long noticeId,
             @RequestBody @Valid EventNoticeRequestDto req
     ) {
-        return eventNoticeService.update(userId, eventId, noticeId, req);
+        eventNoticeService.update(userId, eventId, noticeId, req);
     }
 
     @DeleteMapping("/{eventId}/notices/{noticeId}")
     @Operation(summary = "이벤트 공지 삭제")
-    public ResponseEntity<Void> deleteNotice(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteNotice(
             @AuthenticationPrincipal(expression = "id") UUID userId,
             @PathVariable Long eventId,
             @PathVariable Long noticeId
     ) {
         eventNoticeService.delete(userId, eventId, noticeId);
-        return ResponseEntity.ok().build();
     }
 }
