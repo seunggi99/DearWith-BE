@@ -14,7 +14,7 @@ import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
-import com.dearwith.dearwith_backend.user.repository.UserRepository;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -34,10 +34,10 @@ public class ArtistUnifiedService {
     private final ArtistGroupRepository artistGroupRepository;
     private final ArtistBookmarkRepository artistBookmarkRepository;
     private final ArtistGroupBookmarkRepository artistGroupBookmarkRepository;
-    private final UserRepository userRepository;
     private final ArtistService artistService;
     private final ArtistGroupService artistGroupService;
     private final AssetUrlService assetUrlService;
+    private final UserReader userReader;
 
     /*──────────────────────────────────────────────
      | 1. 이번 달 기념일(아티스트 생일 + 그룹 데뷔일)
@@ -161,11 +161,7 @@ public class ArtistUnifiedService {
                         "아티스트를 찾을 수 없습니다"
                 ));
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND,
-                        "사용자를 찾을 수 없습니다."
-                ));
+        User user = userReader.getLoginAllowedUser(userId);
 
         try {
             artistBookmarkRepository.save(
@@ -175,7 +171,6 @@ public class ArtistUnifiedService {
                             .build()
             );
         } catch (DataIntegrityViolationException e) {
-            // 이미 북마크된 상태로 다시 요청한 경우
             throw BusinessException.withMessageAndDetail(
                     ErrorCode.ALREADY_BOOKMARKED,
                     "이미 북마크한 아티스트입니다.",
@@ -196,8 +191,10 @@ public class ArtistUnifiedService {
     @Transactional
     public ArtistBookmarkResponseDto removeArtistBookmark(Long artistId, UUID userId) {
 
+        User user = userReader.getLoginAllowedUser(userId);
+
         ArtistBookmark bookmark = artistBookmarkRepository
-                .findByArtistIdAndUserId(artistId, userId)
+                .findByArtistIdAndUserId(artistId, user.getId())
                 .orElseThrow(() -> BusinessException.withMessageAndDetail(
                         ErrorCode.BOOKMARK_NOT_FOUND,
                         "해당 아티스트 북마크를 찾을 수 없습니다.",
@@ -228,11 +225,7 @@ public class ArtistUnifiedService {
                         "아티스트 그룹을 찾을 수 없습니다."
                 ));
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND,
-                        "사용자를 찾을 수 없습니다."
-                ));
+        User user = userReader.getLoginAllowedUser(userId);
 
         try {
             artistGroupBookmarkRepository.save(
@@ -262,8 +255,10 @@ public class ArtistUnifiedService {
     @Transactional
     public ArtistGroupBookmarkResponseDto removeArtistGroupBookmark(Long groupId, UUID userId) {
 
+        User user = userReader.getLoginAllowedUser(userId);
+
         ArtistGroupBookmark bookmark = artistGroupBookmarkRepository
-                .findByArtistGroupIdAndUserId(groupId, userId)
+                .findByArtistGroupIdAndUserId(groupId, user.getId())
                 .orElseThrow(() -> BusinessException.withMessageAndDetail(
                         ErrorCode.BOOKMARK_NOT_FOUND,
                         "해당 아티스트 그룹 북마크를 찾을 수 없습니다.",
@@ -288,8 +283,10 @@ public class ArtistUnifiedService {
     @Transactional(readOnly = true)
     public Page<ArtistUnifiedDto> getBookmarkedArtistsAndGroups(UUID userId, Pageable pageable) {
 
-        List<ArtistBookmark> artistBookmarks = artistBookmarkRepository.findByUserId(userId);
-        List<ArtistGroupBookmark> groupBookmarks = artistGroupBookmarkRepository.findByUserId(userId);
+        User user = userReader.getLoginAllowedUser(userId);
+
+        List<ArtistBookmark> artistBookmarks = artistBookmarkRepository.findByUserId(user.getId());
+        List<ArtistGroupBookmark> groupBookmarks = artistGroupBookmarkRepository.findByUserId(user.getId());
 
         List<ArtistUnifiedDto> merged = new ArrayList<>();
 

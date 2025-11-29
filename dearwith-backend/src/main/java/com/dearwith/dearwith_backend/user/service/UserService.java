@@ -36,6 +36,7 @@ public class UserService {
     private final SocialAccountRepository socialAccountRepository;
     private final EmailVerifyTicketService emailVerifyTicketService;
     private final UserImageAppService userImageAppService;
+    private final UserReader userReader;
 
     /*──────────────────────────────────────────────
      | 1. 일반 회원가입
@@ -151,25 +152,16 @@ public class UserService {
      | 3. 조회/저장 관련 유틸
      *──────────────────────────────────────────────*/
 
-    // 로그인 등에서 사용: "가입되지 않은 이메일입니다." 케이스
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> BusinessException.withMessage(
                         ErrorCode.INVALID_EMAIL,
-                        ErrorCode.INVALID_EMAIL.getMessage()    // "가입되지 않은 이메일입니다."
+                        ErrorCode.INVALID_EMAIL.getMessage()
                 ));
     }
 
     public List<User> findAll() {
         return userRepository.findAll();
-    }
-
-    public User findOne(UUID userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND,
-                        "존재하지 않는 사용자입니다."
-                ));
     }
 
     private boolean isPushAgreed(List<AgreementDto> agreements) {
@@ -214,12 +206,7 @@ public class UserService {
 
     @Transactional
     public void updateNickname(UUID userId, String newNickname) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND,
-                        "존재하지 않는 사용자입니다."
-                ));
-
+        User user = userReader.getLoginAllowedUser(userId);
         validateDuplicateUserByNickname(newNickname);
         user.updateNickname(newNickname);
         userRepository.save(user);
@@ -227,12 +214,7 @@ public class UserService {
 
     @Transactional
     public void deleteById(UUID id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND,
-                        "존재하지 않는 사용자입니다."
-                ));
-
+        User user = userReader.getUser(id);
         user.softDelete();
         userRepository.save(user);
     }
@@ -259,13 +241,7 @@ public class UserService {
      *────────────────────────────*/
     @Transactional
     public void updateProfileImage(UUID userId, ProfileImageUpdateRequestDto dto) {
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND,
-                        "사용자를 찾을 수 없습니다."
-                ));
-
+        User user = userReader.getLoginAllowedUser(userId);
         userImageAppService.update(user, dto.getTmpKey());
     }
 
@@ -274,13 +250,7 @@ public class UserService {
      *────────────────────────────*/
     @Transactional
     public void deleteProfileImage(UUID userId) {
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND,
-                        "사용자를 찾을 수 없습니다."
-                ));
-
+        User user = userReader.getLoginAllowedUser(userId);
         userImageAppService.delete(user);
     }
 
@@ -290,7 +260,7 @@ public class UserService {
 
     // 회원 본인 정보 조회
     public UserResponseDto getCurrentUser(UUID userId) {
-        User user = findOne(userId);
+        User user = userReader.getUser(userId);
         return new UserResponseDto(user);
     }
 

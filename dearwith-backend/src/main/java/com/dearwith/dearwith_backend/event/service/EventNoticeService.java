@@ -16,7 +16,7 @@ import com.dearwith.dearwith_backend.event.repository.EventNoticeRepository;
 import com.dearwith.dearwith_backend.event.repository.EventRepository;
 import com.dearwith.dearwith_backend.notification.service.NotificationService;
 import com.dearwith.dearwith_backend.user.entity.User;
-import com.dearwith.dearwith_backend.user.repository.UserRepository;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,11 +35,11 @@ public class EventNoticeService {
 
     private final EventNoticeRepository eventNoticeRepository;
     private final EventRepository eventRepository;
-    private final UserRepository userRepository;
     private final AuthService authService;
     private final NotificationService notificationService;
     private final EventBookmarkRepository eventBookmarkRepository;
     private final ViewCountLimiter viewCountLimiter;
+    private final UserReader userReader;
 
     /*────────────────────────────
      | 개별 공지 조회
@@ -51,6 +51,10 @@ public class EventNoticeService {
                         ErrorCode.NOT_FOUND,
                         "해당 공지를 찾을 수 없습니다."
                 ));
+        if (userId == null){
+            userReader.getLoginAllowedUser(userId);
+        }
+
         if (userId != null &&
                 viewCountLimiter.shouldIncrease("EVENT_NOTICE", noticeId, userId)) {
 
@@ -75,14 +79,9 @@ public class EventNoticeService {
                         "이벤트를 찾을 수 없습니다."
                 ));
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND,
-                        "사용자를 찾을 수 없습니다."
-                ));
+        User user = userReader.getActiveUser(userId);
 
-        authService.validateOwner(event.getUser(), userId,
-                "이벤트 공지를 작성할 권한이 없습니다.");
+        authService.validateOwner(event.getUser(), user, "이벤트 공지를 작성할 권한이 없습니다.");
 
         EventNotice notice = EventNotice.builder()
                 .event(event)
@@ -126,6 +125,8 @@ public class EventNoticeService {
     @Transactional
     public void update(UUID userId, Long eventId, Long noticeId, EventNoticeRequestDto req) {
 
+        User user = userReader.getActiveUser(userId);
+
         EventNotice notice = eventNoticeRepository.findById(noticeId)
                 .orElseThrow(() -> BusinessException.withMessage(
                         ErrorCode.NOT_FOUND,
@@ -140,8 +141,7 @@ public class EventNoticeService {
             );
         }
 
-        authService.validateOwner(notice.getUser(), userId,
-                "이벤트 공지를 수정할 권한이 없습니다.");
+        authService.validateOwner(notice.getUser(), user, "이벤트 공지를 수정할 권한이 없습니다.");
 
         notice.update(req.title(), req.content());
     }
@@ -151,6 +151,7 @@ public class EventNoticeService {
      *────────────────────────────*/
     @Transactional
     public void delete(UUID userId, Long eventId, Long noticeId) {
+        User user = userReader.getLoginAllowedUser(userId);
 
         EventNotice notice = eventNoticeRepository.findById(noticeId)
                 .orElseThrow(() -> BusinessException.withMessage(
@@ -166,8 +167,7 @@ public class EventNoticeService {
             );
         }
 
-        authService.validateOwner(notice.getUser(), userId,
-                "이벤트 공지를 삭제할 권한이 없습니다.");
+        authService.validateOwner(notice.getUser(), user, "이벤트 공지를 삭제할 권한이 없습니다.");
 
         notice.softDelete();
     }
@@ -184,9 +184,15 @@ public class EventNoticeService {
                         "이벤트를 찾을 수 없습니다."
                 ));
 
-        boolean writable = (userId != null &&
-                event.getUser() != null &&
-                userId.equals(event.getUser().getId()));
+        boolean writable = false;
+
+        if (userId != null) {
+            User user = userReader.getActiveUser(userId);
+            writable = (event.getUser() != null
+                    && event.getUser().getId() != null
+                    && event.getUser().getId().equals(user.getId()));
+        }
+
 
         Page<EventNotice> page = eventNoticeRepository.findByEventId(eventId, pageable);
 

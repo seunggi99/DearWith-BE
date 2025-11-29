@@ -11,7 +11,7 @@ import com.dearwith.dearwith_backend.review.enums.ReviewStatus;
 import com.dearwith.dearwith_backend.review.repository.ReviewReportRepository;
 import com.dearwith.dearwith_backend.review.repository.ReviewRepository;
 import com.dearwith.dearwith_backend.user.entity.User;
-import com.dearwith.dearwith_backend.user.repository.UserRepository;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +25,8 @@ public class ReviewReportService {
     private static final int AUTO_HIDE_THRESHOLD = 5;
 
     private final ReviewRepository reviewRepository;
-    private final UserRepository userRepository;
     private final ReviewReportRepository reviewReportRepository;
+    private final UserReader userReader;
 
     @Transactional
     public ReviewReportResponseDto reportReview(Long reviewId, UUID userId, ReviewReportRequestDto req) {
@@ -44,17 +44,12 @@ public class ReviewReportService {
         /*----------------------------------------------------
          * 2) 신고 유저 조회
          *---------------------------------------------------*/
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessageAndDetail(
-                        ErrorCode.NOT_FOUND,
-                        "사용자를 찾을 수 없습니다.",
-                        "USER_NOT_FOUND"
-                ));
+        User user = userReader.getLoginAllowedUser(userId);
 
         /*----------------------------------------------------
          * 3) 중복 신고 방지
          *---------------------------------------------------*/
-        if (reviewReportRepository.existsByReviewIdAndUserId(reviewId, userId)) {
+        if (reviewReportRepository.existsByReviewIdAndUserId(reviewId, user.getId())) {
             throw BusinessException.withMessageAndDetail(
                     ErrorCode.ALREADY_REPORTED,
                     "이미 신고한 리뷰입니다.",

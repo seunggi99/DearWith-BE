@@ -11,6 +11,7 @@ import com.dearwith.dearwith_backend.notification.dto.UnreadExistsResponseDto;
 import com.dearwith.dearwith_backend.notification.entity.Notification;
 import com.dearwith.dearwith_backend.notification.enums.NotificationType;
 import com.dearwith.dearwith_backend.notification.repository.NotificationRepository;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +31,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final EventInfoAssembler eventInfoAssembler;
     private final EventRepository eventRepository;
+    private final UserReader userReader;
 
     private static final Pattern EVENT_NOTICE_PATTERN =
             Pattern.compile("/events/(\\d+)(?:#notice-(\\d+))?");
@@ -38,6 +40,11 @@ public class NotificationService {
        1) 안 읽은 알림 존재 여부
      ================================================================ */
     public UnreadExistsResponseDto hasUnread(UUID userId) {
+        if(userId == null){
+            return new UnreadExistsResponseDto(false,0L);
+        }
+        userReader.getLoginAllowedUser(userId);
+
         long count = notificationRepository.countByUserIdAndReadFalse(userId);
         return new UnreadExistsResponseDto(count > 0, count);
     }
@@ -46,6 +53,7 @@ public class NotificationService {
        2) 알림 목록 조회
      ================================================================ */
     public Page<NotificationResponseDto> getNotifications(UUID userId, boolean onlyUnread, Pageable pageable) {
+        userReader.getLoginAllowedUser(userId);
 
         Page<Notification> page = onlyUnread
                 ? notificationRepository.findByUserIdAndReadFalse(userId, pageable)
@@ -74,6 +82,7 @@ public class NotificationService {
      ================================================================ */
     @Transactional
     public void markAsRead(UUID userId, Long notificationId) {
+        userReader.getLoginAllowedUser(userId);
         Notification n = notificationRepository.findByIdAndUserId(notificationId, userId)
                 .orElseThrow(() -> BusinessException.withMessageAndDetail(
                         ErrorCode.NOT_FOUND,
@@ -92,6 +101,7 @@ public class NotificationService {
      ================================================================ */
     @Transactional
     public void markAllAsRead(UUID userId) {
+        userReader.getLoginAllowedUser(userId);
         List<Notification> list = notificationRepository.findByUserIdAndReadFalse(userId);
         LocalDateTime now = LocalDateTime.now();
 
@@ -106,6 +116,7 @@ public class NotificationService {
      ================================================================ */
     @Transactional
     public void deleteOne(UUID userId, Long notificationId) {
+        userReader.getLoginAllowedUser(userId);
         Notification n = notificationRepository.findByIdAndUserId(notificationId, userId)
                 .orElseThrow(() -> BusinessException.withMessageAndDetail(
                         ErrorCode.NOT_FOUND,
@@ -121,6 +132,7 @@ public class NotificationService {
      ================================================================ */
     @Transactional
     public void deleteAll(UUID userId, boolean onlyRead) {
+        userReader.getLoginAllowedUser(userId);
         if (onlyRead) {
             notificationRepository.deleteByUserIdAndReadTrue(userId);
         } else {

@@ -10,7 +10,6 @@ import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.assembler.EventInfoAssembler;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeInfoDto;
-import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.mapper.EventMapper;
@@ -19,6 +18,7 @@ import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantAssembler;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantProfile;
 import com.dearwith.dearwith_backend.image.entity.Image;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -47,6 +47,7 @@ public class EventQueryService {
     private final ArtistBookmarkRepository artistBookmarkRepository;
     private final ArtistGroupBookmarkRepository artistGroupBookmarkRepository;
     private final AssetUrlService assetUrlService;
+    private final UserReader userReader;
 
     /*──────────────────────────────────────────────
      | 메인페이지 추천 이벤트
@@ -64,16 +65,17 @@ public class EventQueryService {
             );
             return buildEventInfoList(fallback, null);
         }
+        UUID viewerId = normalizeUserId(userId);
 
-        List<Long> artistIds = artistBookmarkRepository.findArtistIdsByUserId(userId);
-        List<Long> groupIds  = artistGroupBookmarkRepository.findGroupIdsByUserId(userId);
+        List<Long> artistIds = artistBookmarkRepository.findArtistIdsByUserId(viewerId);
+        List<Long> groupIds  = artistGroupBookmarkRepository.findGroupIdsByUserId(viewerId);
 
         if (artistIds.isEmpty() && groupIds.isEmpty()) {
             List<Event> fallback = eventRepository.findGlobalRecommendedFallback(
                     today,
                     PageRequest.of(0, 10)
             );
-            return buildEventInfoList(fallback, userId);
+            return buildEventInfoList(fallback, viewerId);
         }
 
         if (artistIds.isEmpty()) artistIds = List.of(-1L);
@@ -104,7 +106,7 @@ public class EventQueryService {
                     .forEach(personalized::add);
         }
 
-        return buildEventInfoList(personalized, userId);
+        return buildEventInfoList(personalized, viewerId);
     }
 
     /*──────────────────────────────────────────────
@@ -112,6 +114,7 @@ public class EventQueryService {
      *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
     public List<EventInfoDto> getHotEvents(UUID userId) {
+        UUID viewerId = normalizeUserId(userId);
         List<EventInfoDto> hotEvents = hotEventService.getHotEvents(10);
 
         List<Long> ids = hotEvents.stream()
@@ -122,7 +125,7 @@ public class EventQueryService {
 
         List<Event> events = eventRepository.findAllById(ids);
 
-        return buildEventInfoList(events, userId);
+        return buildEventInfoList(events, viewerId);
     }
 
     /*──────────────────────────────────────────────
@@ -130,8 +133,9 @@ public class EventQueryService {
      *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
     public List<EventInfoDto> getNewEvents(UUID userId) {
+        UUID viewerId = normalizeUserId(userId);
         List<Event> events = eventRepository.findTop10ByOrderByCreatedAtDesc();
-        return buildEventInfoList(events, userId);
+        return buildEventInfoList(events, viewerId);
     }
 
     /*──────────────────────────────────────────────
@@ -139,6 +143,8 @@ public class EventQueryService {
      *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
     public EventResponseDto getEvent(Long eventId, UUID userId) {
+        UUID viewerId = normalizeUserId(userId);
+
         Event e = eventRepository.findById(eventId)
                 .orElseThrow(() -> BusinessException.withMessage(
                         ErrorCode.NOT_FOUND,
@@ -162,9 +168,9 @@ public class EventQueryService {
         List<EventNoticeInfoDto> notices =
                 eventNoticeService.getLatestNoticesForEvent(eventId);
 
-        boolean bookmarked = isBookmarked(eventId, userId);
+        boolean bookmarked = isBookmarked(eventId, viewerId);
 
-        hotEventService.onEventViewed(eventId, userId);
+        hotEventService.onEventViewed(eventId, viewerId);
 
         return mapper.toResponse(
                 e,
@@ -190,15 +196,16 @@ public class EventQueryService {
                     "EMPTY_QUERY"
             );
         }
+        UUID viewerId = normalizeUserId(userId);
 
         Page<Event> page = eventRepository.searchByTitle(query, pageable);
 
-        Set<Long> bookmarked = bookmarkedIds(userId, page);
+        Set<Long> bookmarked = bookmarkedIds(viewerId, page);
 
         return page.map(event ->
                 eventInfoAssembler.assemble(
                         event,
-                        userId == null ? null : bookmarked.contains(event.getId())
+                        viewerId == null ? null : bookmarked.contains(event.getId())
                 )
         );
     }
@@ -215,10 +222,11 @@ public class EventQueryService {
                     "아티스트를 찾을 수 없습니다."
             );
         }
+        UUID viewerId = normalizeUserId(userId);
 
         Page<Event> page = eventRepository.findPageByArtistId(artistId, pageable);
 
-        return buildEventInfoPageWithBatch(page, userId);
+        return buildEventInfoPageWithBatch(page, viewerId);
     }
 
     /*──────────────────────────────────────────────
@@ -232,10 +240,11 @@ public class EventQueryService {
                     "아티스트 그룹을 찾을 수 없습니다."
             );
         }
+        UUID viewerId = normalizeUserId(userId);
 
         Page<Event> page = eventRepository.findPageByGroup(groupId, pageable);
 
-        return buildEventInfoPageWithBatch(page, userId);
+        return buildEventInfoPageWithBatch(page, viewerId);
     }
 
     /*──────────────────────────────────────────────
@@ -361,5 +370,13 @@ public class EventQueryService {
                 })
                 .filter(Objects::nonNull)
                 .toList();
+    }
+
+    private UUID normalizeUserId(UUID userId) {
+        if (userId == null) {
+            return null;
+        }
+        // 정지/탈퇴 차단, 작성제한 허용
+        return userReader.getLoginAllowedUser(userId).getId();
     }
 }

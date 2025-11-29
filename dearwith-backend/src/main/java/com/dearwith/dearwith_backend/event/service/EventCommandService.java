@@ -9,11 +9,11 @@ import com.dearwith.dearwith_backend.common.dto.CreatedResponseDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
-import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventUpdateRequestDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.enums.BenefitType;
 import com.dearwith.dearwith_backend.event.enums.EventStatus;
+import com.dearwith.dearwith_backend.event.enums.EventType;
 import com.dearwith.dearwith_backend.event.mapper.EventMapper;
 import com.dearwith.dearwith_backend.event.repository.*;
 import com.dearwith.dearwith_backend.external.x.XVerifyPayload;
@@ -21,7 +21,7 @@ import com.dearwith.dearwith_backend.external.x.XVerifyTicketService;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentUpdateRequestDto;
 import com.dearwith.dearwith_backend.user.entity.User;
-import com.dearwith.dearwith_backend.user.repository.UserRepository;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -47,11 +47,10 @@ public class EventCommandService {
     private final ArtistService artistService;
     private final XVerifyTicketService xVerifyTicketService;
     private final AuthService authService;
-    private final UserRepository userRepository;
     private final EventImageAppService eventImageAppService;
     private final EventBookmarkRepository eventBookmarkRepository;
     private final EventNoticeRepository eventNoticeRepository;
-    private final EventQueryService eventQueryService;
+    private final UserReader userReader;
 
     @PersistenceContext
     private final EntityManager em;
@@ -62,17 +61,13 @@ public class EventCommandService {
     @Transactional
     public CreatedResponseDto create(UUID userId, EventCreateRequestDto req) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND,
-                        "존재하지 않는 사용자입니다."
-                ));
+        User user = userReader.getActiveUser(userId);
 
         // 0) X 인증 티켓 확인/소모
         XVerifyPayload xPayload = null;
         if (req.organizer().xTicket() != null && !req.organizer().xTicket().isBlank()) {
             try {
-                xPayload = xVerifyTicketService.confirmAndConsume(req.organizer().xTicket(), userId);
+                xPayload = xVerifyTicketService.confirmAndConsume(req.organizer().xTicket(), user.getId());
             } catch (BusinessException e) {
                 throw e;
             } catch (Exception e) {
@@ -87,7 +82,7 @@ public class EventCommandService {
         }
 
         // 1) Event 매핑 + 날짜 검증 (USER 오류)
-        Event event = mapper.toEvent(userId, req);
+        Event event = mapper.toEvent(user.getId(), req);
         if (event.getStartDate() == null) {
             throw BusinessException.of(ErrorCode.EVENT_START_REQUIRED);
         }
@@ -129,6 +124,7 @@ public class EventCommandService {
             status = EventStatus.ENDED;
         }
         event.setStatus(status);
+        event.setEventType(EventType.BIRTHDAY_CAFE);
 
         // 1-1) Organizer X 인증 정보
         if (xPayload != null) {
@@ -275,11 +271,11 @@ public class EventCommandService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> BusinessException.withMessage(
                         ErrorCode.NOT_FOUND,
-                        "존재하지 않는 이벤트입니다."
+                        "이벤트를 찾을 수 없습니다."
                 ));
 
-        // 권한 체크: USER / SECURITY 영역
-        authService.validateOwner(event.getUser(), userId, "이벤트 수정 권한이 없습니다.");
+        User user = userReader.getActiveUser(userId);
+        authService.validateOwner(event.getUser(), user, "이벤트 수정 권한이 없습니다.");
 
         // 1) 기본 필드 업데이트 (null 이면 변경 안 함)
         if (req.title() != null) {
@@ -448,7 +444,7 @@ public class EventCommandService {
                         .map(d -> new ImageAttachmentUpdateRequestDto(d.id(), d.tmpKey(), d.displayOrder()))
                         .toList();
 
-                eventImageAppService.update(event, imageReqs, userId);
+                eventImageAppService.update(event, imageReqs, user.getId());
             }
         }
 
@@ -487,14 +483,15 @@ public class EventCommandService {
      *──────────────────────────────────────────────*/
     @Transactional
     public void delete(Long eventId, UUID userId) {
-        // USER 오류: 없는 이벤트
+        User user = userReader.getLoginAllowedUser(userId);
+
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> BusinessException.withMessage(
                         ErrorCode.NOT_FOUND,
-                        "존재하지 않는 이벤트입니다."
+                        "이벤트를 찾을 수 없습니다."
                 ));
 
-        authService.validateOwner(event.getUser(), userId, "이벤트 삭제 권한이 없습니다.");
+        authService.validateOwner(event.getUser(), user, "이벤트 삭제 권한이 없습니다.");
 
         // 1) 이벤트 이미지 삭제(+ 고아 이미지 soft delete)
         eventImageAppService.deleteAll(eventId);

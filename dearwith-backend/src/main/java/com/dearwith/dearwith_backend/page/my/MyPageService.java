@@ -1,14 +1,12 @@
 package com.dearwith.dearwith_backend.page.my;
 
-import com.dearwith.dearwith_backend.common.exception.BusinessException;
-import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.user.entity.User;
-import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import com.dearwith.dearwith_backend.event.repository.EventBookmarkRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistBookmarkRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupBookmarkRepository;
 import com.dearwith.dearwith_backend.review.repository.ReviewRepository;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,21 +18,17 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class MyPageService {
 
-    private final UserRepository userRepository;
     private final EventBookmarkRepository eventBookmarkRepository;
     private final ArtistBookmarkRepository artistBookmarkRepository;
     private final ArtistGroupBookmarkRepository artistGroupBookmarkRepository;
     private final ReviewRepository reviewRepository;
     private final AssetUrlService assetUrlService;
+    private final UserReader userReader;
 
     @Transactional(readOnly = true)
     public MyPageResponseDto getMyPage(UUID userId) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND,
-                        "사용자를 찾을 수 없습니다."
-                ));
+        User user = userReader.getLoginAllowedUser(userId);
 
         /* 프로필 */
         String profileImageUrl = null;
@@ -48,9 +42,9 @@ public class MyPageService {
                 .build();
 
         /* 통계 */
-        long eventBookmarkCount  = eventBookmarkRepository.countByUserId(userId);
-        long artistBookmarkCount = artistBookmarkRepository.countByUserId(userId) + artistGroupBookmarkRepository.countByUserId(userId);
-        long reviewCount = reviewRepository.countByUserId(userId);
+        long eventBookmarkCount  = eventBookmarkRepository.countByUserId(user.getId());
+        long artistBookmarkCount = artistBookmarkRepository.countByUserId(user.getId()) + artistGroupBookmarkRepository.countByUserId(user.getId());
+        long reviewCount = reviewRepository.countByUserId(user.getId());
 
         MyPageResponseDto.Stats stats = MyPageResponseDto.Stats.builder()
                 .eventBookmarkCount(eventBookmarkCount)
@@ -69,27 +63,5 @@ public class MyPageService {
                 .stats(stats)
                 .notifications(notifications)
                 .build();
-    }
-
-    @Transactional
-    public boolean updateEventNotification(UUID userId, boolean enabled) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다."
-                ));
-
-        user.updateEventNotification(enabled);
-        return user.isEventNotificationEnabled();
-    }
-
-    @Transactional
-    public boolean updateServiceNotification(UUID userId, boolean enabled) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다."
-                ));
-
-        user.updateServiceNotification(enabled);
-        return user.isServiceNotificationEnabled();
     }
 }

@@ -20,7 +20,7 @@ import com.dearwith.dearwith_backend.review.repository.ReviewImageMappingReposit
 import com.dearwith.dearwith_backend.review.repository.ReviewLikeRepository;
 import com.dearwith.dearwith_backend.review.repository.ReviewRepository;
 import com.dearwith.dearwith_backend.user.entity.User;
-import com.dearwith.dearwith_backend.user.repository.UserRepository;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -38,7 +38,6 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final EventRepository eventRepository;
-    private final UserRepository userRepository;
     private final ReviewImageMappingRepository reviewImageMappingRepository;
     private final ReviewLikeRepository reviewLikeRepository;
     private final ReviewImageAppService reviewImageAppService;
@@ -46,6 +45,7 @@ public class ReviewService {
     private final HotEventService hotEventService;
     private final ImageVariantAssembler imageVariantAssembler;
     private final AssetUrlService assetUrlService;
+    private final UserReader userReader;
 
     /*──────────────────────────────────────────────
      | 1. 리뷰 생성
@@ -56,12 +56,7 @@ public class ReviewService {
         String normalizedContent = Normalizer.normalize(req.content().trim(), Normalizer.Form.NFC);
 
         // 1) 유저, 이벤트 조회
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessageAndDetail(
-                        ErrorCode.NOT_FOUND,
-                        "사용자를 찾을 수 없습니다.",
-                        "USER_NOT_FOUND"
-                ));
+        User user = userReader.getActiveUser(userId);
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> BusinessException.withMessageAndDetail(
@@ -151,6 +146,7 @@ public class ReviewService {
 
         Set<Long> likedIdSet = Collections.emptySet();
         if (userId != null) {
+            userReader.getLoginAllowedUser(userId);
             likedIdSet = new HashSet<>(reviewLikeRepository.findLikedReviewIds(userId, orderedIds));
         }
 
@@ -239,12 +235,7 @@ public class ReviewService {
                         "REVIEW_NOT_FOUND"
                 ));
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessageAndDetail(
-                        ErrorCode.NOT_FOUND,
-                        "사용자를 찾을 수 없습니다.",
-                        "USER_NOT_FOUND"
-                ));
+        User user = userReader.getLoginAllowedUser(userId);
 
         try {
             reviewLikeRepository.save(
@@ -276,6 +267,7 @@ public class ReviewService {
      *──────────────────────────────────────────────*/
     @Transactional
     public ReviewLikeResponseDto unlike(Long reviewId, UUID userId) {
+        userReader.getLoginAllowedUser(userId);
         ReviewLike like = reviewLikeRepository.findByReviewIdAndUserId(reviewId, userId)
                 .orElseThrow(() -> BusinessException.withMessageAndDetail(
                         ErrorCode.NOT_FOUND,
@@ -300,6 +292,7 @@ public class ReviewService {
      *──────────────────────────────────────────────*/
     @Transactional
     public void update(UUID userId, Long reviewId, ReviewUpdateRequestDto req) {
+        User user = userReader.getActiveUser(userId);
         Review review = reviewRepository.findByIdAndUserIdWithTags(reviewId, userId)
                 .orElseThrow(() -> BusinessException.withMessageAndDetail(
                         ErrorCode.NOT_FOUND,
@@ -307,7 +300,7 @@ public class ReviewService {
                         "REVIEW_NOT_FOUND_OR_NOT_OWNER"
                 ));
 
-        authService.validateOwner(review.getUser(), userId, "리뷰를 수정할 권한이 없습니다.");
+        authService.validateOwner(review.getUser(), user, "리뷰를 수정할 권한이 없습니다.");
 
         // 1) content
         if (req.content() != null) {
@@ -354,6 +347,7 @@ public class ReviewService {
      *──────────────────────────────────────────────*/
     @Transactional
     public void delete(Long reviewId, UUID userId) {
+        User user = userReader.getLoginAllowedUser(userId);
         Review review = reviewRepository.findByIdAndUserId(reviewId, userId)
                 .orElseThrow(() -> BusinessException.withMessageAndDetail(
                         ErrorCode.NOT_FOUND,
@@ -361,7 +355,7 @@ public class ReviewService {
                         "REVIEW_NOT_FOUND_OR_NOT_OWNER"
                 ));
 
-        authService.validateOwner(review.getUser(), userId, "리뷰를 삭제할 권한이 없습니다.");
+        authService.validateOwner(review.getUser(), user, "리뷰를 삭제할 권한이 없습니다.");
 
         if (review.getTags() != null && !review.getTags().isEmpty()) {
             review.getTags().clear();
@@ -387,12 +381,18 @@ public class ReviewService {
         Review r = reviewRepository.findWithUserById(reviewId)
                 .orElseThrow(() -> BusinessException.withMessage(ErrorCode.NOT_FOUND,"리뷰를 찾을 수 없습니다."));
 
-        boolean liked = (userId != null)
-                && reviewLikeRepository.existsByReviewIdAndUserId(reviewId, userId);
 
-        boolean editable = (userId != null)
+        User viewer = null;
+        if (userId != null) {
+            viewer = userReader.getLoginAllowedUser(userId);
+        }
+
+        boolean liked = (viewer != null)
+                && reviewLikeRepository.existsByReviewIdAndUserId(reviewId, viewer.getId());
+
+        boolean editable = (viewer != null)
                 && r.getUser() != null
-                && userId.equals(r.getUser().getId());
+                && viewer.getId().equals(r.getUser().getId());
 
         return EventReviewDetailResponseDto.builder()
                 .id(r.getId())

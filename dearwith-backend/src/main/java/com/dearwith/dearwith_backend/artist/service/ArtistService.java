@@ -15,6 +15,7 @@ import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.common.utill.KoreanRomanizer;
 import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.user.entity.User;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,7 @@ public class ArtistService {
     private final ArtistGroupMappingRepository mappingRepository;
     private final ArtistImageAppService artistImageService;
     private final AssetUrlService assetUrlService;
+    private final UserReader userReader;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -59,7 +61,6 @@ public class ArtistService {
        ============================================================ */
     @Transactional
     public CreatedResponseDto create(UUID userId, ArtistCreateRequestDto req) {
-
         if (req.nameKr() == null || req.nameKr().trim().isEmpty()) {
             throw BusinessException.withMessageAndDetail(
                     ErrorCode.INVALID_INPUT,
@@ -68,8 +69,9 @@ public class ArtistService {
             );
         }
 
-        final String nameKr = req.nameKr().trim();
+        User user = userReader.getActiveUser(userId);
 
+        final String nameKr = req.nameKr().trim();
         final String nameEn = KoreanRomanizer.toLatin(nameKr);
 
         // 생일 포맷 검증
@@ -86,24 +88,12 @@ public class ArtistService {
             );
         }
 
-        // 작성자 FK (프록시)
-        User creatorRef;
-        try {
-            creatorRef = entityManager.getReference(User.class, userId);
-        } catch (Exception e) {
-            throw BusinessException.withMessageAndDetail(
-                    ErrorCode.NOT_FOUND,
-                    "사용자를 찾을 수 없습니다.",
-                    "USER_NOT_FOUND:" + userId
-            );
-        }
-
         // 엔티티 생성
         Artist artist = Artist.builder()
                 .nameKr(nameKr)
                 .nameEn(nameEn)
                 .birthDate(birth)
-                .user(creatorRef)
+                .user(user)
                 .build();
 
         // 프로필 이미지 TMP → inline → Image 등록
@@ -115,7 +105,7 @@ public class ArtistService {
                         req.imageTmpKey()
                 );
             }
-            artistImageService.create(artist, req.imageTmpKey(), creatorRef);
+            artistImageService.create(artist, req.imageTmpKey(), user);
         }
 
         // 저장

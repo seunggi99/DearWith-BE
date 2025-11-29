@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.search.service;
 
 import com.dearwith.dearwith_backend.search.util.QueryNormalizer;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -15,6 +16,7 @@ import java.util.UUID;
 public class RecentSearchService {
     private final StringRedisTemplate redis;
     private final QueryNormalizer normalizer;
+    private final UserReader userReader;
 
     @Value("${app.search.recent.ttl-days:7}")
     private int ttlDays;
@@ -24,6 +26,7 @@ public class RecentSearchService {
     }
 
     public void add(UUID userId, String rawQuery) {
+        userReader.getLoginAllowedUser(userId);
         String q = normalizer.normalize(rawQuery);
         if (q.isBlank()) return;
 
@@ -43,6 +46,7 @@ public class RecentSearchService {
 
     /** 전체 조회(최신 → 과거) */
     public List<String> list(UUID userId) {
+        userReader.getLoginAllowedUser(userId);
         String key = key(userId);
         List<String> all = redis.opsForList().range(key, 0, -1);
         return all == null ? List.of() : all;
@@ -50,6 +54,7 @@ public class RecentSearchService {
 
     /** 특정 검색어 삭제 */
     public void remove(UUID userId, String rawQuery) {
+        userReader.getLoginAllowedUser(userId);
         String q = normalizer.normalize(rawQuery);
         if (q.isBlank()) return;
         String key = key(userId);
@@ -60,6 +65,7 @@ public class RecentSearchService {
 
     /** 전체 삭제 */
     public void clear(UUID userId) {
+        userReader.getLoginAllowedUser(userId);
         try {
             redis.delete(key(userId));
         } catch (Exception ignored) {}

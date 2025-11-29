@@ -11,7 +11,7 @@ import com.dearwith.dearwith_backend.event.enums.EventStatus;
 import com.dearwith.dearwith_backend.event.repository.EventBookmarkRepository;
 import com.dearwith.dearwith_backend.event.repository.EventRepository;
 import com.dearwith.dearwith_backend.user.entity.User;
-import com.dearwith.dearwith_backend.user.repository.UserRepository;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
@@ -26,9 +26,9 @@ public class EventBookmarkService {
 
     private final EventRepository eventRepository;
     private final EventBookmarkRepository eventBookmarkRepository;
-    private final UserRepository userRepository;
     private final HotEventService hotEventService;
     private final EventInfoAssembler eventInfoAssembler;
+    private final UserReader userReader;
 
     /*──────────────────────────────────────────────
      | 1. 북마크 추가
@@ -39,14 +39,10 @@ public class EventBookmarkService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> BusinessException.withMessage(
                         ErrorCode.NOT_FOUND,
-                        "존재하지 않는 이벤트입니다."
+                        "이벤트를 찾을 수 없습니다."
                 ));
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessage(
-                        ErrorCode.NOT_FOUND,
-                        "존재하지 않는 사용자입니다."
-                ));
+        User user = userReader.getLoginAllowedUser(userId);
 
         try {
             eventBookmarkRepository.save(EventBookmark.builder()
@@ -82,8 +78,10 @@ public class EventBookmarkService {
     @Transactional
     public EventBookmarkResponseDto removeBookmark(Long eventId, UUID userId) {
 
+        User user = userReader.getLoginAllowedUser(userId);
+
         EventBookmark bookmark = eventBookmarkRepository
-                .findByEventIdAndUserId(eventId, userId)
+                .findByEventIdAndUserId(eventId, user.getId())
                 .orElseThrow(() -> BusinessException.withMessage(
                         ErrorCode.BOOKMARK_NOT_FOUND,
                         "이미 찜하지 않은 이벤트입니다."
@@ -111,6 +109,8 @@ public class EventBookmarkService {
     @Transactional(readOnly = true)
     public Page<EventInfoDto> getBookmarkedEvents(UUID userId, String state, Pageable pageable) {
 
+        User user = userReader.getLoginAllowedUser(userId);
+
         EventStatus statusFilter = null;
 
         if (state != null) {
@@ -133,8 +133,8 @@ public class EventBookmarkService {
 
         Page<EventBookmark> bookmarks =
                 (statusFilter != null)
-                        ? eventBookmarkRepository.findByUserIdAndEvent_Status(userId, statusFilter, sortedPageable)
-                        : eventBookmarkRepository.findByUserId(userId, sortedPageable);
+                        ? eventBookmarkRepository.findByUserIdAndEvent_Status(user.getId(), statusFilter, sortedPageable)
+                        : eventBookmarkRepository.findByUserId(user.getId(), sortedPageable);
 
         return bookmarks.map(bookmark -> {
             Event event = bookmark.getEvent();

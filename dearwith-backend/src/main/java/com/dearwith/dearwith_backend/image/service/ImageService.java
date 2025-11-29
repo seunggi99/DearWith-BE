@@ -2,11 +2,11 @@ package com.dearwith.dearwith_backend.image.service;
 
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
-import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.image.repository.ImageRepository;
 import com.dearwith.dearwith_backend.image.enums.ImageStatus;
-import com.dearwith.dearwith_backend.user.repository.UserRepository;
+import com.dearwith.dearwith_backend.user.entity.User;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -21,17 +21,11 @@ public class ImageService {
 
     private final ImageRepository imageRepository;
     private final ImageAssetService imageAssetService;
-    private final AssetUrlService assetUrlService;
-    private final UserRepository userRepository;
+    private final UserReader userReader;
 
     @Transactional
     public Image registerCommittedImage(String finalKey, UUID userId) {
-        var user = userRepository.findById(userId)
-                .orElseThrow(() -> BusinessException.withMessageAndDetail(
-                        ErrorCode.NOT_FOUND,
-                        "존재하지 않는 사용자입니다.",
-                        "USER_NOT_FOUND"
-                ));
+        User user = userReader.getUser(userId);
 
         Image image = Image.builder()
                 .s3Key(finalKey)

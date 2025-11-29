@@ -13,9 +13,8 @@ import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import com.dearwith.dearwith_backend.user.dto.SignInRequestDto;
 import com.dearwith.dearwith_backend.user.dto.SignInResponseDto;
-import com.dearwith.dearwith_backend.user.enums.UserStatus;
-import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import com.dearwith.dearwith_backend.user.service.SocialAccountService;
+import com.dearwith.dearwith_backend.user.service.UserReader;
 import com.dearwith.dearwith_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -38,7 +37,7 @@ public class AuthService {
     private final KakaoAuthService kakaoAuthService;
     private final AppleTokenClient appleTokenClient;
     private final AppleIdTokenVerifier appleIdTokenVerifier;
-    private final UserRepository userRepository;
+    private final UserReader userReader;
 
 
     /*──────────────────────────────────────────────
@@ -58,7 +57,7 @@ public class AuthService {
         }
 
         User user = userService.findByEmail(request.getEmail());
-        ensureNotDeleted(user);
+        userReader.getLoginAllowedUser(user.getId());
         TokenCreateRequestDto tokenDTO = toTokenDto(user);
 
         String token = jwtTokenProvider.generateToken(tokenDTO);
@@ -132,7 +131,7 @@ public class AuthService {
         /* 기존 계정 있음 → 바로 로그인 처리 */
         if (existing.isPresent()) {
             User user = existing.get().getUser();
-            ensureNotDeleted(user);
+            userReader.getLoginAllowedUser(user.getId());
             userService.updateLastLoginAt(user);
 
             TokenCreateRequestDto tokenDTO = toTokenDto(user);
@@ -220,7 +219,7 @@ public class AuthService {
             if (existing.isPresent()) {
                 // (4-1) 기존 회원 로그인 처리
                 User user = existing.get().getUser();
-                ensureNotDeleted(user);
+                userReader.getLoginAllowedUser(user.getId());
                 userService.updateLastLoginAt(user);
 
                 TokenCreateRequestDto tokenDTO = toTokenDto(user);
@@ -282,7 +281,7 @@ public class AuthService {
 
         }
 
-        User user = userService.findOne(userId);
+        User user = userReader.getLoginAllowedUser(userId);
 
         if (!jwtTokenProvider.validateToken(refreshToken, user.getId())) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
@@ -333,39 +332,25 @@ public class AuthService {
                 .build();
     }
 
-    private void ensureNotDeleted(User user) {
-        if (user.getDeletedAt() != null) {
-            throw BusinessException.of(
-                    ErrorCode.USER_DELETED
-            );
-        }
-
-        if (user.getUserStatus() == UserStatus.SUSPENDED) {
-            throw BusinessException.of(
-                    ErrorCode.USER_SUSPENDED
-            );
-        }
-    }
-
     /*──────────────────────────────────────────────
      | 6. Owner 검증
      *──────────────────────────────────────────────*/
+// 변경 후
     @Transactional(readOnly = true)
-    public void validateOwner(User owner, UUID userId, String message) {
+    public void validateOwner(User owner, User requester, String message) {
 
-        User requester = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        BusinessException.withMessage(
-                                ErrorCode.NOT_FOUND,
-                                "존재하지 않는 사용자입니다."
-                        )
-                );
+        if (requester == null) {
+            throw BusinessException.withMessage(
+                    ErrorCode.NOT_FOUND,
+                    "존재하지 않는 사용자입니다."
+            );
+        }
 
         if (requester.isAdmin()) {
             return;
         }
 
-        if (owner == null || owner.getId() == null || !owner.getId().equals(userId)) {
+        if (owner == null || owner.getId() == null || !owner.getId().equals(requester.getId())) {
             throw BusinessException.withMessage(
                     ErrorCode.UNAUTHORIZED,
                     message != null ? message : "권한이 없습니다."

@@ -1,10 +1,15 @@
 package com.dearwith.dearwith_backend.common.exception;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
+
+import java.util.Map;
 
 @Getter
 public class BusinessException extends RuntimeException {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final ErrorCode errorCode;
 
     /**
@@ -55,5 +60,32 @@ public class BusinessException extends RuntimeException {
     // 4) 서버 로그용까지
     public static BusinessException withAll(ErrorCode errorCode, String userMessage, String detail, String logDetail, Throwable cause) {
         return new BusinessException(errorCode, userMessage, detail, logDetail, cause);
+    }
+
+
+    /** ⭐ 추가: detail 에 Map을 넣고 싶을 때 (JSON으로 변환) */
+    public static BusinessException withDetailMap(
+            ErrorCode errorCode,
+            String userMessage,
+            Map<String, Object> detailMap
+    ) {
+        String jsonDetail = convertToJson(detailMap);
+        return new BusinessException(
+                errorCode,
+                userMessage,
+                jsonDetail,  // 프론트 개발용 detail(JSON)
+                null,
+                null
+        );
+    }
+
+
+    private static String convertToJson(Map<String, Object> map) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(map);
+        } catch (JsonProcessingException e) {
+            // JSON 변환 실패 시, 그래도 안전하게 문자열 형태로 바로 넣어준다.
+            return map.toString();
+        }
     }
 }

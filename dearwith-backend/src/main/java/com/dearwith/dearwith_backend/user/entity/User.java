@@ -11,8 +11,8 @@ import lombok.*;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
-import org.hibernate.annotations.Where;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -58,6 +58,9 @@ public class User extends BaseDeletableEntity {
 
     @Builder.Default
     private boolean serviceNotificationEnabled = true; // 서비스/공지 관련 알림
+
+    String suspendedReason;        // 정지 사유
+    LocalDate suspendedUntil;  // 정지 종료일 (null이면 무기한)
 
     public void updateNickname(String newNickname) {
         this.nickname = newNickname;
