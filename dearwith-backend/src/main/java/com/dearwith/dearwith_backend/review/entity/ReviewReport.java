@@ -13,13 +13,21 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(
+        name = "review_report",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_review_report",
+                        columnNames = {"review_id", "reporter_id"}
+                )
+        }
+)
 public class ReviewReport extends BaseTimeEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "review_id", foreignKey = @ForeignKey(name="fk_report_review"))
     private Review review;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

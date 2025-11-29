@@ -16,11 +16,10 @@ public class Agreement extends BaseTimeEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")   // FK 컬럼명
     private User user;
 
     @Enumerated(EnumType.STRING)
-    private AgreementType type;     // 어떤 약관에 동의했는지
+    private AgreementType type;
 
     @Column(nullable = false)
     private boolean agreed;

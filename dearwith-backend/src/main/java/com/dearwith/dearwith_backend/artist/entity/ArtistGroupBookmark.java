@@ -13,14 +13,23 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(
+        name = "artist_group_bookmark",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_artist_group_bookmark_user",
+                        columnNames = {"artist_group_id", "user_id"}
+                )
+        }
+)
 public class ArtistGroupBookmark extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private ArtistGroup artistGroup;
 }

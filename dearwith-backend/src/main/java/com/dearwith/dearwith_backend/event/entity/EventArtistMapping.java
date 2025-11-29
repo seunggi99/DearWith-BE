@@ -6,24 +6,27 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(
-        name = "event_artist_mapping",
-        uniqueConstraints = @UniqueConstraint(name = "uk_event_artist", columnNames = {"event_id", "artist_id"})
-)
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(
+        name = "event_artist_mapping",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_event_artist",
+                        columnNames = {"event_id", "artist_id"}
+                )
+        }
+)
 public class EventArtistMapping extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "artist_id", nullable = false)
     private Artist artist;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 }

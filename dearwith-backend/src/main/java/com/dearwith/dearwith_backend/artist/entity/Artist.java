@@ -27,13 +27,11 @@ public class Artist extends BaseDeletableEntity {
     private Long bookmarkCount = 0L;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
-    @JoinColumn(name = "profile_image_id", foreignKey = @ForeignKey(name = "fk_artist_profile_image"))
     private Image profileImage;
 
     private LocalDate birthDate; // 아티스트 생년월일
     private LocalDate debutDate;   // 활동 시작일
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id")
     private User user;
 }

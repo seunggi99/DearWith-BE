@@ -49,7 +49,7 @@ public class ReviewReportService {
         /*----------------------------------------------------
          * 3) 중복 신고 방지
          *---------------------------------------------------*/
-        if (reviewReportRepository.existsByReviewIdAndUserId(reviewId, user.getId())) {
+        if (reviewReportRepository.existsByReviewIdAndReporter_Id(reviewId, user.getId())) {
             throw BusinessException.withMessageAndDetail(
                     ErrorCode.ALREADY_REPORTED,
                     "이미 신고한 리뷰입니다.",
@@ -62,7 +62,7 @@ public class ReviewReportService {
          *---------------------------------------------------*/
         ReviewReport report = ReviewReport.builder()
                 .review(review)
-                .user(user)
+                .reporter(user)
                 .reason(req.reason())
                 .content(req.content())
                 .status(ReviewReportStatus.PENDING)

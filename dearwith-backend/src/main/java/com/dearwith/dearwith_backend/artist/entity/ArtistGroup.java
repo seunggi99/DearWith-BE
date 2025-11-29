@@ -28,12 +28,10 @@ public class ArtistGroup extends BaseDeletableEntity {
     private Long bookmarkCount = 0L;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
-    @JoinColumn(name = "profile_image_id", foreignKey = @ForeignKey(name = "fk_artistGroup_profile_image"))
     private Image profileImage;
 
     private LocalDate debutDate;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id")
     private User user;
 }

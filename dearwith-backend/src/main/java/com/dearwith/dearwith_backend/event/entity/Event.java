@@ -31,7 +31,6 @@ public class Event extends BaseDeletableEntity {
     private List<EventImageMapping> images = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cover_image_id")
     private Image coverImage;
 
     @Embedded
@@ -65,7 +64,6 @@ public class Event extends BaseDeletableEntity {
     private EventStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id")
     private User user;
 
     @Embedded

@@ -18,7 +18,6 @@ public class SocialAccount extends BaseTimeEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
     private User user;
 
     @Enumerated(EnumType.STRING)

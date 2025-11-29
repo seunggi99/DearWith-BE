@@ -27,11 +27,9 @@ public class Review extends BaseDeletableEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_review_user"))
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "event_id", foreignKey = @ForeignKey(name = "fk_review_event"))
     private Event event;
 
     private String content;

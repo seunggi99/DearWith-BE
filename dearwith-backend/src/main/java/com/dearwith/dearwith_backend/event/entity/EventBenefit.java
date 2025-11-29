@@ -25,7 +25,6 @@ public class EventBenefit extends BaseTimeEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
     @Column(length = 100, nullable = false)

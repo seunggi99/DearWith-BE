@@ -13,14 +13,23 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(
+        name = "event_bookmark",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_event_bookmark",
+                        columnNames = {"event_id", "user_id"}
+                )
+        }
+)
 public class EventBookmark extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private Event event;
 }

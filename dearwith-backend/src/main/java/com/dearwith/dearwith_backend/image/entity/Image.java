@@ -28,7 +28,6 @@ public class Image extends BaseDeletableEntity {
     private ImageStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id")
     private User user;
 
 }

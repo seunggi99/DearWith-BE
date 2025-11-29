@@ -15,7 +15,12 @@ import static jakarta.persistence.FetchType.LAZY;
 @Builder
 @Table(
         name = "review_like",
-        uniqueConstraints = @UniqueConstraint(name = "uk_review_like_review_user", columnNames = {"review_id", "user_id"})
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_review_like",
+                        columnNames = {"review_id", "user_id"}
+                )
+        }
 )
 public class ReviewLike extends BaseTimeEntity {
 
@@ -24,10 +29,8 @@ public class ReviewLike extends BaseTimeEntity {
     private Long id;
 
     @ManyToOne(fetch = LAZY, optional = false)
-    @JoinColumn(name = "review_id", foreignKey = @ForeignKey(name = "fk_like_review"))
     private Review review;
 
     @ManyToOne(fetch = LAZY, optional = false)
-    @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_like_user"))
     private User user;
 }

@@ -20,10 +20,9 @@ public class Banner extends BaseDeletableEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "image_id")
     private Image image;
 
-    @Column(name = "display_order", nullable = false)
+    @Column(nullable = false)
     private Integer displayOrder;
 
 }

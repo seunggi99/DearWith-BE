@@ -35,7 +35,6 @@ public class User extends BaseDeletableEntity {
     private String nickname;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
-    @JoinColumn(name = "profile_image_id", foreignKey = @ForeignKey(name = "fk_user_profile_image"))
     private Image profileImage;
 
     private LocalDateTime lastLoginAt;

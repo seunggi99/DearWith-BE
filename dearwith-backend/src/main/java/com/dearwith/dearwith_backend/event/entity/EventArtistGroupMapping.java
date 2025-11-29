@@ -11,16 +11,23 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(
+        name = "event_artist_group_mapping",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_event_artist_group",
+                        columnNames = {"event_id", "artist_group_id"}
+                )
+        }
+)
 public class EventArtistGroupMapping extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "group_id", nullable = false)
     private ArtistGroup artistGroup;
 }

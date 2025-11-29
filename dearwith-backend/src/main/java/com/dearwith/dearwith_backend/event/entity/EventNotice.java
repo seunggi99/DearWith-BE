@@ -24,7 +24,6 @@ public class EventNotice extends BaseDeletableEntity {
     private Long id;
 
     @ManyToOne(fetch = LAZY, optional = false)
-    @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
     @ManyToOne(fetch = LAZY)
