@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.review.entity;
 
-import com.dearwith.dearwith_backend.common.jpa.BaseTimeEntity;
+import com.dearwith.dearwith_backend.common.jpa.BaseAuditableEntity;
 import com.dearwith.dearwith_backend.review.enums.ReviewReportReason;
 import com.dearwith.dearwith_backend.review.enums.ReviewReportStatus;
 import com.dearwith.dearwith_backend.user.entity.User;
@@ -22,7 +22,7 @@ import lombok.*;
                 )
         }
 )
-public class ReviewReport extends BaseTimeEntity {
+public class ReviewReport extends BaseAuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -31,8 +31,10 @@ public class ReviewReport extends BaseTimeEntity {
     private Review review;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "reporter_id", foreignKey = @ForeignKey(name="fk_report_user"))
-    private User user;
+    private User reporter;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    private User handler;
 
     @Column(length = 1000)
     private String content;

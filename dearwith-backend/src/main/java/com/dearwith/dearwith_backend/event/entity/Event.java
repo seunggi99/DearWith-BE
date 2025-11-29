@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.event.entity;
 
-import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
+import com.dearwith.dearwith_backend.common.jpa.BaseAuditableEntity;
 import com.dearwith.dearwith_backend.event.enums.EventStatus;
 import com.dearwith.dearwith_backend.event.enums.EventType;
 import com.dearwith.dearwith_backend.image.entity.Image;
@@ -18,7 +18,7 @@ import java.util.List;
 @Where(clause = "deleted_at IS NULL")
 @Setter
 @Getter @NoArgsConstructor @AllArgsConstructor @Builder
-public class Event extends BaseDeletableEntity {
+public class Event extends BaseAuditableEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 

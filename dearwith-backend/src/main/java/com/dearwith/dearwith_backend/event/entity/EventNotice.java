@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.event.entity;
 
-import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
+import com.dearwith.dearwith_backend.common.jpa.BaseAuditableEntity;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -17,7 +17,7 @@ import static jakarta.persistence.FetchType.LAZY;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder(toBuilder = true)
-public class EventNotice extends BaseDeletableEntity {
+public class EventNotice extends BaseAuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

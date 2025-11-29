@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.artist.entity;
 
-import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
+import com.dearwith.dearwith_backend.common.jpa.BaseAuditableEntity;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
@@ -15,7 +15,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ArtistGroup extends BaseDeletableEntity {
+public class ArtistGroup extends BaseAuditableEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

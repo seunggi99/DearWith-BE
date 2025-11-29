@@ -2,7 +2,7 @@ package com.dearwith.dearwith_backend.review.entity;
 
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
-import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
+import com.dearwith.dearwith_backend.common.jpa.BaseAuditableEntity;
 import com.dearwith.dearwith_backend.event.entity.Event;
 import com.dearwith.dearwith_backend.review.enums.ReviewStatus;
 import com.dearwith.dearwith_backend.user.entity.User;
@@ -21,7 +21,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Review extends BaseDeletableEntity {
+public class Review extends BaseAuditableEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
