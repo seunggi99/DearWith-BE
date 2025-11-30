@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -76,4 +77,6 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     @Query("select count(r) from Review r " +
             "where r.user.id = :userId")
     long countByUserId(@Param("userId") UUID userId);
+
+    Page<Review> findByUser_IdAndCreatedAtAfter(UUID userId, LocalDateTime createdAt, Pageable pageable);
 }

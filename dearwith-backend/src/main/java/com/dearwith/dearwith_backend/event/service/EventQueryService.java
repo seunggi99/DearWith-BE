@@ -248,6 +248,41 @@ public class EventQueryService {
     }
 
     /*──────────────────────────────────────────────
+     | 내가 등록한 이벤트
+     *──────────────────────────────────────────────*/
+    @Transactional(readOnly = true)
+    public Page<EventInfoDto> getMyEvents(
+            UUID userId,
+            int page,
+            int size,
+            Integer year
+    ) {
+        UUID creatorId = normalizeUserId(userId);
+
+        int targetYear = (year == null || year < 2000)
+                ? LocalDate.now().getYear()
+                : year;
+
+        LocalDate startDate = LocalDate.of(targetYear, 1, 1);
+        LocalDate endDateExclusive = startDate.plusYears(1);
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+        Page<Event> eventPage = eventRepository.findByUser_IdAndCreatedAtBetween(
+                creatorId,
+                startDate.atStartOfDay(),
+                endDateExclusive.atStartOfDay(),
+                pageable
+        );
+
+        return buildEventInfoPageWithBatch(eventPage, creatorId);
+    }
+
+    /*──────────────────────────────────────────────
      | 공통 EventInfo 빌더 (List)
      *──────────────────────────────────────────────*/
     private List<EventInfoDto> buildEventInfoList(List<Event> events, UUID userId) {

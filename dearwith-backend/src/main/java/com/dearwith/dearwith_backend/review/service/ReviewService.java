@@ -12,6 +12,7 @@ import com.dearwith.dearwith_backend.image.asset.ImageVariantAssembler;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantProfile;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
 import com.dearwith.dearwith_backend.image.entity.Image;
+import com.dearwith.dearwith_backend.page.my.dto.MyReviewResponseDto;
 import com.dearwith.dearwith_backend.review.dto.*;
 import com.dearwith.dearwith_backend.review.entity.Review;
 import com.dearwith.dearwith_backend.review.entity.ReviewImageMapping;
@@ -23,13 +24,12 @@ import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -412,6 +412,54 @@ public class ReviewService {
                 )                .likeCount(r.getLikeCount())
                 .liked(liked)
                 .editable(editable)
+                .build();
+    }
+
+    /*──────────────────────────────────────────────
+    | 9. 내가 작성한 리뷰 (마이페이지)
+    *──────────────────────────────────────────────*/
+    @Transactional(readOnly = true)
+    public Page<MyReviewResponseDto> getMyReviews(
+            UUID userId,
+            int page,
+            int size,
+            Integer months
+    ) {
+        User user = userReader.getLoginAllowedUser(userId);
+
+        int monthValue = (months == null || months < 1) ? 1 : months;
+        LocalDateTime from = LocalDateTime.now().minusMonths(monthValue);
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+        Page<Review> reviewPage = reviewRepository.findByUser_IdAndCreatedAtAfter(user.getId(), from, pageable);
+
+        return reviewPage.map(this::toMyReviewDto);
+    }
+
+    private MyReviewResponseDto toMyReviewDto(Review review) {
+        Event event = review.getEvent();
+
+        String imageUrl = null;
+        if (event != null && event.getCoverImage() != null) {
+            try {
+                imageUrl = assetUrlService.generatePublicUrl(event.getCoverImage());
+            } catch (Exception ignore) {
+            }
+        }
+
+        return MyReviewResponseDto.builder()
+                .eventId(event != null ? event.getId() : null)
+                .reviewId(review.getId())
+                .imageUrl(imageUrl)
+                .eventTitle(event != null ? event.getTitle() : null)
+                .reviewContent(review.getContent())
+                .createdAt(review.getCreatedAt())
+                .updatedAt(review.getUpdatedAt())
                 .build();
     }
 }

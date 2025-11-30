@@ -1,6 +1,5 @@
 package com.dearwith.dearwith_backend.artist.repository;
 
-import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,8 +8,10 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface ArtistGroupRepository  extends JpaRepository<ArtistGroup, Long> {
 
@@ -50,4 +51,6 @@ public interface ArtistGroupRepository  extends JpaRepository<ArtistGroup, Long>
 
     @Query("select g.bookmarkCount from ArtistGroup g where g.id = :groupId")
     long getBookmarkCount(@Param("groupId") Long groupId);
+
+    List<ArtistGroup> findByUserIdAndCreatedAtAfter(UUID userId, LocalDateTime createdAt);
 }

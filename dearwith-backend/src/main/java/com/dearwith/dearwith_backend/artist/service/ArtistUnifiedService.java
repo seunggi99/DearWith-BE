@@ -411,4 +411,81 @@ public class ArtistUnifiedService {
 
         return new PageImpl<>(merged.subList(start, end), pageable, total);
     }
+
+    /*──────────────────────────────────────────────
+     | 6. 내가 등록한 아티스트/그룹 조회
+     *──────────────────────────────────────────────*/
+    @Transactional(readOnly = true)
+    public Page<ArtistUnifiedDto> getMyArtists(
+            UUID userId,
+            int page,
+            int size,
+            Integer months
+    ){
+        User user = userReader.getLoginAllowedUser(userId);
+
+        int monthValue = (months == null || months < 1) ? 1 : months;
+        LocalDateTime from = LocalDateTime.now().minusMonths(monthValue);
+
+        List<Artist> artists = artistRepository
+                .findByUserIdAndCreatedAtAfter(user.getId(), from);
+
+        List<ArtistGroup> groups = artistGroupRepository
+                .findByUserIdAndCreatedAtAfter(user.getId(), from);
+
+        List<ArtistUnifiedDto> merged = new ArrayList<>(artists.size() + groups.size());
+
+        for (Artist artist : artists) {
+            Image profileImage = artist.getProfileImage();
+            String imageUrl = assetUrlService.generatePublicUrl(profileImage);
+
+            merged.add(new ArtistUnifiedDto(
+                    artist.getId(),
+                    artist.getNameKr(),
+                    artist.getNameEn(),
+                    imageUrl,
+                    ArtistUnifiedDto.Type.ARTIST,
+                    artist.getCreatedAt(),
+                    artist.getBirthDate(),
+                    artist.getDebutDate()
+            ));
+        }
+
+        for (ArtistGroup group : groups) {
+            Image profileImage = group.getProfileImage();
+            String imageUrl = assetUrlService.generatePublicUrl(profileImage);
+
+            merged.add(new ArtistUnifiedDto(
+                    group.getId(),
+                    group.getNameKr(),
+                    group.getNameEn(),
+                    imageUrl,
+                    ArtistUnifiedDto.Type.GROUP,
+                    group.getCreatedAt(),
+                    null,
+                    group.getDebutDate()
+            ));
+        }
+
+        merged.sort(
+                Comparator.comparing(
+                                ArtistUnifiedDto::createdAt,
+                                Comparator.nullsLast(LocalDateTime::compareTo)
+                        )
+                        .reversed()
+        );
+
+        Pageable pageable = PageRequest.of(page, size);
+        int total = merged.size();
+        int start = page * size;
+
+        if (start >= total) {
+            return new PageImpl<>(List.of(), pageable, total);
+        }
+
+        int end = Math.min(start + size, total);
+        List<ArtistUnifiedDto> pageContent = merged.subList(start, end);
+
+        return new PageImpl<>(pageContent, pageable, total);
+    }
 }
