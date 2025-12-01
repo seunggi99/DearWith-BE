@@ -10,6 +10,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingPathVariableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.http.HttpMethod;
 
 import java.util.stream.Collectors;
 
@@ -199,6 +201,40 @@ public class GlobalExceptionHandler {
                 "지원하지 않는 API입니다.",
                 request.getRequestURI()
         );
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex,
+            HttpServletRequest request
+    ) {
+        String path = request.getRequestURI();
+
+        String supportedMethods = (ex.getSupportedHttpMethods() != null && !ex.getSupportedHttpMethods().isEmpty())
+                ? ex.getSupportedHttpMethods().stream()
+                .map(HttpMethod::name)
+                .collect(Collectors.joining(", "))
+                : "요청 가능한 메서드";
+
+        String detail = String.format(
+                "해당 API는 %s 메서드 요청을 지원하지 않습니다. 지원 메서드: %s",
+                ex.getMethod(),
+                supportedMethods
+        );
+
+        log.warn("[MethodNotSupported] method={} supported={} path={}",
+                ex.getMethod(), supportedMethods, path);
+
+        ErrorResponse body = ErrorResponse.of(
+                INVALID_REQUEST,
+                INVALID_REQUEST.getMessage(),
+                detail,
+                path
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(body);
     }
 
     /*──────────────────────────────────────────────

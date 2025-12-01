@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.common.config;
 
-import com.dearwith.dearwith_backend.auth.JwtAuthenticationFilter;
+import com.dearwith.dearwith_backend.auth.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

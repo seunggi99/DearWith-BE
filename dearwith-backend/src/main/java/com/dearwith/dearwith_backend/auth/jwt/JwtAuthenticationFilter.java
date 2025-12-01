@@ -1,4 +1,4 @@
-package com.dearwith.dearwith_backend.auth;
+package com.dearwith.dearwith_backend.auth.jwt;
 
 import com.dearwith.dearwith_backend.auth.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
@@ -6,25 +6,21 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.SignatureException;
-import io.jsonwebtoken.UnsupportedJwtException;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
+@Slf4j
 @Component
 @Order(1)  // SecurityFilterChain 보다 앞순서로 실행
 @RequiredArgsConstructor
@@ -34,25 +30,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final CustomUserDetailsService userDetailsService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain chain)
             throws ServletException, IOException {
 
-        final String authHeader = request.getHeader("Authorization");
+        // 1) 쿠키에서 ACCESS_TOKEN 추출
+        String jwtToken = resolveAccessToken(request);
 
-        if (authHeader == null || authHeader.isBlank() || !authHeader.startsWith("Bearer ")) {
+        // 토큰 없으면 비로그인 요청으로 처리
+        if (jwtToken == null || jwtToken.isBlank()) {
             chain.doFilter(request, response);
             return;
         }
-
-        final String jwtToken = authHeader.substring(7);
 
         try {
             UUID userId = tokenProvider.extractUserId(jwtToken);
 
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                if (!tokenProvider.validateToken(jwtToken, userId)) {
-                    unauthorized(response, "TOKEN_INVALID", "Invalid token");
+                if (!tokenProvider.validateToken(jwtToken)) {
+                    chain.doFilter(request, response);
                     return;
                 }
 
@@ -69,35 +67,53 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             chain.doFilter(request, response);
 
-        } catch (ExpiredJwtException e) {
+        } catch (JwtException e) {
             SecurityContextHolder.clearContext();
-            unauthorized(response, "TOKEN_EXPIRED", "Access token expired");
-        } catch (MalformedJwtException | SignatureException | UnsupportedJwtException | IllegalArgumentException e) {
-            SecurityContextHolder.clearContext();
-            unauthorized(response, "TOKEN_INVALID", "Invalid token");
-        } catch (JwtException e) { // 포괄
-            SecurityContextHolder.clearContext();
-            unauthorized(response, "TOKEN_INVALID", "Invalid token");
+            log.warn("Invalid JWT token: {}", e.getMessage());
+            chain.doFilter(request, response);
         }
     }
 
-    private void unauthorized(HttpServletResponse resp, String code, String message) throws IOException {
-        if (resp.isCommitted()) return;
-        SecurityContextHolder.clearContext();
+    private String resolveToken(HttpServletRequest request) {
+        // 1) Authorization 헤더 우선 (Swagger용, 외부 툴용)
+        String bearer = request.getHeader("Authorization");
+        if (bearer != null && bearer.startsWith("Bearer ")) {
+            return bearer.substring(7);
+        }
 
-        resp.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        resp.setContentType("application/json;charset=UTF-8");
+        // 2) 쿠키 (실제 웹/앱에서 사용하는 경로)
+        if (request.getCookies() != null) {
+            for (var cookie : request.getCookies()) {
+                if ("ACCESS_TOKEN".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
+    }
 
-        String desc = switch (code) {
-            case "TOKEN_EXPIRED" -> "The access token expired";
-            case "TOKEN_INVALID" -> "The access token is invalid";
-            default -> "Unauthorized";
-        };
-        resp.setHeader("WWW-Authenticate",
-                "Bearer error=\"invalid_token\", error_description=\"" + desc + "\"");
+    private String resolveAccessToken(HttpServletRequest request) {
+        // 1) 쿠키 우선
+        if (request.getCookies() != null) {
+            for (var cookie : request.getCookies()) {
+                if ("ACCESS_TOKEN".equals(cookie.getName())) {
+                    String value = cookie.getValue();
+                    if (value != null && !value.isBlank()) {
+                        return value;
+                    }
+                }
+            }
+        }
 
-        resp.getWriter().write("{\"message\":\"" + message + "\",\"code\":\"" + code + "\"}");
-        resp.getWriter().flush();
+        // 2) Authorization 헤더 (Bearer 토큰)
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            if (!token.isBlank()) {
+                return token;
+            }
+        }
+
+        return null;
     }
 }

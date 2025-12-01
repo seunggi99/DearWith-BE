@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.auth.service;
 
-import com.dearwith.dearwith_backend.auth.JwtTokenProvider;
+import com.dearwith.dearwith_backend.auth.jwt.JwtTokenProvider;
 import com.dearwith.dearwith_backend.auth.dto.*;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
@@ -45,16 +45,12 @@ public class AuthService {
      *──────────────────────────────────────────────*/
     @Transactional
     public SignInResponseDto signIn(SignInRequestDto request) {
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            request.getEmail(),
-                            request.getPassword()
-                    )
-            );
-        } catch (Exception e) {
-            throw e;
-        }
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmail(),
+                        request.getPassword()
+                )
+        );
 
         User user = userService.findByEmail(request.getEmail());
         userReader.getLoginAllowedUser(user.getId());
@@ -270,22 +266,19 @@ public class AuthService {
      | 3. 토큰 재발급
      *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
-    public TokenReissueResponseDto reissueToken(JwtTokenDto refreshTokenDto) {
-        String refreshToken = refreshTokenDto.getToken();
+    public TokenReissueResponseDto reissueToken(String refreshToken) {
 
         UUID userId;
         try {
             userId = jwtTokenProvider.extractUserId(refreshToken);
         } catch (Exception e) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
-
         }
 
         User user = userReader.getLoginAllowedUser(userId);
 
-        if (!jwtTokenProvider.validateToken(refreshToken, user.getId())) {
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
-
         }
 
         TokenCreateRequestDto tokenDTO = toTokenDto(user);
@@ -299,23 +292,19 @@ public class AuthService {
                 .build();
     }
 
-
     /*──────────────────────────────────────────────
      | 4. 토큰 유효성 검사
      *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
-    public void validateToken(JwtTokenDto tokenDto) {
-        String token = tokenDto.getToken();
-
-        UUID userId;
+    public void validateToken(String token) {
         try {
-            userId = jwtTokenProvider.extractUserId(token);
+            jwtTokenProvider.extractUserId(token);
         } catch (Exception e) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
 
         }
 
-        if (!jwtTokenProvider.validateToken(token, userId)) {
+        if (!jwtTokenProvider.validateToken(token)) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
         }
     }

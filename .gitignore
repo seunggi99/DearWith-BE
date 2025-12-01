@@ -21,6 +21,7 @@ gradle-app.setting
 .classpath
 
 **/.env
+application-dev.yml
 
 # IntelliJ
 .idea/
