@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.user.controller;
 
 
+import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.user.dto.*;
 import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.user.docs.UserApiDocs;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+
+import static com.dearwith.dearwith_backend.common.exception.ErrorCode.UNAUTHORIZED;
 
 
 @RestController
@@ -38,8 +41,13 @@ public class UserController {
 
     @Operation(summary = "현재 로그인 회원 정보 조회", description = "JWT 토큰으로 받은 현재 로그인한 회원 정보 조회")
     @GetMapping("/me")
-    public ResponseEntity<UserResponseDto> getCurrentUser(@AuthenticationPrincipal CustomUserDetails principal) {
-        return ResponseEntity.ok(userService.getCurrentUser(principal.getId()));
+    public ResponseEntity<UserResponseDto> getCurrentUser(
+            @AuthenticationPrincipal(expression = "id", errorOnInvalidType = false) UUID userId
+    ) {
+        if (userId == null) {
+            throw BusinessException.withMessage(UNAUTHORIZED, "로그인이 필요합니다.");
+        }
+        return ResponseEntity.ok(userService.getCurrentUser(userId));
     }
 
     @Operation(summary = "가입된 모든 회원 출력", description = "개발용 임시")

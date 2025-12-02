@@ -39,11 +39,16 @@ public class AuthCookieUtil {
     }
 
     public void clearCookie(HttpServletResponse response, String name) {
-        Cookie cookie = new Cookie(name, null);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        ResponseCookie cleared = ResponseCookie.from(name, "")
+                .domain(props.getCookieDomain())          // ⭐ 생성할 때와 동일
+                .httpOnly(true)
+                .secure(props.isCookieSecure())
+                .sameSite(props.getCookieSameSite())
+                .path("/")
+                .maxAge(0)                                // ⭐ 즉시 만료
+                .build();
+
+        response.addHeader("Set-Cookie", cleared.toString());
     }
+
 }

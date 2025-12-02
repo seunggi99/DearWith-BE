@@ -60,6 +60,11 @@ dependencies {
 	implementation 'com.twelvemonkeys.imageio:imageio-core:3.12.0'
 	implementation 'com.twelvemonkeys.imageio:imageio-jpeg:3.12.0'
 	implementation 'com.ibm.icu:icu4j:75.1'
+
+	implementation 'com.google.auth:google-auth-library-oauth2-http:1.18.0'
+	implementation 'com.google.http-client:google-http-client:1.43.3'
+	implementation 'com.google.http-client:google-http-client-jackson2:1.43.3'
+	implementation 'com.google.firebase:firebase-admin:9.2.0'
 }
 
 tasks.named('test') {
