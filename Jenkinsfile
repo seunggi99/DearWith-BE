@@ -71,6 +71,10 @@ cd ~/DearWith-BE/dearwith-backend
 docker pull ${IMAGE_NAME}:latest
 docker-compose up -d --no-deps app
 
+# ✅ 배포 서버에서 오래된 이미지 정리
+echo "🧹 Cleaning up old Docker images on EC2..."
+docker image prune -a -f || true
+
 EOF
           """
         }
