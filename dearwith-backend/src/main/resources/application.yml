@@ -92,7 +92,7 @@ management:
 jwt:
   cookie-domain: .dearwith.kr
   cookie-secure: true
-  cookie-same-site: Lax
+  cookie-same-site: None
   secret: ${SECRET_KEY}
   expiration-time: 600000          # 10분 (ms)
   refresh-expiration-time: 1209600000   # 14일 (ms)
