@@ -17,7 +17,7 @@ public class AuthCookieUtil {
                                String refreshToken) {
 
         ResponseCookie accessCookie = ResponseCookie.from("ACCESS_TOKEN", accessToken)
-                .domain(props.getCookieDomain())
+                //.domain(props.getCookieDomain())
                 .httpOnly(true)
                 .secure(props.isCookieSecure())
                 .sameSite(props.getCookieSameSite())
@@ -26,7 +26,7 @@ public class AuthCookieUtil {
                 .build();
 
         ResponseCookie refreshCookie = ResponseCookie.from("REFRESH_TOKEN", refreshToken)
-                .domain(props.getCookieDomain())
+                //.domain(props.getCookieDomain())
                 .httpOnly(true)
                 .secure(props.isCookieSecure())
                 .sameSite(props.getCookieSameSite())
