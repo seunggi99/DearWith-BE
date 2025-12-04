@@ -56,4 +56,12 @@ public class PushDeviceService {
             device.setLastActiveAt(LocalDateTime.now());
         }
     }
+
+    public void unregister(String fcmToken, UUID userId) {
+        if (userId != null) {
+            repository.deleteByFcmTokenAndUserId(fcmToken, userId);
+        } else {
+            repository.deleteByFcmToken(fcmToken);
+        }
+    }
 }

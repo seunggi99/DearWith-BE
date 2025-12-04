@@ -17,4 +17,6 @@ public interface PushDeviceRepository extends JpaRepository<PushDevice, Long> {
             Platform platform,
             String deviceModel
     );
+    void deleteByFcmToken(String fcmToken);
+    void deleteByFcmTokenAndUserId(String fcmToken, UUID userId);
 }

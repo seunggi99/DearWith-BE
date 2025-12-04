@@ -36,6 +36,21 @@ public class PushNotificationController {
         pushDeviceService.registerOrUpdate(req, userId);
     }
 
+    @Operation(summary = "현재 기기에서 유저 연결 해제 (로그아웃)")
+    @DeleteMapping("/devices")
+    public void detachCurrentDevice(
+            @RequestParam String fcmToken,
+            @AuthenticationPrincipal Object principal
+    ) {
+        UUID userId = null;
+
+        if (principal instanceof CustomUserDetails cud) {
+            userId = cud.getId();
+        }
+
+        pushDeviceService.unregister(fcmToken, userId);
+    }
+
     @Operation(summary = "테스트용 토큰 푸시 api")
     @GetMapping("/test")
     public String test(@RequestParam String token) throws IOException {
