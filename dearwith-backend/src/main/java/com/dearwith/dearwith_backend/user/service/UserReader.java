@@ -7,6 +7,7 @@ import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -42,6 +43,22 @@ public class UserReader {
         userGuard.ensureLoginAllowed(user);
         return user;
     }
+
+    public List<User> getLoginAllowedUsers(List<UUID> userIds) {
+
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<User> users = userRepository.findAllById(userIds);
+
+        for (User user : users) {
+            userGuard.ensureLoginAllowed(user);
+        }
+
+        return users;
+    }
+
 
     /*──────────────────────────────
      | 3) 완전 ACTIVE 유저만 (탈퇴/정지/작성제한 모두 차단)

@@ -32,9 +32,6 @@ public class PushDevice {
     private String deviceModel;
 
     @Column(nullable = false)
-    private boolean active = true;
-
-    @Column(nullable = false)
     private LocalDateTime lastActiveAt = LocalDateTime.now();
     public void updateLastActive() {
         this.lastActiveAt = LocalDateTime.now();

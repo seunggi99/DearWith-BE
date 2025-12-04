@@ -39,14 +39,14 @@ public class PushNotificationController {
     @Operation(summary = "테스트용 토큰 푸시 api")
     @GetMapping("/test")
     public String test(@RequestParam String token) throws IOException {
-        pushNotificationService.sendToToken(token, "테스트 푸시", "푸시가 잘 오나요?","http://192.168.219.106:3000/push");
+        pushNotificationService.sendToToken(token, "테스트 푸시", "푸시가 잘 오나요?","https://dearwith.kr/push");
         return "OK";
     }
 
     @Operation(summary = "테스트용 유저 푸시 api")
     @GetMapping("/push/test/me")
     public String testMe(@AuthenticationPrincipal(expression = "id") UUID userId) {
-        pushNotificationService.sendToUser(userId, "테스트 푸시", "내 계정으로 오는지 테스트","http://192.168.219.106:3000/push");
+        pushNotificationService.sendToUser(userId, "테스트 푸시", "내 계정으로 오는지 테스트","https://dearwith.kr/push");
         return "OK";
     }
 }

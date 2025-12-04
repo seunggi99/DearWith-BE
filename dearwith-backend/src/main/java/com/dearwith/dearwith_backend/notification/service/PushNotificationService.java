@@ -60,9 +60,21 @@ public class PushNotificationService {
         List<PushDevice> devices = pushDeviceRepository.findAllByUserId(userId);
 
         for (PushDevice device : devices) {
-            if (!device.isActive()) continue;
             sendToToken(device.getFcmToken(), title, body, url);
         }
+    }
+
+    public void sendToUsers(List<UUID> userIds, String title, String body, String url) {
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+
+        List<PushDevice> devices = pushDeviceRepository.findAllByUserIdIn(userIds);
+
+        devices.stream()
+                .map(PushDevice::getFcmToken)
+                .distinct()
+                .forEach(token -> sendToToken(token, title, body, url));
     }
 
     public void sendServiceNoticeToUser(UUID userId, String title, String body, String url) {
@@ -73,6 +85,36 @@ public class PushNotificationService {
         }
 
         sendToUser(userId, title, body, url);
+    }
+
+    public void sendServiceNoticeToUsers(List<UUID> userIds, String title, String body, String url) {
+        List<User> users = userReader.getLoginAllowedUsers(userIds);
+
+        List<UUID> targetUserIds = users.stream()
+                .filter(User::isServiceNotificationEnabled)
+                .map(User::getId)
+                .toList();
+
+        if (targetUserIds.isEmpty()) {
+            return;
+        }
+
+        sendToUsers(targetUserIds, title, body, url);
+    }
+
+    public void sendEventNoticeToUsers(List<UUID> userIds, String title, String body, String url) {
+        List<User> users = userReader.getLoginAllowedUsers(userIds);
+
+        List<UUID> targetUserIds = users.stream()
+                .filter(User::isEventNotificationEnabled)
+                .map(User::getId)
+                .toList();
+
+        if (targetUserIds.isEmpty()) {
+            return;
+        }
+
+        sendToUsers(targetUserIds, title, body, url);
     }
 
     public void sendEventNoticeToUser(UUID userId, String title, String body, String url) {

@@ -17,7 +17,6 @@ public class AuthCookieUtil {
                                String refreshToken) {
 
         ResponseCookie accessCookie = ResponseCookie.from("ACCESS_TOKEN", accessToken)
-                //.domain(props.getCookieDomain())
                 .httpOnly(true)
                 .secure(props.isCookieSecure())
                 .sameSite(props.getCookieSameSite())
@@ -26,7 +25,6 @@ public class AuthCookieUtil {
                 .build();
 
         ResponseCookie refreshCookie = ResponseCookie.from("REFRESH_TOKEN", refreshToken)
-                //.domain(props.getCookieDomain())
                 .httpOnly(true)
                 .secure(props.isCookieSecure())
                 .sameSite(props.getCookieSameSite())
@@ -40,12 +38,11 @@ public class AuthCookieUtil {
 
     public void clearCookie(HttpServletResponse response, String name) {
         ResponseCookie cleared = ResponseCookie.from(name, "")
-                .domain(props.getCookieDomain())          // ⭐ 생성할 때와 동일
                 .httpOnly(true)
                 .secure(props.isCookieSecure())
                 .sameSite(props.getCookieSameSite())
                 .path("/")
-                .maxAge(0)                                // ⭐ 즉시 만료
+                .maxAge(0)
                 .build();
 
         response.addHeader("Set-Cookie", cleared.toString());
