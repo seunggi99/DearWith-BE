@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.event.controller;
 
+import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.event.dto.EventBookmarkResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.service.EventBookmarkService;
@@ -11,8 +12,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
 
 import static com.dearwith.dearwith_backend.event.docs.EventApiDocs.READ_BOOKMARK_DESC;
 
@@ -27,7 +26,7 @@ public class EventBookmarkController {
             description = READ_BOOKMARK_DESC)
     @GetMapping("/bookmark")
     public Page<EventInfoDto> getBookmarkedEvents(
-            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @RequestParam String state,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
@@ -35,25 +34,25 @@ public class EventBookmarkController {
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        return eventBookmarkService.getBookmarkedEvents(userId, state, pageable);
+        return eventBookmarkService.getBookmarkedEvents(principal.getId(), state, pageable);
     }
 
     @Operation(summary = "북마크 추가")
     @PostMapping("/{eventId}/bookmark")
     public EventBookmarkResponseDto addBookmark(
             @PathVariable Long eventId,
-            @AuthenticationPrincipal(expression = "id") UUID userId
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
     ) {
-        return eventBookmarkService.addBookmark(eventId, userId);
+        return eventBookmarkService.addBookmark(eventId, principal.getId());
     }
 
     @Operation(summary = "북마크 해제")
     @DeleteMapping("/{eventId}/bookmark")
     public EventBookmarkResponseDto removeBookmark(
             @PathVariable Long eventId,
-            @AuthenticationPrincipal(expression = "id") UUID userId
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
     ) {
-        return eventBookmarkService.removeBookmark(eventId, userId);
+        return eventBookmarkService.removeBookmark(eventId, principal.getId());
     }
 
 }

@@ -3,6 +3,7 @@ package com.dearwith.dearwith_backend.artist.controller;
 import com.dearwith.dearwith_backend.artist.dto.*;
 import com.dearwith.dearwith_backend.artist.service.ArtistUnifiedService;
 import com.dearwith.dearwith_backend.artist.service.HotArtistService;
+import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/search/artists")
@@ -30,7 +30,7 @@ public class ArtistSearchController {
     @GetMapping
     @Operation(summary = "아티스트/아티스트 그룹 통합 검색")
     public Page<ArtistUnifiedDto> search(
-            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @RequestParam(name = "query") @NotBlank(message = "검색어를 입력해주세요.") String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size

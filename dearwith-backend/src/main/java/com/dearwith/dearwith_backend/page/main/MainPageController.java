@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/main")
@@ -23,15 +22,9 @@ public class MainPageController {
     @Operation(summary = "메인페이지 조회")
     @GetMapping
     public MainPageResponseDto getMainPage(
-            @AuthenticationPrincipal Object principal
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
     ) {
-        UUID userId = null;
-
-        if (principal instanceof CustomUserDetails cud) {
-            userId = cud.getId();
-        }
-
-        MainPageResponseDto response = mainPageService.getMainPage(userId);
+        MainPageResponseDto response = mainPageService.getMainPage(principal.getId());
         List<BannerDto> banners = bannerService.getMainBanners();
         response.setBanners(banners);
 

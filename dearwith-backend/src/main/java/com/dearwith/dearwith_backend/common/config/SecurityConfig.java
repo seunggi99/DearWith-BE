@@ -166,7 +166,8 @@ public class SecurityConfig {
                                 "/api/my",
 
                                 // 알림 - 전체 로그인 필요
-                                "/api/notifications/**"
+                                "/api/notifications/**",
+                                "/api/push/**"
                         ).authenticated()
 
                         // 쓰기/수정/삭제는 명시적으로 보호

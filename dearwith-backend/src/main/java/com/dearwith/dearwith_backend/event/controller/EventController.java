@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.event.controller;
 
+import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.common.dto.CreatedResponseDto;
 import com.dearwith.dearwith_backend.event.docs.EventApiDocs;
 import com.dearwith.dearwith_backend.event.dto.*;
@@ -17,8 +18,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/api/events")
 @RequiredArgsConstructor
@@ -32,10 +31,10 @@ public class EventController {
             description = EventApiDocs.CREATE_DESC)
     @ResponseStatus(HttpStatus.CREATED)
     public CreatedResponseDto createEvent(
-            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @RequestBody @Valid EventCreateRequestDto request
     ) {
-        return  eventCommandService.create(userId, request);
+        return  eventCommandService.create(principal.getId(), request);
     }
 
     @PatchMapping("/{eventId}")
@@ -44,10 +43,10 @@ public class EventController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateEvent(
             @PathVariable Long eventId,
-            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @RequestBody @Valid EventUpdateRequestDto request
     ) {
-        eventCommandService.update(eventId, userId, request);
+        eventCommandService.update(eventId, principal.getId(), request);
     }
 
     @DeleteMapping("/{eventId}")
@@ -55,24 +54,24 @@ public class EventController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteEvent(
             @PathVariable Long eventId,
-            @AuthenticationPrincipal(expression = "id") UUID userId
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
     ) {
-        eventCommandService.delete(eventId, userId);
+        eventCommandService.delete(eventId, principal.getId());
     }
 
     @GetMapping("/{eventId}")
     @Operation(summary = "이벤트 상세 조회")
     public ResponseEntity<EventResponseDto> getEvent(
             @PathVariable Long eventId,
-            @AuthenticationPrincipal(expression = "id", errorOnInvalidType = false) UUID userId
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
     ) {
-        return ResponseEntity.ok(eventQueryService.getEvent(eventId, userId));
+        return ResponseEntity.ok(eventQueryService.getEvent(eventId, principal.getId()));
     }
 
     @GetMapping
     @Operation(summary = "이벤트 검색")
     public Page<EventInfoDto> searchEvents(
-            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @RequestParam(name = "query") String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
@@ -80,7 +79,7 @@ public class EventController {
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by("title").ascending());
 
-        return eventQueryService.search(userId,query, pageable);
+        return eventQueryService.search(principal.getId(),query, pageable);
     }
 }
 

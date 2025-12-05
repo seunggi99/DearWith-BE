@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.event.controller;
 
+import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.common.dto.CreatedResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeListResponseDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeRequestDto;
@@ -9,16 +10,12 @@ import com.dearwith.dearwith_backend.event.service.EventNoticeService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/events")
@@ -28,16 +25,16 @@ public class EventNoticeController {
     @GetMapping("/notices/{noticeId}")
     @Operation(summary = "이벤트 공지 상세 조회")
     public EventNoticeResponseDto getNotice(
-            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @PathVariable Long noticeId
     ) {
-        return eventNoticeService.getNoticeById(noticeId, userId);
+        return eventNoticeService.getNoticeById(noticeId, principal.getId());
     }
 
     @GetMapping("/{eventId}/notices")
     @Operation(summary = "이벤트 공지 목록 조회")
     public EventNoticeListResponseDto getNotices(
-            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @PathVariable Long eventId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -53,40 +50,40 @@ public class EventNoticeController {
 
         Pageable pageable = PageRequest.of(page, size, springSort);
 
-        return eventNoticeService.getNoticesByEvent(eventId, userId, pageable);
+        return eventNoticeService.getNoticesByEvent(eventId, principal.getId(), pageable);
     }
 
     @PostMapping("/{eventId}/notices")
     @Operation(summary = "이벤트 공지 등록")
     @ResponseStatus(HttpStatus.CREATED)
     public CreatedResponseDto createNotice(
-            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @PathVariable Long eventId,
             @RequestBody @Valid EventNoticeRequestDto req
     ) {
-        return eventNoticeService.create(userId, eventId, req);
+        return eventNoticeService.create(principal.getId(), eventId, req);
     }
 
     @PatchMapping("/{eventId}/notices/{noticeId}")
     @Operation(summary = "이벤트 공지 수정")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateNotice(
-            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @PathVariable Long eventId,
             @PathVariable Long noticeId,
             @RequestBody @Valid EventNoticeRequestDto req
     ) {
-        eventNoticeService.update(userId, eventId, noticeId, req);
+        eventNoticeService.update(principal.getId(), eventId, noticeId, req);
     }
 
     @DeleteMapping("/{eventId}/notices/{noticeId}")
     @Operation(summary = "이벤트 공지 삭제")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteNotice(
-            @AuthenticationPrincipal(expression = "id") UUID userId,
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @PathVariable Long eventId,
             @PathVariable Long noticeId
     ) {
-        eventNoticeService.delete(userId, eventId, noticeId);
+        eventNoticeService.delete(principal.getId(), eventId, noticeId);
     }
 }
