@@ -25,12 +25,30 @@ public interface ArtistGroupRepository  extends JpaRepository<ArtistGroup, Long>
     List<ArtistGroup> findGroupsByDebutMonth(@Param("month") int month);
 
     @Query("""
-        SELECT a FROM ArtistGroup a
-        WHERE 
-            LOWER(a.nameKr) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(a.nameEn) LIKE LOWER(CONCAT('%', :query, '%'))
-        """)
+    SELECT g FROM ArtistGroup g
+    WHERE 
+        LOWER(g.nameKr) LIKE LOWER(CONCAT('%', :query, '%'))
+        OR LOWER(g.nameEn) LIKE LOWER(CONCAT('%', :query, '%'))
+    ORDER BY
+        CASE
+            WHEN LOWER(g.nameKr) = LOWER(:query) THEN 0
+            WHEN LOWER(g.nameKr) LIKE LOWER(CONCAT(:query, '%')) THEN 1
+            WHEN LOWER(g.nameEn) = LOWER(:query) THEN 2
+            WHEN LOWER(g.nameEn) LIKE LOWER(CONCAT(:query, '%')) THEN 3
+            ELSE 4
+        END,
+        g.nameKr ASC,
+        g.nameEn ASC
+    """)
     Page<ArtistGroup> searchByName(@Param("query") String query, Pageable pageable);
+
+    @Query("""
+        SELECT g FROM ArtistGroup g
+        WHERE 
+            LOWER(g.nameKr) LIKE LOWER(CONCAT('%', :query, '%'))
+         OR LOWER(g.nameEn) LIKE LOWER(CONCAT('%', :query, '%'))
+    """)
+    List<ArtistGroup> searchByNameForUnified(@Param("query") String query);
 
     Optional<ArtistGroup> findByNameKrIgnoreCase(String nameKr);
     Optional<ArtistGroup> findByNameEnIgnoreCase(String nameEn);

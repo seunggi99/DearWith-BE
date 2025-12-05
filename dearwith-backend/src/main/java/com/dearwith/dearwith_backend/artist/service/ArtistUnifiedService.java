@@ -352,17 +352,22 @@ public class ArtistUnifiedService {
     /*──────────────────────────────────────────────
      | 5. 통합 검색 (아티스트 + 그룹)
      *──────────────────────────────────────────────*/
-    @Transactional(readOnly = true)
+
     public Page<ArtistUnifiedDto> searchUnified(String query, Pageable pageable) {
 
-        Page<ArtistDto> artistPage =
-                artistService.search(query, PageRequest.of(0, Integer.MAX_VALUE));
-        Page<ArtistGroupDto> groupPage =
-                artistGroupService.search(query, PageRequest.of(0, Integer.MAX_VALUE));
+        String q = (query == null) ? "" : query.trim();
+        if (q.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        String qLower = q.toLowerCase();
+
+        List<ArtistDto> artistList = artistService.searchForUnified(q);
+        List<ArtistGroupDto> groupList = artistGroupService.searchForUnified(q);
 
         List<ArtistUnifiedDto> merged = new ArrayList<>();
 
-        for (ArtistDto dto : artistPage.getContent()) {
+        for (ArtistDto dto : artistList) {
             merged.add(new ArtistUnifiedDto(
                     dto.id(),
                     dto.nameKr(),
@@ -374,7 +379,7 @@ public class ArtistUnifiedService {
             ));
         }
 
-        for (ArtistGroupDto dto : groupPage.getContent()) {
+        for (ArtistGroupDto dto : groupList) {
             merged.add(new ArtistUnifiedDto(
                     dto.id(),
                     dto.nameKr(),
@@ -387,10 +392,10 @@ public class ArtistUnifiedService {
         }
 
         merged.sort(
-                Comparator.comparing(
-                        ArtistUnifiedDto::nameKr,
-                        Comparator.nullsLast(String::compareTo)
-                )
+                Comparator
+                        .comparingInt((ArtistUnifiedDto dto) -> relevanceScore(dto, qLower))
+                        .thenComparing(ArtistUnifiedDto::nameKr,
+                                Comparator.nullsLast(String::compareTo))
         );
 
         int page = pageable.getPageNumber();
@@ -407,6 +412,26 @@ public class ArtistUnifiedService {
         return new PageImpl<>(merged.subList(start, end), pageable, total);
     }
 
+    private int relevanceScore(ArtistUnifiedDto dto, String qLower) {
+        String name = dto.nameKr();
+        if (name == null || name.isBlank()) {
+            return 100;
+        }
+
+        String n = name.toLowerCase();
+
+        // 0: 완전 일치
+        if (n.equals(qLower)) return 0;
+
+        // 1: 접두 일치
+        if (n.startsWith(qLower)) return 1;
+
+        // 2: 부분 포함
+        if (n.contains(qLower)) return 2;
+
+        // 3: 나머지
+        return 3;
+    }
     /*──────────────────────────────────────────────
      | 6. 내가 등록한 아티스트/그룹 조회
      *──────────────────────────────────────────────*/

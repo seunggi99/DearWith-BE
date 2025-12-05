@@ -46,15 +46,42 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
     List<Artist> findArtistsByEventId(Long eventId);
 
     @Query("""
-        SELECT a FROM Artist a 
-        WHERE 
-            LOWER(a.nameKr) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(a.nameEn) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(a.realName) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(a.realNameKr) LIKE LOWER(CONCAT('%', :query, '%'))
-        """)
+    SELECT a
+    FROM Artist a
+    WHERE 
+        LOWER(a.nameKr)       LIKE LOWER(CONCAT('%', :query, '%')) OR
+        LOWER(a.nameEn)       LIKE LOWER(CONCAT('%', :query, '%')) OR
+        LOWER(a.realNameKr)   LIKE LOWER(CONCAT('%', :query, '%')) OR
+        LOWER(a.realName)   LIKE LOWER(CONCAT('%', :query, '%'))
+    ORDER BY
+        CASE
+            WHEN LOWER(a.nameKr) = LOWER(:query) THEN 0
+
+            WHEN LOWER(a.realNameKr) = LOWER(:query) THEN 1
+
+            WHEN LOWER(a.nameKr) LIKE LOWER(CONCAT(:query, '%')) THEN 2
+
+            WHEN LOWER(a.nameEn) LIKE LOWER(CONCAT(:query, '%')) THEN 3
+
+            WHEN LOWER(a.realName) LIKE LOWER(CONCAT(:query, '%')) THEN 4
+
+            ELSE 6
+        END,
+        a.bookmarkCount DESC,
+        a.id ASC
+    """
+    )
     Page<Artist> searchByName(@Param("query") String query, Pageable pageable);
 
+    @Query("""
+        SELECT a FROM Artist a
+        WHERE 
+            LOWER(a.nameKr)      LIKE LOWER(CONCAT('%', :query, '%'))
+         OR LOWER(a.nameEn)      LIKE LOWER(CONCAT('%', :query, '%'))
+         OR LOWER(a.realNameKr)  LIKE LOWER(CONCAT('%', :query, '%'))
+         OR LOWER(a.realName)  LIKE LOWER(CONCAT('%', :query, '%'))
+    """)
+    List<Artist> searchByNameForUnified(@Param("query") String query);
     @Query("""
         SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END
         FROM Artist a

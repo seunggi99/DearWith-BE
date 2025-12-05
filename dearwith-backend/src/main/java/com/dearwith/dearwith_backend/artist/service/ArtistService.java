@@ -50,6 +50,17 @@ public class ArtistService {
                 .map(artist -> artistMapper.toDto(artist, assetUrlService));
     }
 
+    public List<ArtistDto> searchForUnified(String query) {
+        String q = query == null ? "" : query.trim();
+        if (q.isEmpty()) {
+            return List.of();
+        }
+
+        List<Artist> result = artistRepository.searchByNameForUnified(q);
+        return result.stream()
+                .map(artist -> artistMapper.toDto(artist, assetUrlService))
+                .toList();
+    }
     public List<Artist> findAllByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return List.of();
         return artistRepository.findByIdIn(ids);
