@@ -86,11 +86,9 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
 
     List<Artist> findByUserIdAndCreatedAtAfter(UUID userId, LocalDateTime createdAt);
 
-    Optional<Artist> findByDisplayName(String displayName);
 
-    Optional<Artist> findByDisplayNameAndBirthDate(String displayName, LocalDate birthDate);
+    Optional<Artist> findByNameKrAndBirthDate(String nameKr, LocalDate birthDate);
 
-    boolean existsByDisplayName(String displayName);
 
-    boolean existsByDisplayNameAndBirthDate(String displayName, LocalDate birthDate);
+    boolean existsByNameKrAndBirthDate(String nameKr, LocalDate birthDate);
 }

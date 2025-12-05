@@ -69,7 +69,6 @@ public class ArtistUnifiedService {
                     return new MonthlyAnniversaryDto(
                             a.getId(),
                             a.getNameKr(),
-                            a.getNameEn(),
                             assetUrlService.generatePublicUrl(a.getProfileImage()),
                             MonthlyAnniversaryDto.Type.ARTIST,
                             MonthlyAnniversaryDto.DateType.BIRTH,
@@ -97,7 +96,6 @@ public class ArtistUnifiedService {
                     return new MonthlyAnniversaryDto(
                             a.getId(),
                             a.getNameKr(),
-                            a.getNameEn(),
                             assetUrlService.generatePublicUrl(a.getProfileImage()),
                             MonthlyAnniversaryDto.Type.ARTIST,
                             MonthlyAnniversaryDto.DateType.DEBUT,
@@ -125,7 +123,6 @@ public class ArtistUnifiedService {
                     return new MonthlyAnniversaryDto(
                             g.getId(),
                             g.getNameKr(),
-                            g.getNameEn(),
                             assetUrlService.generatePublicUrl(g.getProfileImage()),
                             MonthlyAnniversaryDto.Type.GROUP,
                             MonthlyAnniversaryDto.DateType.DEBUT,
@@ -301,7 +298,6 @@ public class ArtistUnifiedService {
             merged.add(new ArtistUnifiedDto(
                     artist.getId(),
                     artist.getNameKr(),
-                    artist.getNameEn(),
                     imageUrl,
                     ArtistUnifiedDto.Type.ARTIST,
                     bookmarkedAt,
@@ -322,7 +318,6 @@ public class ArtistUnifiedService {
             merged.add(new ArtistUnifiedDto(
                     group.getId(),
                     group.getNameKr(),
-                    group.getNameEn(),
                     imageUrl,
                     ArtistUnifiedDto.Type.GROUP,
                     bookmarkedAt,
@@ -371,7 +366,6 @@ public class ArtistUnifiedService {
             merged.add(new ArtistUnifiedDto(
                     dto.id(),
                     dto.nameKr(),
-                    dto.nameEn(),
                     dto.imageUrl(),
                     ArtistUnifiedDto.Type.ARTIST,
                     null,
@@ -384,7 +378,6 @@ public class ArtistUnifiedService {
             merged.add(new ArtistUnifiedDto(
                     dto.id(),
                     dto.nameKr(),
-                    dto.nameEn(),
                     dto.imageUrl(),
                     ArtistUnifiedDto.Type.GROUP,
                     null,
@@ -394,8 +387,10 @@ public class ArtistUnifiedService {
         }
 
         merged.sort(
-                Comparator.comparing(ArtistUnifiedDto::nameKr, Comparator.nullsLast(String::compareTo))
-                        .thenComparing(ArtistUnifiedDto::nameEn, Comparator.nullsLast(String::compareTo))
+                Comparator.comparing(
+                        ArtistUnifiedDto::nameKr,
+                        Comparator.nullsLast(String::compareTo)
+                )
         );
 
         int page = pageable.getPageNumber();
@@ -442,7 +437,6 @@ public class ArtistUnifiedService {
             merged.add(new ArtistUnifiedDto(
                     artist.getId(),
                     artist.getNameKr(),
-                    artist.getNameEn(),
                     imageUrl,
                     ArtistUnifiedDto.Type.ARTIST,
                     artist.getCreatedAt(),
@@ -458,7 +452,6 @@ public class ArtistUnifiedService {
             merged.add(new ArtistUnifiedDto(
                     group.getId(),
                     group.getNameKr(),
-                    group.getNameEn(),
                     imageUrl,
                     ArtistUnifiedDto.Type.GROUP,
                     group.getCreatedAt(),

@@ -110,9 +110,6 @@ public interface EventMapper {
 
 
     // ---- Group 매핑 ----
-    @Mapping(target = "id", source = "artistGroup.id")
-    @Mapping(target = "nameKr", source = "artistGroup.nameKr")
-    @Mapping(target = "nameEn", source = "artistGroup.nameEn")
     @Mapping(
             target = "profileImageUrl",
             expression =
