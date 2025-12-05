@@ -290,17 +290,21 @@ public class EventQueryService {
             return List.of();
         }
 
+        if (userId == null) {
+            return events.stream()
+                    .map(e -> eventInfoAssembler.assemble(e, false))
+                    .toList();
+        }
+
         List<Long> eventIds = events.stream()
                 .map(Event::getId)
                 .toList();
 
         Set<Long> bookmarked = bookmarkedIds(userId, eventIds);
 
+
         return events.stream()
-                .map(e -> eventInfoAssembler.assemble(
-                        e,
-                        userId == null ? null : bookmarked.contains(e.getId())
-                ))
+                .map(e -> eventInfoAssembler.assemble(e, bookmarked.contains(e.getId())))
                 .toList();
     }
 

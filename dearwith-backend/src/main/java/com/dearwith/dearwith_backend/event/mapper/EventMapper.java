@@ -1,22 +1,19 @@
 package com.dearwith.dearwith_backend.event.mapper;
 
-import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.event.dto.EventNoticeInfoDto;
-import com.dearwith.dearwith_backend.event.dto.EventNoticeResponseDto;
 import com.dearwith.dearwith_backend.event.entity.*;
 import com.dearwith.dearwith_backend.event.dto.EventCreateRequestDto;
 import com.dearwith.dearwith_backend.event.dto.EventResponseDto;
 import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
-import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
-import org.checkerframework.checker.units.qual.C;
 import org.mapstruct.*;
 
 import java.util.*;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface EventMapper {
+
     // ---- Create 요청 -> Entity ----
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "images", ignore = true)
@@ -35,16 +32,9 @@ public interface EventMapper {
     }
 
     // PlaceDto -> PlaceInfo
-    @Mapping(target = "kakaoPlaceId", source = "kakaoPlaceId")
-    @Mapping(target = "name", source = "name")
-    @Mapping(target = "roadAddress", source = "roadAddress")
-    @Mapping(target = "jibunAddress", source = "jibunAddress")
-    @Mapping(target = "lon", source = "lon")
-    @Mapping(target = "lat", source = "lat")
-    @Mapping(target = "phone", source = "phone")
-    @Mapping(target = "placeUrl", source = "placeUrl")
     PlaceInfo toPlaceInfo(EventCreateRequestDto.PlaceDto dto);
 
+    // OrganizerInfo -> OrganizerDto
     @Mapping(target = "verified", source = "verified")
     @Mapping(target = "xHandle",  source = "XHandle")
     @Mapping(target = "xId",      source = "XId")
@@ -52,13 +42,13 @@ public interface EventMapper {
     EventResponseDto.OrganizerDto toOrganizerDto(OrganizerInfo info);
 
     // ---- Entity -> Response ----
-    @Mapping(target = "place", source = "event.placeInfo")
-    @Mapping(target = "images", source = "images")
-    @Mapping(target = "organizer", source = "event.organizer")
-    @Mapping(target = "artists", source = "artistMappings")
+    @Mapping(target = "place",        source = "event.placeInfo")
+    @Mapping(target = "images",       source = "images")
+    @Mapping(target = "organizer",    source = "event.organizer")
+    @Mapping(target = "artists",      source = "artistMappings")
     @Mapping(target = "artistGroups", source = "artistGroupMappings")
-    @Mapping(target = "benefits", source = "benefits")
-    @Mapping(target = "notices", source = "notices")
+    @Mapping(target = "benefits",     source = "benefits")
+    @Mapping(target = "notices",      source = "notices")
     EventResponseDto toResponse(
             Event event,
             List<ImageGroupDto> images,
@@ -71,26 +61,15 @@ public interface EventMapper {
     );
 
     // PlaceInfo -> Response.PlaceDto
-    @Mapping(target = "kakaoPlaceId", source = "kakaoPlaceId")
-    @Mapping(target = "name", source = "name")
-    @Mapping(target = "roadAddress", source = "roadAddress")
-    @Mapping(target = "jibunAddress", source = "jibunAddress")
-    @Mapping(target = "lon", source = "lon")
-    @Mapping(target = "lat", source = "lat")
-    @Mapping(target = "phone", source = "phone")
-    @Mapping(target = "placeUrl", source = "placeUrl")
     EventResponseDto.PlaceDto toPlaceDto(PlaceInfo info);
 
     // EventBenefit -> Response.BenefitDto
-    @Mapping(target = "id", source = "id")
-    @Mapping(target = "name", source = "name")
-    @Mapping(target = "benefitType", source = "benefitType")
-    @Mapping(target = "dayIndex", source = "dayIndex")
-    @Mapping(target = "displayOrder", source = "displayOrder")
     EventResponseDto.BenefitDto toBenefitDto(EventBenefit b);
     List<EventResponseDto.BenefitDto> toBenefitDtos(List<EventBenefit> list);
 
     // ---- Artist 매핑 ----
+    @Mapping(target = "id",      source = "artist.id")
+    @Mapping(target = "nameKr",  source = "artist.nameKr")
     @Mapping(
             target = "profileImageUrl",
             expression =
@@ -108,8 +87,9 @@ public interface EventMapper {
             @Context AssetUrlService assetUrlService
     );
 
-
     // ---- Group 매핑 ----
+    @Mapping(target = "id",      source = "artistGroup.id")
+    @Mapping(target = "nameKr",  source = "artistGroup.nameKr")
     @Mapping(
             target = "profileImageUrl",
             expression =

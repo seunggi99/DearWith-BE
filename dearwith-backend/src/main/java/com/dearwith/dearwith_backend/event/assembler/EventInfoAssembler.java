@@ -51,6 +51,7 @@ public class EventInfoAssembler {
                 )
                 .startDate(e.getStartDate())
                 .endDate(e.getEndDate())
+                .openTime(e.getOpenTime())
                 .closeTime(e.getCloseTime())
                 .bookmarkCount(e.getBookmarkCount())
                 .bookmarked(bookmarked)
