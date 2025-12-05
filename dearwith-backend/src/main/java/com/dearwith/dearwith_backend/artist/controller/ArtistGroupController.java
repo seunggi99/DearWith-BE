@@ -6,7 +6,7 @@ import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistGroupService;
 import com.dearwith.dearwith_backend.artist.service.HotArtistService;
-import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
+import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
@@ -18,8 +18,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/groups")
@@ -48,7 +49,7 @@ public class ArtistGroupController {
     @Operation(summary = "특정 그룹의 이벤트 목록",
             description = "해당 그룹의 모든 아티스트 이벤트 + 그룹에 직접 매핑된 이벤트를 합쳐서 반환합니다.")
     public GroupEventsResponseDto getGroupEvents(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @PathVariable Long groupId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -60,9 +61,9 @@ public class ArtistGroupController {
             case LATEST -> Sort.by(Sort.Order.desc("id"));
         });
 
-        hotArtistService.recordGroupView(groupId, principal.getId());
+        hotArtistService.recordGroupView(groupId, userId);
 
-        Page<EventInfoDto> eventPage = eventQueryService.getEventsByGroup(groupId, principal.getId(), pageable);
+        Page<EventInfoDto> eventPage = eventQueryService.getEventsByGroup(groupId, userId, pageable);
 
         ArtistGroup group = groupRepository.findById(groupId)
                 .orElseThrow(() -> BusinessException.withMessage(ErrorCode.NOT_FOUND, "아티스트 그룹을 찾을 수 없습니다."));

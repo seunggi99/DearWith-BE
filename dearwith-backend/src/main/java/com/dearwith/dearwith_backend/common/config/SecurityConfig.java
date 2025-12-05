@@ -10,6 +10,7 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -29,6 +30,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -150,6 +152,9 @@ public class SecurityConfig {
                                 "/api/artists/*/events",       // 특정 아티스트의 이벤트 목록
                                 "/api/groups/*/events"         // 특정 그룹의 이벤트 목록
                         ).permitAll()
+
+                        // 관리자 전용 API
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                         // ===== 로그인 필수 =====
                         .requestMatchers(

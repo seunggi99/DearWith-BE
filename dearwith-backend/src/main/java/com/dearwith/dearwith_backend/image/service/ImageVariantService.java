@@ -93,7 +93,7 @@ public class ImageVariantService {
                 throw e;
             } catch (Exception ex) {
                 log.error("[variants] failed filename={}, reason={}",
-                        spec.filename(), ex.toString(), ex);
+                        spec.filename(), ex, ex);
 
                 throw BusinessException.withAll(
                         ErrorCode.IMAGE_PROCESSING_FAILED,
@@ -170,7 +170,7 @@ public class ImageVariantService {
             throw e;
         } catch (Exception ex) {
             log.error("[single-variant] failed filename={}, reason={}",
-                    spec.filename(), ex.toString(), ex);
+                    spec.filename(), ex, ex);
 
             throw BusinessException.withAll(
                     ErrorCode.IMAGE_PROCESSING_FAILED,

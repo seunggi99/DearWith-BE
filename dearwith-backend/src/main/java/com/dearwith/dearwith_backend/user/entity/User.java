@@ -43,7 +43,7 @@ public class User extends BaseDeletableEntity {
     private Role role;
 
     @Enumerated(EnumType.STRING)
-    private UserStatus userStatus; // Enum (ACTIVE, SUSPENDED, DELETED)
+    private UserStatus userStatus;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

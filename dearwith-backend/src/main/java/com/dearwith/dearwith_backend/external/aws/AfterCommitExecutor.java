@@ -14,13 +14,13 @@ public class AfterCommitExecutor {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override public void afterCommit() {
                     try { task.run(); } catch (Throwable t) {
-                        log.error("[after-commit] task failed: {}", t.toString(), t);
+                        log.error("[after-commit] task failed: {}", t, t);
                     }
                 }
             });
         } else {
             try { task.run(); } catch (Throwable t) {
-                log.error("[after-commit] immediate task failed: {}", t.toString(), t);
+                log.error("[after-commit] immediate task failed: {}", t, t);
             }
         }
     }

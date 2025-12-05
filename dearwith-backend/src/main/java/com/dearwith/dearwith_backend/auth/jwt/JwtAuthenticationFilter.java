@@ -12,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -22,7 +23,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
-@Order(1)  // SecurityFilterChain 보다 앞순서로 실행
+@Order(1)
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -70,6 +71,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (JwtException e) {
             SecurityContextHolder.clearContext();
             log.warn("Invalid JWT token: {}", e.getMessage());
+            chain.doFilter(request, response);
+        } catch (UsernameNotFoundException ex) {
+            log.warn("JWT 유저를 찾을 수 없습니다. 토큰 무시: {}", ex.getMessage());
+            SecurityContextHolder.clearContext();
             chain.doFilter(request, response);
         }
     }

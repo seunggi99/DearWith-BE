@@ -7,7 +7,7 @@ import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistService;
 import com.dearwith.dearwith_backend.artist.service.HotArtistService;
-import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
+import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
 import com.dearwith.dearwith_backend.common.dto.CreatedResponseDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
@@ -22,8 +22,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/artists")
@@ -36,7 +37,6 @@ public class ArtistController {
     @GetMapping
     @Operation(summary = "아티스트 검색")
     public Page<ArtistDto> search(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @RequestParam(name = "query") String query,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
@@ -54,15 +54,15 @@ public class ArtistController {
     @ResponseStatus(HttpStatus.CREATED)
     public CreatedResponseDto createArtist(
             @Valid @RequestBody ArtistCreateRequestDto req,
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
-    ) {;
-        return artistService.create(principal.getId(), req);
+            @CurrentUser UUID userId
+    ) {
+        return artistService.create(userId, req);
     }
 
     @GetMapping("/{artistId}/events")
     @Operation(summary = "특정 아티스트의 이벤트 목록")
     public ArtistEventsResponseDto getArtistEvents(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @PathVariable Long artistId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -73,9 +73,9 @@ public class ArtistController {
             case UPCOMING -> Sort.by(Sort.Order.asc("startDate"), Sort.Order.asc("id"));
             case LATEST -> Sort.by(Sort.Order.desc("id"));
         });
-        hotArtistService.recordArtistView(artistId, principal.getId());
+        hotArtistService.recordArtistView(artistId, userId);
 
-        Page<EventInfoDto> eventPage = eventQueryService.getEventsByArtist(artistId, principal.getId(), pageable);
+        Page<EventInfoDto> eventPage = eventQueryService.getEventsByArtist(artistId, userId, pageable);
 
         Artist artist = artistRepository.findById(artistId)
                 .orElseThrow(() -> BusinessException.of(ErrorCode.NOT_FOUND));

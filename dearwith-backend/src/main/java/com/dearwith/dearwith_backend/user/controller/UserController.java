@@ -1,8 +1,8 @@
 package com.dearwith.dearwith_backend.user.controller;
 
 
+import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
 import com.dearwith.dearwith_backend.user.dto.*;
-import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.user.docs.UserApiDocs;
 import com.dearwith.dearwith_backend.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,11 +10,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
+import java.util.UUID;
 
 
 @RestController
@@ -39,9 +38,9 @@ public class UserController {
     @Operation(summary = "현재 로그인 회원 정보 조회", description = "JWT 토큰으로 받은 현재 로그인한 회원 정보 조회")
     @GetMapping("/me")
     public ResponseEntity<UserResponseDto> getCurrentUser(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
+            @CurrentUser UUID userId
     ) {
-        return ResponseEntity.ok(userService.getCurrentUser(principal.getId()));
+        return ResponseEntity.ok(userService.getCurrentUser(userId));
     }
 
     @Operation(summary = "가입된 모든 회원 출력", description = "개발용 임시")
@@ -53,9 +52,9 @@ public class UserController {
     @Operation(summary = "회원 닉네임 변경")
     @PatchMapping("/me/nickname")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void updateNickname(@AuthenticationPrincipal CustomUserDetails principal,
-                                               @RequestBody @Valid UpdateNicknameRequestDto req) {
-        userService.updateNickname(principal.getId(), req.getNickname());
+    public void updateNickname(@CurrentUser UUID userId,
+                               @RequestBody @Valid UpdateNicknameRequestDto req) {
+        userService.updateNickname(userId, req.getNickname());
     }
 
     @Operation(summary = "비밀번호 변경 (이메일 인증 필요)")
@@ -69,26 +68,26 @@ public class UserController {
     @PatchMapping("/me/profile/image")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateProfileImage(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @RequestBody ProfileImageUpdateRequestDto request
     ) {
-        userService.updateProfileImage(principal.getId(), request);
+        userService.updateProfileImage(userId, request);
     }
 
     @Operation(summary = "회원 프로필 사진 삭제")
     @DeleteMapping("/me/profile/image")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteProfileImage(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
+            @CurrentUser UUID userId
     ) {
-        userService.deleteProfileImage(principal.getId());
+        userService.deleteProfileImage(userId);
     }
 
     @Operation(summary = "회원 소프트 삭제(Status 변경)")
     @DeleteMapping("/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteUser(@AuthenticationPrincipal CustomUserDetails principal) {
-        userService.deleteById(principal.getId());
+    public void deleteUser(@CurrentUser UUID userId) {
+        userService.deleteById(userId);
     }
 
     @Operation(summary = "이메일 중복 검사")

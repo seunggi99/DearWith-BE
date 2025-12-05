@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.review.controller;
 
-import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
+import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
 import com.dearwith.dearwith_backend.review.docs.ReviewApiDocs;
 import com.dearwith.dearwith_backend.review.dto.*;
 import com.dearwith.dearwith_backend.review.enums.ReviewSort;
@@ -15,8 +15,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -29,16 +30,16 @@ public class ReviewController {
     @ResponseStatus(HttpStatus.CREATED)
     public void create(
             @PathVariable Long eventId,
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @Valid @RequestBody ReviewCreateRequestDto req
     ) {
-        reviewService.create(principal.getId(), eventId, req);
+        reviewService.create(userId, eventId, req);
     }
 
     @GetMapping("/api/events/{eventId}/reviews")
     @Operation(summary = "특정 이벤트의 리뷰 목록")
     public Page<EventReviewResponseDto> getEventReviews(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @PathVariable Long eventId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -49,7 +50,7 @@ public class ReviewController {
             case LATEST -> Sort.by(Sort.Order.desc("id"));
         });
 
-        return reviewService.getReviewsByEvent(eventId, principal.getId(), pageable);
+        return reviewService.getReviewsByEvent(eventId, userId, pageable);
     }
 
     @GetMapping("/api/events/{eventId}/photoReviews")
@@ -68,27 +69,27 @@ public class ReviewController {
     @Operation(summary = "리뷰 상세 조회 (이미지 제외)")
     public ResponseEntity<EventReviewDetailResponseDto> getReviewDetail(
             @PathVariable Long reviewId,
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
+            @CurrentUser UUID userId
     ) {
-        EventReviewDetailResponseDto response = reviewService.getEventReviewDetail(reviewId, principal.getId());
+        EventReviewDetailResponseDto response = reviewService.getEventReviewDetail(reviewId, userId);
         return ResponseEntity.ok(response);
     }
     @Operation(summary = "리뷰 좋아요 추가")
     @PostMapping("/api/reviews/{reviewId}/like")
     public ReviewLikeResponseDto like(
             @PathVariable Long reviewId,
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
+            @CurrentUser UUID userId
     ) {
-        return reviewService.like(reviewId, principal.getId());
+        return reviewService.like(reviewId, userId);
     }
 
     @Operation(summary = "리뷰 좋아요 취소")
     @DeleteMapping("/api/reviews/{reviewId}/like")
     public ReviewLikeResponseDto unlike(
             @PathVariable Long reviewId,
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
+            @CurrentUser UUID userId
     ) {
-        return reviewService.unlike(reviewId, principal.getId());
+        return reviewService.unlike(reviewId, userId);
     }
 
     @Operation(summary = "리뷰 수정",
@@ -97,10 +98,10 @@ public class ReviewController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateReview(
             @PathVariable Long reviewId,
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @Valid @RequestBody ReviewUpdateRequestDto req
     ) {
-        reviewService.update(principal.getId(), reviewId, req);
+        reviewService.update(userId, reviewId, req);
     }
 
     @Operation(summary = "리뷰 삭제")
@@ -108,9 +109,9 @@ public class ReviewController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteReview(
             @PathVariable Long reviewId,
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
+            @CurrentUser UUID userId
     ) {
-        reviewService.delete(reviewId, principal.getId());
+        reviewService.delete(reviewId, userId);
     }
 
     @PostMapping("/api/reviews/{reviewId}/report")
@@ -118,9 +119,9 @@ public class ReviewController {
             description = ReviewApiDocs.REPORT_DESC)
     public ReviewReportResponseDto reportReview(
             @PathVariable Long reviewId,
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @RequestBody @Valid ReviewReportRequestDto req
     ) {
-        return reviewReportService.reportReview(reviewId, principal.getId(), req);
+        return reviewReportService.reportReview(reviewId, userId, req);
     }
 }

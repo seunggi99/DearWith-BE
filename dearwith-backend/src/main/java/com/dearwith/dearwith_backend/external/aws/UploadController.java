@@ -1,13 +1,13 @@
 package com.dearwith.dearwith_backend.external.aws;
 
 
+import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.image.service.ImageAssetService;
 import com.dearwith.dearwith_backend.image.service.ImageService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -63,7 +63,8 @@ public class UploadController {
                     예시 요청: {"tmpKey":"tmp/event/.../example.png"}
                     """)
     public CommitRes commit(@Valid @RequestBody CommitReq req,
-                            @AuthenticationPrincipal(expression = "id") UUID userId) {
+                            @CurrentUser UUID userId
+    ) {
         String inlineKey = imageAssetService.promoteTmpToInline(req.tmpKey());
         Image saved = imageService.registerCommittedImage(inlineKey, userId);
         return new CommitRes(saved.getId(), assetUrlService.generatePublicUrl(saved));

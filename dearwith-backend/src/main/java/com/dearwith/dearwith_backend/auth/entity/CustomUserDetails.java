@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -23,10 +24,15 @@ public class CustomUserDetails implements UserDetails {
     private final String password;
     private final Role role;
     private final UserStatus userStatus;
+    private final User user;
 
+    @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority(role.name()));
+        return List.of(
+                new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
+        );
     }
+
     @Override
     public String getPassword() {
         return password;
@@ -63,6 +69,6 @@ public class CustomUserDetails implements UserDetails {
         this.password = user.getPassword();
         this.role = user.getRole();
         this.userStatus = user.getUserStatus();
+        this.user = user;
     }
-
 }

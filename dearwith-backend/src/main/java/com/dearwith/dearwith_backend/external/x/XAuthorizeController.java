@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.external.x;
 
+import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
 import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +18,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
@@ -58,7 +60,7 @@ public class XAuthorizeController {
 
     @GetMapping("/oauth2/callback/x")
     public ResponseEntity<Map<String, Object>> callback(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @RequestParam String code,
             @RequestParam String state,
             HttpServletRequest req
@@ -75,7 +77,7 @@ public class XAuthorizeController {
         var me = xAuthService.verifyWithCode(redirectUri, code, codeVerifier);
 
         String ticket = ticketService.issueTicket(
-                principal.getId(),
+                userId,
                 me.data().id(),
                 me.data().username(),
                 me.data().name(),

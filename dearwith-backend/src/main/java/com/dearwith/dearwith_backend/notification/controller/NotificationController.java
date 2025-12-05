@@ -1,6 +1,6 @@
 package com.dearwith.dearwith_backend.notification.controller;
 
-import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
+import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
 import com.dearwith.dearwith_backend.notification.dto.NotificationResponseDto;
 import com.dearwith.dearwith_backend.notification.dto.UnreadExistsResponseDto;
 import com.dearwith.dearwith_backend.notification.service.NotificationService;
@@ -11,8 +11,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -23,9 +24,9 @@ public class NotificationController {
     @GetMapping("/unread-exists")
     @Operation(summary = "안 읽은 알림 존재 여부 및 개수 조회")
     public UnreadExistsResponseDto hasUnread(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
+            @CurrentUser UUID userId
     ) {
-        return notificationService.hasUnread(principal.getId());
+        return notificationService.hasUnread(userId);
     }
 
     @GetMapping
@@ -35,14 +36,14 @@ public class NotificationController {
                     - onlyUnread=true 이면 읽지 않은 알림만 조회합니다.
                     """)
     public Page<NotificationResponseDto> getNotifications(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @RequestParam(name = "onlyUnread", defaultValue = "false") boolean onlyUnread,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        return notificationService.getNotifications(principal.getId(), onlyUnread, pageable);
+        return notificationService.getNotifications(userId, onlyUnread, pageable);
     }
 
     // 3) 단일 알림 읽음 처리
@@ -50,10 +51,10 @@ public class NotificationController {
     @Operation(summary = "단일 알림 읽음 처리")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void markAsRead(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @PathVariable Long notificationId
     ) {
-        notificationService.markAsRead(principal.getId(), notificationId);
+        notificationService.markAsRead(userId, notificationId);
     }
 
     // 4) 전체 알림 읽음 처리
@@ -61,9 +62,9 @@ public class NotificationController {
     @Operation(summary = "전체 알림 읽음 처리")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void markAllAsRead(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal
+            @CurrentUser UUID userId
     ) {
-        notificationService.markAllAsRead(principal.getId());
+        notificationService.markAllAsRead(userId);
     }
 
     // 5) 단일 알림 삭제
@@ -71,10 +72,10 @@ public class NotificationController {
     @Operation(summary = "단일 알림 삭제")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteOne(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @PathVariable Long notificationId
     ) {
-        notificationService.deleteOne(principal.getId(), notificationId);
+        notificationService.deleteOne(userId, notificationId);
     }
 
     // 6) 전체 알림 삭제 (옵션: 읽은 것만 삭제)
@@ -87,9 +88,9 @@ public class NotificationController {
                     """)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAll(
-            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @CurrentUser UUID userId,
             @RequestParam(name = "onlyRead", defaultValue = "false") boolean onlyRead
     ) {
-        notificationService.deleteAll(principal.getId(), onlyRead);
+        notificationService.deleteAll(userId, onlyRead);
     }
 }
