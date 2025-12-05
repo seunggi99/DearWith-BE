@@ -85,7 +85,6 @@ public class ArtistController {
         return ArtistEventsResponseDto.builder()
                 .artistId(artist.getId())
                 .artistNameKr(artist.getNameKr())
-                .artistNameEn(artist.getNameEn())
                 .page(eventPage)
                 .build();
     }

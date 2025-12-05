@@ -28,14 +28,12 @@ public record EventResponseDto(
     public record ArtistDto(
             Long id,
             String nameKr,
-            String nameEn,
             String profileImageUrl
     ) {}
 
     public record ArtistGroupDto(
             Long id,
             String nameKr,
-            String nameEn,
             String profileImageUrl
     ) {}
 

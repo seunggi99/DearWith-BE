@@ -27,10 +27,10 @@ public class ImageAssetService {
     @Value("${app.assets.cache-control:public, max-age=31536000, immutable}")
     private String cacheControl;
 
+    private static final long MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024L; // 20MB
     private static final Set<String> ALLOWED_MIME = Set.of(
             "image/jpeg","image/png","image/webp","image/avif","image/heic","image/heif","image/gif"
     );
-
     /* ========= 정책 1: tmp → inline 승격 ========= */
     public String promoteTmpToInline(String tmpKey) {
 
@@ -68,7 +68,7 @@ public class ImageAssetService {
         String mime = head.contentType();
 
         // 파일 크기 검증 (사용자 잘못)
-        if (size <= 0 || size > 10 * 1024 * 1024L) {
+        if (size <= 0 || size > MAX_FILE_SIZE_BYTES) {
             throw BusinessException.withMessageAndDetail(
                     ErrorCode.INVALID_FILE_SIZE,
                     ErrorCode.INVALID_FILE_SIZE.getMessage(),
@@ -101,6 +101,7 @@ public class ImageAssetService {
 
         return finalKey;
     }
+
 
     /* ========= 정책 2: 원본 + 파생 디렉토리 trash 이동 ========= */
     public String moveOriginalAndDerivedToTrash(String originalKey) {

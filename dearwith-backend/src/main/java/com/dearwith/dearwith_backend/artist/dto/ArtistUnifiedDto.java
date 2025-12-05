@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 public record ArtistUnifiedDto(
         Long id,
         String nameKr,
-        String nameEn,
         String imageUrl,
         Type type,
         LocalDateTime createdAt,

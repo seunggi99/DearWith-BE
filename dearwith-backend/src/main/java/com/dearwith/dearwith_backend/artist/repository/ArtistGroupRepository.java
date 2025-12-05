@@ -25,10 +25,11 @@ public interface ArtistGroupRepository  extends JpaRepository<ArtistGroup, Long>
     List<ArtistGroup> findGroupsByDebutMonth(@Param("month") int month);
 
     @Query("""
-        SELECT a FROM ArtistGroup a 
-        WHERE LOWER(a.nameKr) LIKE LOWER(CONCAT('%', :query, '%')) 
-           OR LOWER(a.nameEn) LIKE LOWER(CONCAT('%', :query, '%'))
-    """)
+        SELECT a FROM ArtistGroup a
+        WHERE 
+            LOWER(a.nameKr) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(a.nameEn) LIKE LOWER(CONCAT('%', :query, '%'))
+        """)
     Page<ArtistGroup> searchByName(@Param("query") String query, Pageable pageable);
 
     Optional<ArtistGroup> findByNameKrIgnoreCase(String nameKr);
@@ -53,4 +54,6 @@ public interface ArtistGroupRepository  extends JpaRepository<ArtistGroup, Long>
     long getBookmarkCount(@Param("groupId") Long groupId);
 
     List<ArtistGroup> findByUserIdAndCreatedAtAfter(UUID userId, LocalDateTime createdAt);
+    Optional<ArtistGroup> findByDisplayName(String displayName);
+    boolean existsByDisplayName(String displayName);
 }

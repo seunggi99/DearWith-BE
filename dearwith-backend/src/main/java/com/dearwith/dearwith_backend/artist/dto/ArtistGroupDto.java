@@ -5,7 +5,6 @@ import java.time.LocalDate;
 public record ArtistGroupDto (
         Long id,
         String nameKr,
-        String nameEn,
         String description,
         LocalDate debutDate,
         String imageUrl

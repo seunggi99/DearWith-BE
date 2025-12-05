@@ -71,7 +71,6 @@ public class ArtistGroupController {
         return GroupEventsResponseDto.builder()
                 .groupId(group.getId())
                 .groupNameKr(group.getNameKr())
-                .groupNameEn(group.getNameEn())
                 .page(eventPage)
                 .build();
     }

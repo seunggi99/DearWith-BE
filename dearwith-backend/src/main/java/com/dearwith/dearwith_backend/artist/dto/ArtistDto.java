@@ -5,7 +5,6 @@ import java.time.LocalDate;
 public record ArtistDto(
         Long id,
         String nameKr,
-        String nameEn,
         String imageUrl,
         LocalDate birthDate,
         LocalDate debutDate

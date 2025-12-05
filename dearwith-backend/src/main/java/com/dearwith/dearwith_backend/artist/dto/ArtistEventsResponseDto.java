@@ -14,6 +14,5 @@ import org.springframework.data.domain.Page;
 public class ArtistEventsResponseDto {
     private Long artistId;
     private String artistNameKr;
-    private String artistNameEn;
     private Page<EventInfoDto> page;
 }

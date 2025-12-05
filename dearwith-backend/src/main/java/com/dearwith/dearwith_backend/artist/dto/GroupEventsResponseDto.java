@@ -14,6 +14,5 @@ import org.springframework.data.domain.Page;
 public class GroupEventsResponseDto {
     private Long groupId;
     private String groupNameKr;
-    private String groupNameEn;
     private Page<EventInfoDto> page;
 }

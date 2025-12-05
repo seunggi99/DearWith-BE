@@ -91,9 +91,6 @@ public interface EventMapper {
     List<EventResponseDto.BenefitDto> toBenefitDtos(List<EventBenefit> list);
 
     // ---- Artist 매핑 ----
-    @Mapping(target = "id", source = "artist.id")
-    @Mapping(target = "nameKr", source = "artist.nameKr")
-    @Mapping(target = "nameEn", source = "artist.nameEn")
     @Mapping(
             target = "profileImageUrl",
             expression =

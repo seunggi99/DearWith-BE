@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.page.main;
 
+import com.dearwith.dearwith_backend.auth.entity.CustomUserDetails;
 import com.dearwith.dearwith_backend.banner.BannerDto;
 import com.dearwith.dearwith_backend.banner.BannerService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,10 +20,16 @@ public class MainPageController {
     private final MainPageService mainPageService;
     private final BannerService bannerService;
 
-    @Operation(summary = "메인페이지 조회(로그인)")
+    @Operation(summary = "메인페이지 조회")
     @GetMapping
-    public MainPageResponseDto getMainPage(@AuthenticationPrincipal(expression = "id", errorOnInvalidType = false) UUID userId
+    public MainPageResponseDto getMainPage(
+            @AuthenticationPrincipal Object principal
     ) {
+        UUID userId = null;
+
+        if (principal instanceof CustomUserDetails cud) {
+            userId = cud.getId();
+        }
 
         MainPageResponseDto response = mainPageService.getMainPage(userId);
         List<BannerDto> banners = bannerService.getMainBanners();

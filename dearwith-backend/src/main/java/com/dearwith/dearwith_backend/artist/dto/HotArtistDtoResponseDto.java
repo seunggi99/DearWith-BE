@@ -15,7 +15,6 @@ public class HotArtistDtoResponseDto {
 
     private Long id;
     private String nameKr;
-    private String nameEn;
     private String imageUrl;
     private HotArtistType type;
     private long score;

@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface ArtistRepository extends JpaRepository<Artist, Long> {
@@ -46,9 +47,12 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
 
     @Query("""
         SELECT a FROM Artist a 
-        WHERE LOWER(a.nameKr) LIKE LOWER(CONCAT('%', :query, '%')) 
-           OR LOWER(a.nameEn) LIKE LOWER(CONCAT('%', :query, '%'))
-    """)
+        WHERE 
+            LOWER(a.nameKr) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(a.nameEn) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(a.realName) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(a.realNameKr) LIKE LOWER(CONCAT('%', :query, '%'))
+        """)
     Page<Artist> searchByName(@Param("query") String query, Pageable pageable);
 
     @Query("""
@@ -81,4 +85,12 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
     long getBookmarkCount(@Param("artistId") Long artistId);
 
     List<Artist> findByUserIdAndCreatedAtAfter(UUID userId, LocalDateTime createdAt);
+
+    Optional<Artist> findByDisplayName(String displayName);
+
+    Optional<Artist> findByDisplayNameAndBirthDate(String displayName, LocalDate birthDate);
+
+    boolean existsByDisplayName(String displayName);
+
+    boolean existsByDisplayNameAndBirthDate(String displayName, LocalDate birthDate);
 }

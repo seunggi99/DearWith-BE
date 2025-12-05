@@ -18,9 +18,10 @@ public class Artist extends BaseAuditableEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String nameKr; // 아티스트 이름
+    private String nameKr;
     private String nameEn;
-    private String description; // 아티스트 설명
+    private String realName;
+    private String realNameKr;
 
     @Column(nullable = false)
     @Builder.Default
