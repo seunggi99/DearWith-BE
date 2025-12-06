@@ -147,5 +147,5 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     """)
     List<Event> findGlobalRecommendedFallback(@Param("today") LocalDate today, Pageable pageable);
 
-    Page<Event> findByUser_IdAndCreatedAtBetween(UUID userId, LocalDateTime start, LocalDateTime end, Pageable pageable);
+    Page<Event> findByUser_Id(UUID userId, Pageable pageable);
 }

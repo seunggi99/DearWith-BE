@@ -69,10 +69,9 @@ public class MyPageController {
     public Page<EventInfoDto> getMyEvents(
             @CurrentUser UUID userId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "1") Integer year
+            @RequestParam(defaultValue = "10") int size
     ) {
-        return eventQueryService.getMyEvents(userId, page, size, year);
+        return eventQueryService.getMyEvents(userId, page, size);
     }
 
     @Operation(summary = "내가 등록한 아티스트")
@@ -80,10 +79,9 @@ public class MyPageController {
     public Page<ArtistUnifiedDto> getMyArtists(
             @CurrentUser UUID userId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "1") Integer months
+            @RequestParam(defaultValue = "10") int size
     ) {
-        return artistUnifiedService.getMyArtists(userId, page, size, months);
+        return artistUnifiedService.getMyArtists(userId, page, size);
     }
 
     @Operation(summary = "내가 작성한 리뷰")

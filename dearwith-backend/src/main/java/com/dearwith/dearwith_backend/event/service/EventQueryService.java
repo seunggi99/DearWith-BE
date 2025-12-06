@@ -254,17 +254,9 @@ public class EventQueryService {
     public Page<EventInfoDto> getMyEvents(
             UUID userId,
             int page,
-            int size,
-            Integer year
+            int size
     ) {
         UUID creatorId = normalizeUserId(userId);
-
-        int targetYear = (year == null || year < 2000)
-                ? LocalDate.now().getYear()
-                : year;
-
-        LocalDate startDate = LocalDate.of(targetYear, 1, 1);
-        LocalDate endDateExclusive = startDate.plusYears(1);
 
         Pageable pageable = PageRequest.of(
                 page,
@@ -272,10 +264,8 @@ public class EventQueryService {
                 Sort.by(Sort.Direction.DESC, "createdAt")
         );
 
-        Page<Event> eventPage = eventRepository.findByUser_IdAndCreatedAtBetween(
+        Page<Event> eventPage = eventRepository.findByUser_Id(
                 creatorId,
-                startDate.atStartOfDay(),
-                endDateExclusive.atStartOfDay(),
                 pageable
         );
 

@@ -12,7 +12,7 @@ import lombok.Data;
 public class SignInRequestDto {
     @NotBlank(message = "이메일을 입력해주세요.")
     @Email
-    @Schema(description = "이메일", example = "test@test")
+    @Schema(description = "이메일", example = "test@test.com")
     private String email;
 
     @NotBlank(message = "비밀번호를 입력해주세요.")

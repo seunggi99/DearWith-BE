@@ -439,25 +439,20 @@ public class ArtistUnifiedService {
     public Page<ArtistUnifiedDto> getMyArtists(
             UUID userId,
             int page,
-            int size,
-            Integer months
-    ){
+            int size
+    ) {
         User user = userReader.getLoginAllowedUser(userId);
 
-        int monthValue = (months == null || months < 1) ? 1 : months;
-        LocalDateTime from = LocalDateTime.now().minusMonths(monthValue);
-
-        List<Artist> artists = artistRepository
-                .findByUserIdAndCreatedAtAfter(user.getId(), from);
-
-        List<ArtistGroup> groups = artistGroupRepository
-                .findByUserIdAndCreatedAtAfter(user.getId(), from);
+        List<Artist> artists = artistRepository.findByUser_Id(user.getId());
+        List<ArtistGroup> groups = artistGroupRepository.findByUser_Id(user.getId());
 
         List<ArtistUnifiedDto> merged = new ArrayList<>(artists.size() + groups.size());
 
         for (Artist artist : artists) {
             Image profileImage = artist.getProfileImage();
-            String imageUrl = assetUrlService.generatePublicUrl(profileImage);
+            String imageUrl = profileImage != null
+                    ? assetUrlService.generatePublicUrl(profileImage)
+                    : null;
 
             merged.add(new ArtistUnifiedDto(
                     artist.getId(),
@@ -472,7 +467,9 @@ public class ArtistUnifiedService {
 
         for (ArtistGroup group : groups) {
             Image profileImage = group.getProfileImage();
-            String imageUrl = assetUrlService.generatePublicUrl(profileImage);
+            String imageUrl = profileImage != null
+                    ? assetUrlService.generatePublicUrl(profileImage)
+                    : null;
 
             merged.add(new ArtistUnifiedDto(
                     group.getId(),

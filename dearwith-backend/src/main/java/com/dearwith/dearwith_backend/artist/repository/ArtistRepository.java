@@ -111,7 +111,7 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
     @Query("select a.bookmarkCount from Artist a where a.id = :artistId")
     long getBookmarkCount(@Param("artistId") Long artistId);
 
-    List<Artist> findByUserIdAndCreatedAtAfter(UUID userId, LocalDateTime createdAt);
+    List<Artist> findByUser_Id(UUID userId);
 
 
     Optional<Artist> findByNameKrAndBirthDate(String nameKr, LocalDate birthDate);

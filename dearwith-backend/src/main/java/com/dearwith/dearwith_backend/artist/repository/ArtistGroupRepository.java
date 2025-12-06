@@ -71,7 +71,7 @@ public interface ArtistGroupRepository  extends JpaRepository<ArtistGroup, Long>
     @Query("select g.bookmarkCount from ArtistGroup g where g.id = :groupId")
     long getBookmarkCount(@Param("groupId") Long groupId);
 
-    List<ArtistGroup> findByUserIdAndCreatedAtAfter(UUID userId, LocalDateTime createdAt);
+    List<ArtistGroup> findByUser_Id(UUID userId);
     Optional<ArtistGroup> findByNameKr(String nameKr);
     boolean existsByNameKr(String nameKr);
 }
