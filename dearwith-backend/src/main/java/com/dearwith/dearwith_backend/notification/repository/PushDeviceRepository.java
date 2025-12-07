@@ -9,14 +9,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface PushDeviceRepository extends JpaRepository<PushDevice, Long> {
-    Optional<PushDevice> findByFcmToken(String fcmToken);
     List<PushDevice> findAllByUserId(UUID userId);
     List<PushDevice> findAllByUserIdIn(List<UUID> userIds);
-    List<PushDevice> findByUserIdAndPlatformAndDeviceModel(
-            UUID userId,
-            Platform platform,
-            String deviceModel
-    );
     void deleteByFcmToken(String fcmToken);
     void deleteByFcmTokenAndUserId(String fcmToken, UUID userId);
+    Optional<PushDevice> findByDeviceIdAndUserId(String deviceId, UUID userId);
 }

@@ -20,42 +20,39 @@ public class PushDeviceService {
 
     public void registerOrUpdate(DeviceRegisterRequestDto req, UUID userId) {
 
-        // 1) 토큰으로 이미 존재하면 그대로 업데이트
-        PushDevice device = repository.findByFcmToken(req.getFcmToken())
-                .orElse(null);
+        PushDevice device = null;
+
+        if (userId != null) {
+            device = repository.findByDeviceIdAndUserId(req.deviceId(), userId)
+                    .orElse(null);
+        }
 
         if (device == null) {
-
-            // 2) 같은 기기(= userId + platform + deviceModel) row는 전부 삭제
-            if (userId != null) {
-                List<PushDevice> duplicates =
-                        repository.findByUserIdAndPlatformAndDeviceModel(
-                                userId,
-                                req.getPlatform(),
-                                req.getDeviceModel()
-                        );
-
-                duplicates.forEach(repository::delete);
-            }
-
-            // 3) 신규 등록
             device = PushDevice.builder()
-                    .fcmToken(req.getFcmToken())
-                    .platform(req.getPlatform())
-                    .deviceModel(req.getDeviceModel())
                     .userId(userId)
+                    .deviceId(req.deviceId())
+                    .fcmToken(req.fcmToken())
+                    .platform(req.platform())
+                    .phoneModel(req.phoneModel())
+                    .osVersion(req.osVersion())
                     .lastActiveAt(LocalDateTime.now())
                     .build();
 
             repository.save(device);
-        } else {
-            // 4) 기존 토큰 row 업데이트
-            device.setPlatform(req.getPlatform());
-            device.setDeviceModel(req.getDeviceModel());
-            if (userId != null) device.setUserId(userId);
-            device.setLastActiveAt(LocalDateTime.now());
+            return;
         }
+
+        // 기존 기기 업데이트
+        if (!device.getFcmToken().equals(req.fcmToken())) {
+            device.setFcmToken(req.fcmToken());
+        }
+
+        device.setPlatform(req.platform());
+        device.setPhoneModel(req.phoneModel());
+        device.setOsVersion(req.osVersion());
+        device.setLastActiveAt(LocalDateTime.now());
     }
+
 
     public void unregister(String fcmToken, UUID userId) {
         if (userId != null) {

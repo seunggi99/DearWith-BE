@@ -13,6 +13,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,14 +25,17 @@ public class PushNotificationService {
     private final PushDeviceRepository pushDeviceRepository;
     private final UserReader userReader;
 
-    public void sendToToken(String token, String title, String body, String url){
+    private static final int DEVICE_ACTIVE_DAYS = 90; // 만료 기준
+
+    /* ============================================================
+     * 1. 단일 토큰 발송
+     * ============================================================ */
+    public void sendToToken(String token, String title, String body, String url) {
 
         try {
-            // 1) access token 만들기
             googleCredentials.refreshIfExpired();
             String accessToken = googleCredentials.getAccessToken().getTokenValue();
 
-            // 2) Firebase HTTP 요청 보내기
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://fcm.googleapis.com/v1/projects/dearwith-6898c/messages:send"))
                     .header("Authorization", "Bearer " + accessToken)
@@ -41,14 +45,12 @@ public class PushNotificationService {
                     ))
                     .build();
 
-            HttpResponse<String> response =
-                    HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = HttpClient.newHttpClient()
+                    .send(request, HttpResponse.BodyHandlers.ofString());
 
-            // 필요하면 응답 로그
             System.out.println("[FCM] status=" + response.statusCode() + ", body=" + response.body());
 
         } catch (InterruptedException e) {
-            // 인터럽트 플래그 다시 세워주고 런타임 예외로 래핑
             Thread.currentThread().interrupt();
             throw new IllegalStateException("FCM 요청이 인터럽트되었습니다.", e);
         } catch (IOException e) {
@@ -56,20 +58,17 @@ public class PushNotificationService {
         }
     }
 
+    /* ============================================================
+     * 2. 유저 단위 발송
+     * ============================================================ */
     public void sendToUser(UUID userId, String title, String body, String url) {
-        List<PushDevice> devices = pushDeviceRepository.findAllByUserId(userId);
 
-        for (PushDevice device : devices) {
-            sendToToken(device.getFcmToken(), title, body, url);
-        }
-    }
+        LocalDateTime expireThreshold = LocalDateTime.now().minusDays(DEVICE_ACTIVE_DAYS);
 
-    public void sendToUsers(List<UUID> userIds, String title, String body, String url) {
-        if (userIds == null || userIds.isEmpty()) {
-            return;
-        }
-
-        List<PushDevice> devices = pushDeviceRepository.findAllByUserIdIn(userIds);
+        List<PushDevice> devices =
+                pushDeviceRepository.findAllByUserId(userId).stream()
+                        .filter(d -> d.getLastActiveAt().isAfter(expireThreshold)) // 오래된 기기 제외
+                        .toList();
 
         devices.stream()
                 .map(PushDevice::getFcmToken)
@@ -77,55 +76,79 @@ public class PushNotificationService {
                 .forEach(token -> sendToToken(token, title, body, url));
     }
 
+    /* ============================================================
+     * 3. 여러 유저 발송
+     * ============================================================ */
+    public void sendToUsers(List<UUID> userIds, String title, String body, String url) {
+        if (userIds == null || userIds.isEmpty()) return;
+
+        LocalDateTime expireThreshold = LocalDateTime.now().minusDays(DEVICE_ACTIVE_DAYS);
+
+        List<PushDevice> devices =
+                pushDeviceRepository.findAllByUserIdIn(userIds).stream()
+                        .filter(d -> d.getLastActiveAt().isAfter(expireThreshold))
+                        .toList();
+
+        devices.stream()
+                .map(PushDevice::getFcmToken)
+                .distinct()
+                .forEach(token -> sendToToken(token, title, body, url));
+    }
+
+    /* ============================================================
+     * 4. 서비스 알림 (전체)
+     * ============================================================ */
+
     public void sendServiceNoticeToUser(UUID userId, String title, String body, String url) {
         User user = userReader.getLoginAllowedUser(userId);
 
-        if (!user.isServiceNotificationEnabled()) {
-            return;
-        }
+        if (!user.isServiceNotificationEnabled()) return;
 
         sendToUser(userId, title, body, url);
     }
 
     public void sendServiceNoticeToUsers(List<UUID> userIds, String title, String body, String url) {
-        List<User> users = userReader.getLoginAllowedUsers(userIds);
-
-        List<UUID> targetUserIds = users.stream()
+        List<UUID> targets = userReader.getLoginAllowedUsers(userIds).stream()
                 .filter(User::isServiceNotificationEnabled)
                 .map(User::getId)
                 .toList();
 
-        if (targetUserIds.isEmpty()) {
-            return;
-        }
-
-        sendToUsers(targetUserIds, title, body, url);
+        sendToUsers(targets, title, body, url);
     }
 
-    public void sendEventNoticeToUsers(List<UUID> userIds, String title, String body, String url) {
-        List<User> users = userReader.getLoginAllowedUsers(userIds);
+    public void sendSystemNotice(String title, String body, String url) {
+        List<UUID> targets = userReader.getAllLoginAllowedUsers().stream()
+                .filter(User::isServiceNotificationEnabled)
+                .map(User::getId)
+                .toList();
 
-        List<UUID> targetUserIds = users.stream()
+        sendToUsers(targets, title, body, url);
+    }
+
+    /* ============================================================
+     * 5. 이벤트 알림
+     * ============================================================ */
+
+    public void sendEventNoticeToUsers(List<UUID> userIds, String title, String body, String url) {
+        List<UUID> targets = userReader.getLoginAllowedUsers(userIds).stream()
                 .filter(User::isEventNotificationEnabled)
                 .map(User::getId)
                 .toList();
 
-        if (targetUserIds.isEmpty()) {
-            return;
-        }
-
-        sendToUsers(targetUserIds, title, body, url);
+        sendToUsers(targets, title, body, url);
     }
 
     public void sendEventNoticeToUser(UUID userId, String title, String body, String url) {
         User user = userReader.getLoginAllowedUser(userId);
 
-        if (!user.isEventNotificationEnabled()) {
-            return;
-        }
+        if (!user.isEventNotificationEnabled()) return;
 
         sendToUser(userId, title, body, url);
     }
+
+    /* ============================================================
+     * 6. 메시지 JSON 생성
+     * ============================================================ */
 
     private String createMessage(String token, String title, String body, String url) {
         return """
