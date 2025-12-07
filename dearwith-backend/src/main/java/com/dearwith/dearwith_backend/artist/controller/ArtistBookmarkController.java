@@ -22,7 +22,7 @@ public class ArtistBookmarkController {
 
     @Operation(summary = "북마크한 아티스트/그룹 조회")
     @GetMapping("/bookmark")
-    public Page<ArtistUnifiedDto> getBookmarkedArtists(
+    public Page<ArtistUnifiedResponseDto> getBookmarkedArtists(
             @CurrentUser UUID userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
