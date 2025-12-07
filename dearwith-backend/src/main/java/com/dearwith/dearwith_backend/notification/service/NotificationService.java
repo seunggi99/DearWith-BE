@@ -210,6 +210,7 @@ public class NotificationService {
                 n.getContent(),
                 eventId,
                 noticeId,
+                null,
                 n.isRead(),
                 n.getReadAt(),
                 n.getCreatedAt(),

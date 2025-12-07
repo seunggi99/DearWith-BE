@@ -13,6 +13,7 @@ public record NotificationResponseDto(
         String content,
         Long eventId,
         Long noticeId,
+        Long systemNoticeId,
         boolean read,
         LocalDateTime readAt,
         LocalDateTime createdAt,
