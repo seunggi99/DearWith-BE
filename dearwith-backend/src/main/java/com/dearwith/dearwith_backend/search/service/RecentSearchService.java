@@ -25,14 +25,25 @@ public class RecentSearchService {
         return "recent:search:" + userId;
     }
 
+    /** "string" 이런 식으로 감싸져 온 경우 겉따옴표 제거 */
+    private String unwrapRawQuery(String rawQuery) {
+        if (rawQuery == null) return "";
+        String q = rawQuery.trim();
+        if (q.length() >= 2 && q.startsWith("\"") && q.endsWith("\"")) {
+            q = q.substring(1, q.length() - 1);
+        }
+        return q;
+    }
+
     public void add(UUID userId, String rawQuery) {
         userReader.getLoginAllowedUser(userId);
-        String q = normalizer.normalize(rawQuery);
+
+        String unwrapped = unwrapRawQuery(rawQuery);
+        String q = normalizer.normalize(unwrapped);
         if (q.isBlank()) return;
 
         String key = key(userId);
         try {
-            // 중복 제거
             redis.opsForList().remove(key, 0, q);
             redis.opsForList().leftPush(key, q);
             redis.opsForList().trim(key, 0, 9);
