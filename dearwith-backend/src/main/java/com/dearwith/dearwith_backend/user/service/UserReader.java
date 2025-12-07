@@ -59,6 +59,10 @@ public class UserReader {
         return users;
     }
 
+    public List<User> getAllLoginAllowedUsers() {
+        return userRepository.findAllByUserStatusLoginAllowed();
+    }
+
 
     /*──────────────────────────────
      | 3) 완전 ACTIVE 유저만 (탈퇴/정지/작성제한 모두 차단)
