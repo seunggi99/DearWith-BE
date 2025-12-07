@@ -278,14 +278,14 @@ public class ArtistUnifiedService {
      | 4. 통합 북마크 목록 조회
      *──────────────────────────────────────────────*/
     @Transactional(readOnly = true)
-    public Page<ArtistUnifiedDto> getBookmarkedArtistsAndGroups(UUID userId, Pageable pageable) {
+    public Page<ArtistUnifiedResponseDto> getBookmarkedArtistsAndGroups(UUID userId, Pageable pageable) {
 
         User user = userReader.getLoginAllowedUser(userId);
 
         List<ArtistBookmark> artistBookmarks = artistBookmarkRepository.findByUserId(user.getId());
         List<ArtistGroupBookmark> groupBookmarks = artistGroupBookmarkRepository.findByUserId(user.getId());
 
-        List<ArtistUnifiedDto> merged = new ArrayList<>();
+        List<ArtistUnifiedResponseDto> merged = new ArrayList<>();
 
         // ArtistBookmark -> DTO
         for (ArtistBookmark bm : artistBookmarks) {
@@ -295,14 +295,15 @@ public class ArtistUnifiedService {
             String imageUrl = assetUrlService.generatePublicUrl(profileImage);
             LocalDateTime bookmarkedAt = bm.getCreatedAt();
 
-            merged.add(new ArtistUnifiedDto(
+            merged.add(new ArtistUnifiedResponseDto(
                     artist.getId(),
                     artist.getNameKr(),
                     imageUrl,
-                    ArtistUnifiedDto.Type.ARTIST,
+                    ArtistUnifiedResponseDto.Type.ARTIST,
                     bookmarkedAt,
                     artist.getBirthDate(),
-                    artist.getDebutDate()
+                    artist.getDebutDate(),
+                    true
             ));
         }
 
@@ -315,20 +316,21 @@ public class ArtistUnifiedService {
 
             LocalDateTime bookmarkedAt = bm.getCreatedAt();
 
-            merged.add(new ArtistUnifiedDto(
+            merged.add(new ArtistUnifiedResponseDto(
                     group.getId(),
                     group.getNameKr(),
                     imageUrl,
-                    ArtistUnifiedDto.Type.GROUP,
+                    ArtistUnifiedResponseDto.Type.GROUP,
                     bookmarkedAt,
                     null,
-                    group.getDebutDate()
+                    group.getDebutDate(),
+                    true
             ));
         }
 
         merged.sort(
                 Comparator.comparing(
-                                ArtistUnifiedDto::createdAt,
+                                ArtistUnifiedResponseDto::createdAt,
                                 Comparator.nullsLast(LocalDateTime::compareTo)
                         )
                         .reversed()
@@ -344,7 +346,7 @@ public class ArtistUnifiedService {
         }
 
         int end = Math.min(start + size, total);
-        List<ArtistUnifiedDto> pageContent = merged.subList(start, end);
+        List<ArtistUnifiedResponseDto> pageContent = merged.subList(start, end);
 
         return new PageImpl<>(pageContent, pageable, total);
     }

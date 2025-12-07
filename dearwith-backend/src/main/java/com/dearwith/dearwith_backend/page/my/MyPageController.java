@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.page.my;
 
 import com.dearwith.dearwith_backend.artist.dto.ArtistUnifiedDto;
+import com.dearwith.dearwith_backend.artist.dto.ArtistUnifiedResponseDto;
 import com.dearwith.dearwith_backend.artist.service.ArtistUnifiedService;
 import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
@@ -55,7 +56,7 @@ public class MyPageController {
 
     @Operation(summary = "북마크한 아티스트/그룹 조회")
     @GetMapping("/artists/bookmark")
-    public Page<ArtistUnifiedDto> getBookmarkedArtists(
+    public Page<ArtistUnifiedResponseDto> getBookmarkedArtists(
             @CurrentUser UUID userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
