@@ -5,6 +5,7 @@ import com.dearwith.dearwith_backend.image.enums.ImageStatus;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Where;
 
 @Getter
@@ -14,6 +15,7 @@ import org.hibernate.annotations.Where;
 @Builder
 @Entity
 @Where(clause = "deleted_at IS NULL")
+@BatchSize(size = 50)
 public class Image extends BaseDeletableEntity {
 
     @Id
@@ -29,5 +31,4 @@ public class Image extends BaseDeletableEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private User user;
-
 }

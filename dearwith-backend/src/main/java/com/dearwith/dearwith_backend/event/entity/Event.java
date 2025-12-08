@@ -93,4 +93,8 @@ public class Event extends BaseAuditableEntity {
         this.artistGroups.add(mapping);
         mapping.setEvent(this);
     }
+
+    public void changeCoverImage(Image newCover) {
+        this.coverImage = newCover;
+    }
 }

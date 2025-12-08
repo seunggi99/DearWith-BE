@@ -118,4 +118,17 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
 
 
     boolean existsByNameKrAndBirthDate(String nameKr, LocalDate birthDate);
+    @Query("""
+    SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END
+    FROM Artist a
+    WHERE (LOWER(a.nameKr) = LOWER(:name)
+        OR LOWER(a.nameEn) = LOWER(:name))
+      AND a.birthDate = :birthDate
+      AND a.id <> :id
+""")
+    boolean existsByNameKrOrEnIgnoreCaseAndBirthDateAndIdNot(
+            @Param("name") String name,
+            @Param("birthDate") LocalDate birthDate,
+            @Param("id") Long id
+    );
 }

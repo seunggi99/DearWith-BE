@@ -4,10 +4,10 @@ import jakarta.validation.constraints.NotBlank;
 
 import java.time.LocalDate;
 
-public record ArtistCreateRequestDto (
+public record ArtistGroupCreateRequestDto (
 
         @NotBlank(message = "이름을 입력해주세요.")
         String nameKr,
-        String tmpKey,
-        LocalDate birthDate
+        String imageTmpKey,
+        LocalDate debutDate
 ){}

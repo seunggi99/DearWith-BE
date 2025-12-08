@@ -3,43 +3,47 @@ package com.dearwith.dearwith_backend.user.service;
 import com.dearwith.dearwith_backend.external.aws.AfterCommitExecutor;
 import com.dearwith.dearwith_backend.image.asset.AssetOps;
 import com.dearwith.dearwith_backend.image.asset.AssetVariantPreset;
+import com.dearwith.dearwith_backend.image.asset.TmpImageGuard;
 import com.dearwith.dearwith_backend.image.entity.Image;
-import com.dearwith.dearwith_backend.image.enums.ImageStatus;
 import com.dearwith.dearwith_backend.image.repository.ImageRepository;
+import com.dearwith.dearwith_backend.image.service.AbstractSingleImageAppService;
 import com.dearwith.dearwith_backend.image.service.ImageService;
 import com.dearwith.dearwith_backend.user.entity.User;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
 @Slf4j
 @Service
-@RequiredArgsConstructor
-public class UserImageAppService {
-    private final AssetOps assetOps;
-    private final ImageRepository imageRepository;
-    private final AfterCommitExecutor afterCommitExecutor;
-    private final ImageService imageService;
+public class UserImageAppService extends AbstractSingleImageAppService {
+
+    public UserImageAppService(
+            TmpImageGuard tmpImageGuard,
+            ImageRepository imageRepository,
+            AfterCommitExecutor afterCommitExecutor,
+            AssetOps assetOps,
+            ImageService imageService
+    ) {
+        super(tmpImageGuard, imageRepository, afterCommitExecutor, assetOps, imageService);
+    }
 
     /**
      * 유저 프로필 최초 등록
      */
     @Transactional
     public void create(User user, String tmpKey) {
-        if (tmpKey == null || tmpKey.isBlank()) {
+        // 이전과 동일: tmpKey 없으면 아무 것도 안 함
+        if (!hasTmp(tmpKey)) {
             return;
         }
 
-        Image img = new Image();
-        img.setUser(user);
-        img.setS3Key(tmpKey);
-        img.setStatus(ImageStatus.TMP);
-        imageRepository.save(img);
+        // S3 존재 검증
+        validateTmpKey(tmpKey);
 
+        Image img = createTmpImage(tmpKey, user);
         user.setProfileImage(img);
 
+        // 기존과 동일하게 commitSingleVariant 사용
         afterCommitExecutor.run(() -> {
             try {
                 assetOps.commitSingleVariant(
@@ -67,8 +71,8 @@ public class UserImageAppService {
 
         Image before = user.getProfileImage();
 
-        // 1) tmpKey 없으면: 기존 이미지 제거
-        if (tmpKey == null || tmpKey.isBlank()) {
+        // 1) tmpKey 없으면: 기존 이미지 제거 (이전과 동일)
+        if (!hasTmp(tmpKey)) {
             if (before != null) {
                 Long beforeId = before.getId();
                 user.setProfileImage(null);
@@ -77,16 +81,13 @@ public class UserImageAppService {
             return;
         }
 
-        // 2) 신규 TMP 이미지 row 생성
-        Image img = new Image();
-        img.setUser(user);
-        img.setS3Key(tmpKey);
-        img.setStatus(ImageStatus.TMP);
-        imageRepository.save(img);
+        // 2) 신규 tmpKey 검증 + TMP 이미지 생성
+        validateTmpKey(tmpKey);
 
+        Image img = createTmpImage(tmpKey, user);
         user.setProfileImage(img);
 
-        // 3) 커밋 후 TMP → inline + variant 생성
+        // 3) 커밋 후 TMP → inline + variant 생성 (동일)
         afterCommitExecutor.run(() -> {
             try {
                 assetOps.commitSingleVariant(

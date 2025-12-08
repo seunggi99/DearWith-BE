@@ -6,68 +6,82 @@ import com.dearwith.dearwith_backend.event.entity.Event;
 import com.dearwith.dearwith_backend.event.entity.EventImageMapping;
 import com.dearwith.dearwith_backend.event.repository.EventImageMappingRepository;
 import com.dearwith.dearwith_backend.external.aws.AfterCommitExecutor;
-import com.dearwith.dearwith_backend.external.aws.S3Waiter;
 import com.dearwith.dearwith_backend.image.asset.AssetOps;
 import com.dearwith.dearwith_backend.image.asset.AssetVariantPreset;
+import com.dearwith.dearwith_backend.image.asset.TmpImageGuard;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentUpdateRequestDto;
 import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.image.enums.ImageStatus;
 import com.dearwith.dearwith_backend.image.repository.ImageRepository;
+import com.dearwith.dearwith_backend.image.service.AbstractImageSupport;
 import com.dearwith.dearwith_backend.image.service.ImageService;
 import com.dearwith.dearwith_backend.image.service.ImageVariantService;
 import com.dearwith.dearwith_backend.user.entity.User;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
-public class EventImageAppService {
+public class EventImageAppService extends AbstractImageSupport {
 
-    private final AssetOps assetOps;
-    private final ImageRepository imageRepository;
-    private final AfterCommitExecutor afterCommitExecutor;
-    private final ImageService imageService;
-    private final S3Waiter s3Waiter;
+    private final AfterCommitExecutor localAfterCommitExecutor;
     private final EventImageMappingRepository eventImageMappingRepository;
-    private final ImageVariantService imageVariantService;
+    public EventImageAppService(
+            TmpImageGuard tmpImageGuard,
+            ImageRepository imageRepository,
+            AfterCommitExecutor afterCommitExecutor,
+            AssetOps assetOps,
+            ImageService imageService,
+            EventImageMappingRepository eventImageMappingRepository
+    ) {
+        super(tmpImageGuard, imageRepository, afterCommitExecutor, assetOps, imageService);
+        this.localAfterCommitExecutor = afterCommitExecutor;
+        this.eventImageMappingRepository = eventImageMappingRepository;
+    }
 
     /**
      * 이벤트 생성 시 이미지 등록
      */
     @Transactional
-    public void create(Event event, List<ImageAttachmentRequestDto> images, User user) {
-        if (images == null || images.isEmpty()) {
+    public void create(Event event, List<ImageAttachmentRequestDto> reqs, User user) {
+        if (reqs == null || reqs.isEmpty()) {
             return;
         }
 
+        validateTmpKeys(
+                reqs.stream()
+                        .map(ImageAttachmentRequestDto::tmpKey)
+                        .toList()
+        );
+
         Set<Integer> seen = new HashSet<>();
-        for (ImageAttachmentRequestDto dto : images) {
-            Integer ord = dto.displayOrder() == null ? 0 : dto.displayOrder();
+        for (ImageAttachmentRequestDto dto : reqs) {
+            Integer ord = safeOrder(dto.displayOrder());
             if (!seen.add(ord)) {
                 throw BusinessException.withMessageAndDetail(
                         ErrorCode.INVALID_INPUT,
-                        null,
+                        "이미지 등록 중 오류가 발생했습니다.",
                         "EVENT_IMAGE_DISPLAY_ORDER_DUPLICATED"
                 );
             }
         }
 
-        // 1) 트랜잭션 안: Image(TMP) 저장 + 이벤트 매핑 생성
+        // --- 커버 이미지 후보 추적용 ---
+        Image coverCandidate = null;
+        int minOrder = Integer.MAX_VALUE;
+
         record NewImage(Long id, String tmpKey) {}
         List<NewImage> created = new ArrayList<>();
 
-        for (ImageAttachmentRequestDto dto : images) {
+        for (ImageAttachmentRequestDto dto : reqs) {
             String tmpKey = dto.tmpKey();
 
-            // tmpKey 유효성 검증 (null/blank 방어)
-            if (tmpKey == null || tmpKey.isBlank()) {
+            if (!hasTmp(tmpKey)) {
                 throw BusinessException.withMessageAndDetail(
                         ErrorCode.INVALID_INPUT,
-                        null,
+                        "이미지 등록 중 오류가 발생했습니다.",
                         "EVENT_IMAGE_TMPKEY_EMPTY"
                 );
             }
@@ -78,26 +92,39 @@ public class EventImageAppService {
             img.setStatus(ImageStatus.TMP);
             imageRepository.save(img);
 
+            int ord = safeOrder(dto.displayOrder());
+
             EventImageMapping mapping = EventImageMapping.builder()
                     .image(img)
                     .event(event)
-                    .displayOrder(dto.displayOrder() == null ? 0 : dto.displayOrder())
+                    .displayOrder(ord)
                     .build();
             event.addImageMapping(mapping);
 
             created.add(new NewImage(img.getId(), tmpKey));
+
+            // 🔹 displayOrder 가장 작은 이미지를 커버 후보로
+            if (ord < minOrder) {
+                minOrder = ord;
+                coverCandidate = img;
+            }
         }
 
-        // 2) 트랜잭션 커밋 후: tmp→inline 승격 + URL 반영 + 파생본(이벤트 프리셋) 생성
+        // 🔹 커버 이미지 세팅
+        if (coverCandidate != null) {
+            event.changeCoverImage(coverCandidate);
+        }
+
+        // 🔹 AfterCommit 에서 TMP → INLINE + variants 생성 (AssetOps 사용)
         for (NewImage ni : created) {
-            afterCommitExecutor.run(() -> {
-                String inlineKey = imageService.promoteAndCommit(ni.id(), ni.tmpKey());
-
-                s3Waiter.waitUntilExists(inlineKey);
-
-                // 이벤트용 프리셋으로 파생본 생성
-                imageVariantService.generateVariants(inlineKey, AssetVariantPreset.EVENT);
-            });
+            localAfterCommitExecutor.run(() -> assetOps.commitExistingAndGenerateVariants(
+                    AssetOps.CommitCommand.builder()
+                            .imageId(ni.id())
+                            .tmpKey(ni.tmpKey())
+                            .userId(user.getId())
+                            .preset(AssetVariantPreset.EVENT)
+                            .build()
+            ));
         }
     }
 
@@ -111,12 +138,21 @@ public class EventImageAppService {
         if (reqs == null) return;
         if (reqs.isEmpty()) {
             deleteAll(event.getId());
+            // 🔹 이미지가 하나도 없으니 커버도 제거
+            event.changeCoverImage(null);
             return;
         }
 
+        validateTmpKeys(
+                reqs.stream()
+                        .map(ImageAttachmentUpdateRequestDto::tmpKey)
+                        .toList()
+        );
+
         Set<Integer> orders = new HashSet<>();
         for (var r : reqs) {
-            if (!orders.add(r.displayOrder())) {
+            Integer ord = safeOrder(r.displayOrder());
+            if (!orders.add(ord)) {
                 throw BusinessException.withMessageAndDetail(
                         ErrorCode.INVALID_INPUT,
                         null,
@@ -125,7 +161,7 @@ public class EventImageAppService {
             }
 
             boolean hasId  = r.id() != null;
-            boolean hasTmp = r.tmpKey() != null && !r.tmpKey().isBlank();
+            boolean hasTmp = hasTmp(r.tmpKey());
             if (hasId == hasTmp) {
                 throw BusinessException.withMessageAndDetail(
                         ErrorCode.INVALID_INPUT,
@@ -135,33 +171,30 @@ public class EventImageAppService {
             }
         }
 
-        // 1) 이전 스냅샷
         List<EventImageMapping> beforeMappings = eventImageMappingRepository.findByEventId(event.getId());
         List<Long> beforeIds = beforeMappings.stream()
                 .map(m -> m.getImage().getId())
                 .toList();
 
-        // 2) 기존 매핑 삭제
         eventImageMappingRepository.deleteByEventId(event.getId());
 
-        // 3) 최종 이미지 id/순서 구성
         Map<Long, Integer> orderById = new HashMap<>();
         List<Long> finalIds = new ArrayList<>();
 
-        // 3-1) 기존 유지(id)
+        // 기존 유지
         for (var r : reqs) {
             if (r.id() != null) {
                 finalIds.add(r.id());
-                orderById.put(r.id(), r.displayOrder());
+                orderById.put(r.id(), safeOrder(r.displayOrder()));
             }
         }
 
-        // 3-2) 신규 추가(tmpKey)
         record NewImage(Long id, String tmpKey) {}
         List<NewImage> created = new ArrayList<>();
 
+        // 신규 추가
         for (var r : reqs) {
-            if (r.tmpKey() != null && !r.tmpKey().isBlank()) {
+            if (hasTmp(r.tmpKey())) {
                 Image img = new Image();
                 img.setUser(event.getUser());
                 img.setS3Key(r.tmpKey());
@@ -169,13 +202,13 @@ public class EventImageAppService {
                 imageRepository.save(img);
 
                 finalIds.add(img.getId());
-                orderById.put(img.getId(), r.displayOrder());
+                orderById.put(img.getId(), safeOrder(r.displayOrder()));
 
                 created.add(new NewImage(img.getId(), r.tmpKey()));
             }
         }
 
-        // 4) 매핑 재생성
+        // 매핑 재생성
         for (Long imageId : finalIds) {
             EventImageMapping m = EventImageMapping.builder()
                     .event(event)
@@ -185,9 +218,20 @@ public class EventImageAppService {
             eventImageMappingRepository.save(m);
         }
 
-        // 5) after-commit: TMP → inline 승격 + 파생본 생성(이벤트 프리셋)
+        // 🔹 커버 이미지 다시 결정 (남아 있는 것 중 displayOrder 최소)
+        Long coverImageId = finalIds.stream()
+                .min(Comparator.comparing(orderById::get))
+                .orElse(null);
+
+        if (coverImageId != null) {
+            event.changeCoverImage(imageRepository.getReferenceById(coverImageId));
+        } else {
+            event.changeCoverImage(null);
+        }
+
+        // after-commit: TMP → inline + variants
         for (NewImage ni : created) {
-            afterCommitExecutor.run(() -> assetOps.commitExistingAndGenerateVariants(
+            localAfterCommitExecutor.run(() -> assetOps.commitExistingAndGenerateVariants(
                     AssetOps.CommitCommand.builder()
                             .imageId(ni.id())
                             .tmpKey(ni.tmpKey())
@@ -197,7 +241,7 @@ public class EventImageAppService {
             ));
         }
 
-        // 6) 고아 처리 (before - final)
+        // 고아 처리
         Set<Long> finalSet = new HashSet<>(finalIds);
         List<Long> removed = beforeIds.stream()
                 .filter(id -> !finalSet.contains(id))

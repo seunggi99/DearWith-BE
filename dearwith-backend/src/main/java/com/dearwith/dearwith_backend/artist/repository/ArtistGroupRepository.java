@@ -74,4 +74,30 @@ public interface ArtistGroupRepository  extends JpaRepository<ArtistGroup, Long>
     List<ArtistGroup> findByUser_Id(UUID userId);
     Optional<ArtistGroup> findByNameKr(String nameKr);
     boolean existsByNameKr(String nameKr);
+
+    @Query("""
+    SELECT CASE WHEN COUNT(g) > 0 THEN true ELSE false END
+    FROM ArtistGroup g
+    WHERE (LOWER(g.nameKr) = LOWER(:name)
+        OR LOWER(g.nameEn) = LOWER(:name))
+      AND g.debutDate = :debutDate
+""")
+    boolean existsByNameKrOrEnIgnoreCaseAndDebutDate(
+            @Param("name") String name,
+            @Param("debutDate") java.time.LocalDate debutDate
+    );
+
+    @Query("""
+    SELECT CASE WHEN COUNT(g) > 0 THEN true ELSE false END
+    FROM ArtistGroup g
+    WHERE (LOWER(g.nameKr) = LOWER(:name)
+        OR LOWER(g.nameEn) = LOWER(:name))
+      AND g.debutDate = :debutDate
+      AND g.id <> :id
+""")
+    boolean existsByNameKrOrEnIgnoreCaseAndDebutDateAndIdNot(
+            @Param("name") String name,
+            @Param("debutDate") java.time.LocalDate debutDate,
+            @Param("id") Long id
+    );
 }

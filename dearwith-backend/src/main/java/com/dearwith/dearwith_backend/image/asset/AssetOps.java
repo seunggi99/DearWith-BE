@@ -81,7 +81,7 @@ public class AssetOps {
         // 3) 대표 파일(single variant) 생성
         final String finalKey = imageVariantService.generateSingleVariant(inlineKey, cmd.getPreset());
 
-        // optional: inlineKey 삭제 (단일 정책이라면 삭제 권장)
+        // optional: inlineKey 삭제
         s3Adapter.delete(inlineKey);
 
         // 4) DB 업데이트 (최종 main 파일 기준)
