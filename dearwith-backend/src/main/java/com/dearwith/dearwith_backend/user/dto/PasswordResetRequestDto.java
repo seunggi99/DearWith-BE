@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.user.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
@@ -9,7 +10,13 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class PasswordChangeRequestDto {
+public class PasswordResetRequestDto {
+    @NotBlank(message = "이메일을 입력해주세요.")
+    @Email
+    private String email;
+
+    @NotBlank(message = "이메일 인증이 필요합니다.")
+    private String emailTicket;
 
     @NotBlank(message = "비밀번호를 입력해주세요.")
     @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()_+=-]).{8,}$",

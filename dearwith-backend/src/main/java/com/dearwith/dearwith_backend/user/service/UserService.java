@@ -14,10 +14,12 @@ import com.dearwith.dearwith_backend.user.repository.SocialAccountRepository;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Arrays;
@@ -39,7 +41,13 @@ public class UserService {
     private final EmailVerifyTicketService emailVerifyTicketService;
     private final UserImageAppService userImageAppService;
     private final UserReader userReader;
+    private final StringRedisTemplate stringRedisTemplate;
 
+    private String passwordVerifiedKey(UUID userId) {
+        return "user:password:verified:" + userId;
+    }
+
+    private static final Duration PASSWORD_VERIFY_TTL = Duration.ofMinutes(5);
     /*──────────────────────────────────────────────
      | 1. 일반 회원가입
      *──────────────────────────────────────────────*/
@@ -215,7 +223,7 @@ public class UserService {
 
 
     @Transactional
-    public void changePassword(PasswordChangeRequestDto request) {
+    public void resetPassword(PasswordResetRequestDto request) {
 
         // 1) 이메일 인증 티켓 검증
         emailVerifyTicketService.confirmForPurposeAndEmail(
@@ -230,6 +238,51 @@ public class UserService {
 
         // 3) 비밀번호 변경
         user.changePassword(passwordEncoder.encode(request.getNewPassword()));
+    }
+
+    @Transactional
+    public void  changePassword(PasswordChangeRequestDto request, UUID userId) {
+        User user = userReader.getUser(userId);
+
+        String key = passwordVerifiedKey(userId);
+
+        String verified = stringRedisTemplate.opsForValue().get(key);
+        if (verified == null) {
+            throw BusinessException.withMessage(
+                    ErrorCode.UNAUTHORIZED,
+                    "비밀번호 확인이 만료되었습니다. 다시 확인 후 변경해주세요."
+            );
+        }
+
+        String rawNewPassword = request.getNewPassword();
+
+        if (passwordEncoder.matches(rawNewPassword, user.getPassword())) {
+            throw BusinessException.withMessage(
+                    ErrorCode.INVALID_INPUT,
+                    "기존 비밀번호와 동일한 비밀번호로 변경할 수 없습니다."
+            );
+        }
+
+        user.changePassword(passwordEncoder.encode(rawNewPassword));
+
+        stringRedisTemplate.delete(key);
+    }
+
+    @Transactional(readOnly = true)
+    public void verifyCurrentPassword(PasswordVerifyRequestDto request, UUID userId) {
+        User user = userReader.getUser(userId);
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw BusinessException.withMessage(
+                    ErrorCode.INVALID_INPUT,
+                    "비밀번호가 올바르지 않습니다."
+            );
+        }
+
+        String key = passwordVerifiedKey(userId);
+        stringRedisTemplate
+                .opsForValue()
+                .set(key, "OK", PASSWORD_VERIFY_TTL);
     }
 
     @Transactional

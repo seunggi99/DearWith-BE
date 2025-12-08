@@ -57,11 +57,32 @@ public class UserController {
         userService.updateNickname(userId, req.getNickname());
     }
 
-    @Operation(summary = "비밀번호 변경 (이메일 인증 필요)")
+    @Operation(summary = "비밀번호 재설정 (이메일 인증 필요)")
+    @PostMapping("/password/reset")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@RequestBody @Valid PasswordResetRequestDto request) {
+        userService.resetPassword(request);
+    }
+
+    @Operation(summary = "현재 비밀번호 확인", description = "비밀번호 확인 완료 후 5분안에 변경해야합니다.")
+    @PostMapping("/me/password/verify")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void verifyPassword(
+            @RequestBody @Valid PasswordVerifyRequestDto request,
+            @CurrentUser UUID userId
+    ) {
+        userService.verifyCurrentPassword(request, userId);
+    }
+
+    @Operation(summary = "비밀번호 변경 (로그인 필요)",
+            description = "비밀번호 확인 완료 후 5분 내, 기존 비밀번호와 다를 시 변경.")
     @PostMapping("/password/change")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void changePassword(@RequestBody @Valid PasswordChangeRequestDto request) {
-        userService.changePassword(request);
+    public void changePassword(
+            @RequestBody @Valid PasswordChangeRequestDto request,
+            @CurrentUser UUID userId
+    ) {
+        userService.changePassword(request, userId);
     }
 
     @Operation(summary = "회원 프로필 사진 등록/수정")

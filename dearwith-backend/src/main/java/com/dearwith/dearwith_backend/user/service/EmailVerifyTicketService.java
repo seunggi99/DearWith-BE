@@ -4,11 +4,14 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.user.dto.EmailVerificationPurpose;
 import com.dearwith.dearwith_backend.user.dto.EmailVerifyPayload;
-import com.github.benmanes.caffeine.cache.Cache;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -16,21 +19,38 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class EmailVerifyTicketService {
 
-    private final Cache<String, EmailVerifyPayload> emailVerifyTicketCache;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
-    /**
-     * 이메일 인증이 성공했을 때(코드 검증 완료 후) 티켓 발급
-     */
-    public String issueTicket(
-            String email,
-            EmailVerificationPurpose purpose,
-            @Nullable UUID userId
-    ) {
+    private static final Duration TICKET_TTL = Duration.ofMinutes(10);
+
+    private String key(String ticket) {
+        return "email:verify:ticket:" + ticket;
+    }
+
+    private String toJson(EmailVerifyPayload payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize EmailVerifyPayload", e);
+        }
+    }
+
+    private EmailVerifyPayload fromJson(String json) {
+        try {
+            return objectMapper.readValue(json, EmailVerifyPayload.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to deserialize EmailVerifyPayload", e);
+        }
+    }
+
+    /*──────────────────────────────────────────────
+     | 티켓 발급
+     *──────────────────────────────────────────────*/
+    public String issueTicket(String email, EmailVerificationPurpose purpose, @Nullable UUID userId) {
+
         if (email == null || email.isBlank()) {
-            throw BusinessException.withMessage(
-                    ErrorCode.INVALID_INPUT,
-                    "이메일 값이 비어 있습니다."
-            );
+            throw BusinessException.withMessage(ErrorCode.INVALID_INPUT, "이메일 값이 비어 있습니다.");
         }
         if (purpose == null) {
             throw BusinessException.withMessageAndDetail(
@@ -49,42 +69,49 @@ public class EmailVerifyTicketService {
                 Instant.now()
         );
 
-        emailVerifyTicketCache.put(ticket, payload);
+        redisTemplate.opsForValue()
+                .set(key(ticket), toJson(payload), TICKET_TTL);
+
         return ticket;
     }
 
-    /**
-     * 티켓 내용 조회(소비 X) – 디버깅/모니터링용
-     */
+    /*──────────────────────────────────────────────
+     | 조회 (소비 X)
+     *──────────────────────────────────────────────*/
     @Nullable
     public EmailVerifyPayload peek(String ticket) {
-        if (ticket == null || ticket.isBlank()) {
-            return null;
-        }
-        return emailVerifyTicketCache.getIfPresent(ticket);
+        if (ticket == null || ticket.isBlank()) return null;
+
+        String json = redisTemplate.opsForValue().get(key(ticket));
+        return json == null ? null : fromJson(json);
     }
 
-    /**
-     * 티켓을 소비하면서 검증 (ownerUserId 필요 없는 경우)
-     */
+    /*──────────────────────────────────────────────
+     | 검증 + 소비 (owner 검사 필요 없는 경우)
+     *──────────────────────────────────────────────*/
     public EmailVerifyPayload confirmAndConsume(String ticket) {
         return confirmAndConsume(ticket, null);
     }
 
-    /**
-     * 티켓을 소비하면서 검증 (ownerUserId가 필요한 경우)
-     */
+    /*──────────────────────────────────────────────
+     | 검증 + 소비 (owner 검사 필요한 경우)
+     *──────────────────────────────────────────────*/
     public EmailVerifyPayload confirmAndConsume(String ticket, @Nullable UUID requesterUserId) {
 
         if (ticket == null || ticket.isBlank()) {
             throw BusinessException.of(ErrorCode.EMAIL_TICKET_EXPIRED_OR_INVALID);
         }
 
-        EmailVerifyPayload payload = emailVerifyTicketCache.getIfPresent(ticket);
-        if (payload == null) {
+        String redisKey = key(ticket);
+        String json = redisTemplate.opsForValue().get(redisKey);
+
+        if (json == null) {
             throw BusinessException.of(ErrorCode.EMAIL_TICKET_EXPIRED_OR_INVALID);
         }
 
+        EmailVerifyPayload payload = fromJson(json);
+
+        // 🔐 owner 제한이 필요한 경우
         if (payload.userId() != null && requesterUserId != null) {
             if (!payload.userId().equals(requesterUserId)) {
                 throw BusinessException.withMessageAndDetail(
@@ -95,18 +122,21 @@ public class EmailVerifyTicketService {
             }
         }
 
-        emailVerifyTicketCache.invalidate(ticket);
+        // 🔥 한 번 사용하면 반드시 제거
+        redisTemplate.delete(redisKey);
+
         return payload;
     }
 
-    /**
-     * 이메일/목적까지 함께 검증하고 싶은 경우 편의 메서드
-     */
+    /*──────────────────────────────────────────────
+     | 이메일 & 목적까지 검증하는 편의 메서드
+     *──────────────────────────────────────────────*/
     public EmailVerifyPayload confirmForPurposeAndEmail(
             String ticket,
             EmailVerificationPurpose expectedPurpose,
             String expectedEmail
     ) {
+
         EmailVerifyPayload payload = confirmAndConsume(ticket);
 
         if (payload.purpose() != expectedPurpose) {
@@ -116,6 +146,7 @@ public class EmailVerifyTicketService {
                     "EMAIL_TICKET_WRONG_PURPOSE"
             );
         }
+
         if (!payload.email().equalsIgnoreCase(expectedEmail)) {
             throw BusinessException.withMessageAndDetail(
                     ErrorCode.EMAIL_TICKET_EMAIL_MISMATCH,
@@ -125,9 +156,5 @@ public class EmailVerifyTicketService {
         }
 
         return payload;
-    }
-
-    public long size() {
-        return emailVerifyTicketCache.estimatedSize();
     }
 }
