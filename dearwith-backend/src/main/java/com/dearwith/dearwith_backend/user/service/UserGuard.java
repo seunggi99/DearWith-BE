@@ -3,11 +3,11 @@ package com.dearwith.dearwith_backend.user.service;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.user.entity.User;
-import com.dearwith.dearwith_backend.user.enums.UserStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Map;
 
 @Service
@@ -30,15 +30,15 @@ public class UserGuard {
      *────────────────────────────*/
     public void ensureActive(User user) {
         checkDeleted(user);
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
 
-        if (user.getUserStatus() == UserStatus.SUSPENDED) {
+        if (user.isSuspendedNow(today)) {
             throw buildSuspendedException(user);
         }
-        if (user.getUserStatus() == UserStatus.WRITE_RESTRICTED) {
+        if (user.isWriteRestrictedNow(today)) {
             throw buildWriteRestrictedException(user);
         }
     }
-
 
     /*────────────────────────────
      | 로그인 가능 여부
@@ -46,7 +46,7 @@ public class UserGuard {
      *────────────────────────────*/
     public void ensureLoginAllowed(User user) {
         checkDeleted(user);
-        if (user.getUserStatus() == UserStatus.SUSPENDED) {
+        if (user.isSuspendedNow(LocalDate.now(ZoneId.of("Asia/Seoul")))) {
             throw buildSuspendedException(user);
         }
     }
@@ -60,7 +60,6 @@ public class UserGuard {
         String reason = user.getSuspendedReason();
         LocalDate until = user.getSuspendedUntil();
 
-        // 사용자에게 보여줄 메시지
         String message = "정지된 계정입니다.";
 
         if (reason != null) {
@@ -70,7 +69,6 @@ public class UserGuard {
             message += " 정지 해제 예정일: " + until + ".";
         }
 
-        // 프론트에서 구조적으로 파싱하기 쉬운 detail(JSON)
         Map<String, Object> detail = Map.of(
                 "reason", reason,
                 "until", until

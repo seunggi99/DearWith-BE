@@ -18,6 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -74,6 +76,38 @@ public class UserService {
 
         return SignUpResponseDto.builder()
                 .message("회원가입 성공")
+                .nickname(user.getNickname())
+                .build();
+    }
+
+    /*──────────────────────────────────────────────
+    | 1-1. 관리자 전용 회원 생성 (이메일 인증 없음, 역할 추가)
+     *──────────────────────────────────────────────*/
+    public SignUpResponseDto signUpByAdmin(AdminCreateUserRequestDto request) {
+
+        validateDuplicateUserByEmail(request.getEmail());
+        validateDuplicateUserByNickname(request.getNickname());
+        validateRequiredAgreements(request.getAgreements());
+
+        boolean pushAgreed = isPushAgreed(request.getAgreements());
+
+        User user = User.builder()
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .nickname(request.getNickname())
+                .role(request.getRole())
+                .userStatus(UserStatus.ACTIVE)
+                .lastLoginAt(null)
+                .eventNotificationEnabled(pushAgreed)
+                .serviceNotificationEnabled(pushAgreed)
+                .build();
+
+        addAgreements(user, request.getAgreements());
+
+        save(user);
+
+        return SignUpResponseDto.builder()
+                .message("관리자 생성 회원가입 성공")
                 .nickname(user.getNickname())
                 .build();
     }
@@ -235,6 +269,60 @@ public class UserService {
 
         user.getAgreements().addAll(agreements);
     }
+
+    @Transactional
+    public void suspendUserByAdmin(UUID userId, UUID adminId, AdminSuspendUserRequestDto request) {
+        User user = userReader.getUser(userId);
+
+        if (user.isAdmin()) {
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.ACCESS_DENIED,
+                    "관리자 계정은 정지할 수 없습니다.",
+                    "CANNOT_SUSPEND_ADMIN:" + userId
+            );
+        }
+
+        user.suspend(request.reason(), request.until());
+        log.info("[admin-suspend] adminId={} targetUserId={} reason={} until={}",
+                adminId, userId, request.reason(), request.until());
+    }
+
+    @Transactional
+    public void writeRestrictUserByAdmin(UUID userId, UUID adminId, AdminSuspendUserRequestDto request) {
+        User user = userReader.getUser(userId);
+
+        if (user.isAdmin()) {
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.ACCESS_DENIED,
+                    "관리자 계정에는 작성 제한을 걸 수 없습니다.",
+                    "CANNOT_WRITE_RESTRICT_ADMIN:" + userId
+            );
+        }
+
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        if (user.isSuspendedNow(today)) {
+            throw BusinessException.withMessageAndDetail(
+                    ErrorCode.INVALID_INPUT,
+                    "이미 정지된 회원입니다. 정지 해제 후 작성 제한을 적용하세요.",
+                    "CANNOT_WRITE_RESTRICT_SUSPENDED_USER:" + userId
+            );
+        }
+
+        user.restrictWrite(request.reason(), request.until());
+
+        log.info("[admin-write-restrict] adminId={} targetUserId={} reason={} until={}",
+                adminId, userId, request.reason(), request.until());
+    }
+
+    @Transactional
+    public void unsuspendUserByAdmin(UUID userId, UUID adminId) {
+        User user = userReader.getUser(userId);
+
+        user.unsuspend();
+
+        log.info("[admin-unsuspend] adminId={} targetUserId={}", adminId, userId);
+    }
+
 
     /*────────────────────────────
      | 프로필 이미지 수정

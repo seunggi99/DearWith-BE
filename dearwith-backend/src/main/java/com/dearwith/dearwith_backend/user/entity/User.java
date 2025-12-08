@@ -139,4 +139,42 @@ public class User extends BaseDeletableEntity {
         this.serviceNotificationEnabled = enabled;
     }
     public void setProfileImage(Image newImage) {this.profileImage = newImage;}
+
+    public void suspend(String reason, LocalDate until) {
+        this.userStatus = UserStatus.SUSPENDED;
+        this.suspendedReason = reason;
+        this.suspendedUntil = until;
+    }
+
+    public void restrictWrite(String reason, LocalDate until) {
+        this.userStatus = UserStatus.WRITE_RESTRICTED;
+        this.suspendedReason = reason;
+        this.suspendedUntil = until;
+    }
+
+    public void unsuspend() {
+        this.userStatus = UserStatus.ACTIVE;
+        this.suspendedReason = null;
+        this.suspendedUntil = null;
+    }
+
+    public boolean isSuspendedNow(LocalDate today) {
+        if (this.userStatus != UserStatus.SUSPENDED) {
+            return false;
+        }
+        if (this.suspendedUntil == null) {
+            return true;
+        }
+        return !this.suspendedUntil.isBefore(today);
+    }
+
+    public boolean isWriteRestrictedNow(LocalDate today) {
+        if (this.userStatus != UserStatus.WRITE_RESTRICTED) {
+            return false;
+        }
+        if (this.suspendedUntil == null) {
+            return true;
+        }
+        return !this.suspendedUntil.isBefore(today);
+    }
 }

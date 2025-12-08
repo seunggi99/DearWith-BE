@@ -24,6 +24,7 @@ public enum ErrorCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "권한이 없습니다."),
     TOKEN_INVALID(HttpStatus.UNAUTHORIZED,"로그인 정보가 유효하지 않습니다."),
     TOKEN_SUCCESS(HttpStatus.OK, "토큰이 유효합니다."),
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "관리자 계정에는 이 작업을 수행할 수 없습니다"),
 
     // 로그인 / 계정
     INVALID_EMAIL(HttpStatus.NOT_FOUND, "가입되지 않은 이메일입니다."),

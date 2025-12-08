@@ -1,9 +1,12 @@
 package com.dearwith.dearwith_backend.user.repository;
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import com.dearwith.dearwith_backend.user.entity.User;
+import com.dearwith.dearwith_backend.user.enums.UserStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -21,4 +24,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
       AND u.deletedAt IS NULL
     """)
     List<User> findAllByUserStatusLoginAllowed();
+
+    List<User> findByUserStatusInAndSuspendedUntilBefore(
+            Collection<UserStatus> statuses,
+            LocalDate until
+    );
 }
