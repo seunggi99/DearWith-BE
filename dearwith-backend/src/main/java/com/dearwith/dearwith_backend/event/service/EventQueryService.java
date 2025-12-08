@@ -83,12 +83,14 @@ public class EventQueryService {
 
         PageRequest limit10 = PageRequest.of(0, 10);
 
-        List<Event> personalized = eventRepository.findRecommendedForUser(
-                artistIds,
-                groupIds,
-                today,
-                limit10
-        ).getContent();
+        List<Event> personalized = new ArrayList<>(
+                eventRepository.findRecommendedForUser(
+                        artistIds,
+                        groupIds,
+                        today,
+                        limit10
+                ).getContent()
+        );
 
         if (personalized.size() < 10) {
             List<Long> alreadyIds = personalized.stream()
