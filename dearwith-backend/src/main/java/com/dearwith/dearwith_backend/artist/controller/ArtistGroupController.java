@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.artist.controller;
 
+import com.dearwith.dearwith_backend.artist.dto.ArtistGroupCreateRequestDto;
 import com.dearwith.dearwith_backend.artist.dto.ArtistGroupDto;
 import com.dearwith.dearwith_backend.artist.dto.GroupEventsResponseDto;
 import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
@@ -7,17 +8,20 @@ import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.service.ArtistGroupService;
 import com.dearwith.dearwith_backend.artist.service.HotArtistService;
 import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
+import com.dearwith.dearwith_backend.common.dto.CreatedResponseDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.dto.EventInfoDto;
 import com.dearwith.dearwith_backend.event.enums.EventSort;
 import com.dearwith.dearwith_backend.event.service.EventQueryService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -74,4 +78,35 @@ public class ArtistGroupController {
                 .page(eventPage)
                 .build();
     }
+    @PostMapping
+    @Operation(summary = "아티스트 그룹 등록")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CreatedResponseDto createGroup(
+            @Valid @RequestBody ArtistGroupCreateRequestDto req,
+            @CurrentUser UUID userId
+    ) {
+        return artistGroupService.create(userId, req);
+    }
+
+    @PutMapping("/{groupId}")
+    @Operation(summary = "아티스트 그룹 수정", description = "수정 권한 : 업로드한 유저/관리자")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateGroup(
+            @PathVariable Long groupId,
+            @Valid @RequestBody ArtistGroupCreateRequestDto req,
+            @CurrentUser UUID userId
+    ) {
+        artistGroupService.update(userId, groupId, req);
+    }
+
+    @DeleteMapping("/{groupId}")
+    @Operation(summary = "아티스트 그룹 삭제", description = "삭제 권한 : 업로드한 유저/관리자")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteGroup(
+            @PathVariable Long groupId,
+            @CurrentUser UUID userId
+    ) {
+        artistGroupService.delete(userId, groupId);
+    }
+
 }

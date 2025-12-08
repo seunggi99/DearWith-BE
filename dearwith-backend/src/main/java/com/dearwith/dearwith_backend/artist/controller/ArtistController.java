@@ -58,6 +58,26 @@ public class ArtistController {
     ) {
         return artistService.create(userId, req);
     }
+    @PutMapping("/{artistId}")
+    @Operation(summary = "아티스트 수정", description = "수정 권한 : 업로드한 유저/관리자")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateArtist(
+            @PathVariable Long artistId,
+            @Valid @RequestBody ArtistCreateRequestDto req,
+            @CurrentUser UUID userId
+    ) {
+        artistService.update(userId, artistId, req);
+    }
+    @DeleteMapping("/{artistId}")
+    @Operation(summary = "아티스트 삭제", description = "삭제 권한 : 업로드한 유저/관리자")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteArtist(
+            @PathVariable Long artistId,
+            @CurrentUser UUID userId
+    ) {
+        artistService.delete(userId, artistId);
+    }
+
 
     @GetMapping("/{artistId}/events")
     @Operation(summary = "특정 아티스트의 이벤트 목록")
