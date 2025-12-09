@@ -5,6 +5,7 @@ import com.dearwith.dearwith_backend.user.docs.UserApiDocs;
 import com.dearwith.dearwith_backend.user.dto.AdminCreateUserRequestDto;
 import com.dearwith.dearwith_backend.user.dto.AdminSuspendUserRequestDto;
 import com.dearwith.dearwith_backend.user.dto.SignUpResponseDto;
+import com.dearwith.dearwith_backend.user.dto.UserResponseDto;
 import com.dearwith.dearwith_backend.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -57,4 +59,11 @@ public class UserAdminController {
     ) {
         userService.unsuspendUserByAdmin(userId, adminId);
     }
+
+    @Operation(summary = "가입된 모든 회원 출력(관리자)")
+    @GetMapping("/all")
+    public ResponseEntity<List<UserResponseDto>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
+    }
+
 }

@@ -43,12 +43,6 @@ public class UserController {
         return ResponseEntity.ok(userService.getCurrentUser(userId));
     }
 
-    @Operation(summary = "가입된 모든 회원 출력", description = "개발용 임시")
-    @GetMapping("/all")
-    public ResponseEntity<List<UserResponseDto>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
-    }
-
     @Operation(summary = "회원 닉네임 변경")
     @PatchMapping("/me/nickname")
     @ResponseStatus(HttpStatus.NO_CONTENT)
