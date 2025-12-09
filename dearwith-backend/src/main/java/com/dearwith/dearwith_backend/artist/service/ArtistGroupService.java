@@ -72,7 +72,7 @@ public class ArtistGroupService {
 
         group = artistGroupRepository.save(group);
 
-        handleImageOnCreate(group, req.imageTmpKey());
+        handleImageOnCreate(group, req.tmpKey());
 
         return CreatedResponseDto.builder()
                 .id(group.getId())
@@ -104,7 +104,7 @@ public class ArtistGroupService {
         group.setNameEn(nameEn);
         group.setDebutDate(debut);
 
-        handleImageOnUpdate(group, req.imageTmpKey());
+        handleImageOnUpdate(group, req.tmpKey());
     }
 
     /* ======================== 삭제 ======================== */
