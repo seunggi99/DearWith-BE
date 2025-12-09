@@ -8,6 +8,6 @@ public record ArtistGroupCreateRequestDto (
 
         @NotBlank(message = "이름을 입력해주세요.")
         String nameKr,
-        String imageTmpKey,
+        String tmpKey,
         LocalDate debutDate
 ){}
