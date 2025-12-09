@@ -85,7 +85,6 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
                 "http://localhost:3000",
-                "https://3.37.184.199:3000",
                 "https://dearwith.kr",
                 "https://www.dearwith.kr",
                 "https://api.dearwith.kr"
@@ -111,7 +110,6 @@ public class SecurityConfig {
                         .authenticationEntryPoint(jwtAuthEntryPoint()) // 401 JSON
                         .accessDeniedHandler(accessDeniedHandler())    // 403 JSON
                 )
-
                 .authorizeHttpRequests(auth -> auth
                         // ===== 공개 =====
                         .requestMatchers(
@@ -119,16 +117,25 @@ public class SecurityConfig {
                                 "/auth/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/oauth2/**",              // X 인증, 콜백 포함
+                                "/oauth2/**",
+
+                                // 회원가입 / 비번 재설정 / 중복체크
                                 "/users/signup",
-                                "/users/signup/socials",
+                                "/users/signup/social",
                                 "/users/check/**",
+                                "/users/password/reset",
+
+                                // 검색
                                 "/api/search/artists",
                                 "/api/search/artists/artists-groups",
-                                "/api/places/**"
+                                "/api/places/**",
+
+                                // 공지 조회
+                                "/api/notices",
+                                "/api/notices/*"
                         ).permitAll()
 
-                        // 조회용 공개 API
+                        // ===== 조회용 공개 API (로그인 선택) =====
                         .requestMatchers(HttpMethod.GET,
                                 // 메인
                                 "/api/main",
@@ -153,29 +160,44 @@ public class SecurityConfig {
                                 "/api/groups/*/events"         // 특정 그룹의 이벤트 목록
                         ).permitAll()
 
-                        // 관리자 전용 API
+                        // ===== 관리자 전용 API =====
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                         // ===== 로그인 필수 =====
                         .requestMatchers(
+                                // 내 정보 / 프로필 / 비번 변경
                                 "/users/me",
                                 "/users/me/**",
                                 "/users/password/change",
+
+                                // 업로드
                                 "/api/uploads/*",
 
-                                // 최근 검색
+                                // 최근 검색어 (추가/조회/삭제)
                                 "/api/search/recent",
                                 "/api/search/recent/**",
 
                                 // 마이 페이지
                                 "/api/my",
+                                "/api/my/**",
 
-                                // 알림 - 전체 로그인 필요
+                                // 알림
                                 "/api/notifications/**",
-                                "/api/push/**"
+
+                                // 푸시 (디바이스 등록/해제, 테스트 포함)
+                                "/api/push/**",
+
+                                // 1:1 문의 (등록/내 목록/상세/만족도 선택)
+                                "/api/inquiries",
+                                "/api/inquiries/**",
+
+                                // 디버그용 X 티켓 (안전하게 로그인 필수)
+                                "/api/debug/**"
                         ).authenticated()
 
-                        // 쓰기/수정/삭제는 명시적으로 보호
+                        // ===== 쓰기/수정/삭제는 명시적으로 보호 =====
+
+                        // 생성 계열
                         .requestMatchers(HttpMethod.POST,
                                 "/api/events",                 // 이벤트 등록
                                 "/api/events/*",
@@ -187,12 +209,18 @@ public class SecurityConfig {
                                 "/api/artists/groups/*/bookmark" // 그룹 북마크 추가
                         ).authenticated()
 
+                        // 수정(주로 PUT/PATCH)
+                        .requestMatchers(HttpMethod.PUT,
+                                "/api/artists/*",              // 아티스트 수정
+                                "/api/groups/*"                // 아티스트 그룹 수정
+                        ).authenticated()
                         .requestMatchers(HttpMethod.PATCH,
                                 "/api/events/*",               // 이벤트 수정
                                 "/api/events/*/notices/*",     // 공지 수정
                                 "/api/reviews/*"               // 리뷰 수정
                         ).authenticated()
 
+                        // 삭제 계열
                         .requestMatchers(HttpMethod.DELETE,
                                 "/api/events/*",               // 이벤트 삭제
                                 "/api/events/*/notices/*",     // 공지 삭제
@@ -201,14 +229,15 @@ public class SecurityConfig {
                                 "/api/artists/groups/*/bookmark" // 그룹 북마크 해제
                         ).authenticated()
 
-                        // 아티스트/이벤트/리뷰 북마크, 좋아요, 신고 등
+                        // 북마크 / 좋아요 / 신고 등 (GET/POST/DELETE 혼합)
                         .requestMatchers(
                                 "/api/events/bookmark",          // 내 이벤트 북마크 목록
                                 "/api/events/*/bookmark",        // 이벤트 북마크 토글
                                 "/api/artists/bookmark",         // 북마크한 아티스트/그룹 조회
-                                "/api/reviews/*/like",           // 리뷰 좋아요
+                                "/api/reviews/*/like",           // 리뷰 좋아요 추가/취소
                                 "/api/reviews/*/report"          // 리뷰 신고
                         ).authenticated()
+
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

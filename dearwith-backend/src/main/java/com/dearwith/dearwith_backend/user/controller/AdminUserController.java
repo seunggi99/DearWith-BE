@@ -19,7 +19,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
-public class UserAdminController {
+public class AdminUserController {
     private final UserService userService;
 
     @Operation(summary = "관리자용 회원 등록" , description = UserApiDocs.AD_CREATE_DESC)
