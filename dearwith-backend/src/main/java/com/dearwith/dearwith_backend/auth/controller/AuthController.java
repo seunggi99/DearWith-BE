@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.auth.controller;
 
+import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
 import com.dearwith.dearwith_backend.auth.jwt.AuthCookieUtil;
 import com.dearwith.dearwith_backend.auth.dto.*;
 import com.dearwith.dearwith_backend.auth.service.AuthService;
@@ -17,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -137,10 +140,14 @@ public class AuthController {
         return ResponseEntity.ok(res);
     }
 
-    @Operation(summary = "로그아웃")
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(HttpServletResponse response) {
+    public void logout(
+            @CurrentUser UUID userId,
+            @RequestBody(required = false) LogoutRequestDto request,
+            HttpServletResponse response
+    ) {
+        authService.logout(userId, request);
         authCookieUtil.clearCookie(response, "ACCESS_TOKEN");
         authCookieUtil.clearCookie(response, "REFRESH_TOKEN");
     }

@@ -4,14 +4,15 @@ import com.dearwith.dearwith_backend.notification.dto.DeviceRegisterRequestDto;
 import com.dearwith.dearwith_backend.notification.entity.PushDevice;
 import com.dearwith.dearwith_backend.notification.repository.PushDeviceRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional
 public class PushDeviceService {
@@ -54,11 +55,35 @@ public class PushDeviceService {
     }
 
 
-    public void unregister(String fcmToken, UUID userId) {
-        if (userId != null) {
-            repository.deleteByFcmTokenAndUserId(fcmToken, userId);
-        } else {
-            repository.deleteByFcmToken(fcmToken);
+    @Transactional
+    public void unregister(UUID userId, String deviceId, String fcmToken) {
+
+        int deleted = 0;
+
+        // deviceId 기준 삭제
+        if (deviceId != null && !deviceId.isBlank()) {
+            int cnt = repository.deleteByUserIdAndDeviceId(userId, deviceId);
+            deleted += cnt;
+            if (cnt > 0) {
+                log.info("[PushDevice] delete by deviceId: userId={}, deviceId={}, deleted={}",
+                        userId, deviceId, cnt);
+            }
+        }
+
+        // fcmToken 기준 삭제
+        if (fcmToken != null && !fcmToken.isBlank()) {
+            int cnt = repository.deleteByUserIdAndFcmToken(userId, fcmToken);
+            deleted += cnt;
+            if (cnt > 0) {
+                log.info("[PushDevice] delete by fcmToken: userId={}, fcmToken={}, deleted={}",
+                        userId, fcmToken, cnt);
+            }
+        }
+
+        // ⃣ 두 방식 모두로 삭제된 게 없으면 → 로그만 남김
+        if (deleted == 0) {
+            log.warn("[PushDevice] unregister: no match. (userId={}, deviceId={}, fcmToken={})",
+                    userId, deviceId, fcmToken);
         }
     }
 }

@@ -114,7 +114,14 @@ public class SecurityConfig {
                         // ===== 공개 =====
                         .requestMatchers(
                                 "/",
-                                "/auth/**",
+                                "/auth/signin",
+                                "/auth/signup/email/send",
+                                "/auth/signup/email/verify",
+                                "/auth/oauth/kakao",
+                                "/auth/oauth/apple",
+                                "/auth/validate",
+                                "/auth/refresh",
+
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/oauth2/**",
@@ -169,6 +176,9 @@ public class SecurityConfig {
                                 "/users/me",
                                 "/users/me/**",
                                 "/users/password/change",
+
+                                // 로그 아웃
+                                "/auth/logout",
 
                                 // 업로드
                                 "/api/uploads/*",

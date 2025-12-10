@@ -8,6 +8,7 @@ import com.dearwith.dearwith_backend.external.apple.AppleIdTokenClaims;
 import com.dearwith.dearwith_backend.external.apple.AppleIdTokenVerifier;
 import com.dearwith.dearwith_backend.external.apple.AppleTokenClient;
 import com.dearwith.dearwith_backend.external.apple.AppleTokenResponse;
+import com.dearwith.dearwith_backend.notification.service.PushDeviceService;
 import com.dearwith.dearwith_backend.user.entity.SocialAccount;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.enums.AuthProvider;
@@ -38,6 +39,7 @@ public class AuthService {
     private final AppleTokenClient appleTokenClient;
     private final AppleIdTokenVerifier appleIdTokenVerifier;
     private final UserReader userReader;
+    private PushDeviceService pushDeviceService;
 
 
     /*──────────────────────────────────────────────
@@ -71,6 +73,17 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional
+    public void logout(UUID userId, LogoutRequestDto request) {
+
+        if (request != null) {
+            pushDeviceService.unregister(
+                    userId,
+                    request.deviceId(),
+                    request.fcmToken()
+            );
+        }
+    }
 
     /*──────────────────────────────────────────────
      | 2. 카카오 로그인

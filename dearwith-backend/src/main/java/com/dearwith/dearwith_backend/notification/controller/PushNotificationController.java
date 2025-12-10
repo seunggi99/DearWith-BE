@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.notification.controller;
 
 import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
+import com.dearwith.dearwith_backend.auth.dto.LogoutRequestDto;
 import com.dearwith.dearwith_backend.notification.dto.DeviceRegisterRequestDto;
 import com.dearwith.dearwith_backend.notification.service.PushDeviceService;
 import com.dearwith.dearwith_backend.notification.service.PushNotificationService;
@@ -31,10 +32,10 @@ public class PushNotificationController {
     @Operation(summary = "현재 기기에서 유저 연결 해제 (로그아웃)")
     @DeleteMapping("/devices")
     public void detachCurrentDevice(
-            @RequestParam String fcmToken,
+            @RequestBody LogoutRequestDto req,
             @CurrentUser UUID userId
     ) {
-        pushDeviceService.unregister(fcmToken, userId);
+        pushDeviceService.unregister(userId, req.deviceId(), req.fcmToken());
     }
 
     @Operation(summary = "테스트용 토큰 푸시 api")
