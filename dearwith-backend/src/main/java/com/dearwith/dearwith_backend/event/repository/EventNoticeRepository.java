@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface EventNoticeRepository extends JpaRepository<EventNotice, Long> {
     Page<EventNotice> findByEventId(Long eventId, Pageable pageable);
 
@@ -18,4 +20,6 @@ public interface EventNoticeRepository extends JpaRepository<EventNotice, Long> 
     @Modifying
     @Query("update EventNotice n set n.viewCount = n.viewCount + 1 where n.id = :id")
     void incrementViewCount(@Param("id") Long id);
+
+    List<EventNotice> findByIdIn(List<Long> ids);
 }

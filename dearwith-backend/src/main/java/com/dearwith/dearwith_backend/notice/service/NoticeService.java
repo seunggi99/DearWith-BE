@@ -7,8 +7,7 @@ import com.dearwith.dearwith_backend.notice.dto.NoticeResponseDto;
 import com.dearwith.dearwith_backend.notice.dto.NoticeUpdateRequestDto;
 import com.dearwith.dearwith_backend.notice.entity.Notice;
 import com.dearwith.dearwith_backend.notice.repository.NoticeRepository;
-import com.dearwith.dearwith_backend.notification.service.PushNotificationService;
-import jakarta.persistence.EntityNotFoundException;
+import com.dearwith.dearwith_backend.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class NoticeService {
     private final NoticeRepository noticeRepository;
-    private final PushNotificationService pushNotificationService;
+    private final NotificationService notificationService;
 
     // 공지 목록
     public Page<NoticeResponseDto> getNotices(Pageable pageable) {
@@ -45,9 +44,12 @@ public class NoticeService {
 
         Notice saved = noticeRepository.save(notice);
 
-        if (saved.isPushEnabled()) {
-            pushNotificationService.sendSystemNotice(request.getTitle(), request.getContent(), null);
-        }
+        notificationService.sendSystemNoticeToAllUsers(
+                saved.getId(),
+                saved.getTitle(),
+                saved.getContent(),
+                saved.isPushEnabled()
+        );
 
         return saved.getId();
     }

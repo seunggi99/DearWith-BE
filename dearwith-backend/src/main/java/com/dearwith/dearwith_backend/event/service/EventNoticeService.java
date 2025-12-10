@@ -101,17 +101,10 @@ public class EventNoticeService {
 
             notificationService.sendEventNoticeCreatedToMany(
                     targetUserIds,
-                    event.getId(),
                     notice.getId(),
                     event.getTitle(),
-                    notice.getTitle()
-            );
-
-            pushNotificationService.sendEventNoticeToUsers(
-                    targetUserIds,
-                    event.getTitle() + "에 새 공지가 등록되었습니다.",
                     notice.getTitle(),
-                    "https://dearwith.kr/events/" + event.getId() + "/notice/" + notice.getId()
+                    true
             );
 
         } catch (Exception e) {

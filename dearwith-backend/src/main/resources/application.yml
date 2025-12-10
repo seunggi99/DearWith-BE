@@ -148,3 +148,5 @@ decorator:
 logging:
   level:
     com.github.gavlyukovskiy.boot.jdbc.decorator: DEBUG
+dearwith:
+  backend-url: "https://dearwith.kr"

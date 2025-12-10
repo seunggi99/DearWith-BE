@@ -61,7 +61,7 @@ public class InquiryController {
     }
 
     /** 답변 만족/아쉬워요 선택 */
-    @Operation(summary = "답변 만족도 선택")
+    @Operation(summary = "답변 만족도 선택", description = " SATISFIED (만족)/ UNSATISFIED(불만족)")
     @PostMapping("/{inquiryId}/satisfaction")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateSatisfaction(

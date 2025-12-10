@@ -2,8 +2,6 @@ package com.dearwith.dearwith_backend.notification.service;
 
 import com.dearwith.dearwith_backend.notification.entity.PushDevice;
 import com.dearwith.dearwith_backend.notification.repository.PushDeviceRepository;
-import com.dearwith.dearwith_backend.user.entity.User;
-import com.dearwith.dearwith_backend.user.service.UserReader;
 import com.google.auth.oauth2.GoogleCredentials;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,15 +21,14 @@ public class PushNotificationService {
 
     private final GoogleCredentials googleCredentials;
     private final PushDeviceRepository pushDeviceRepository;
-    private final UserReader userReader;
 
-    private static final int DEVICE_ACTIVE_DAYS = 90; // 만료 기준
+    // 최근 90일 안에 사용된 기기만 대상으로 푸시 발송
+    private static final int DEVICE_ACTIVE_DAYS = 90;
 
     /* ============================================================
-     * 1. 단일 토큰 발송
+     * 1. 단일 토큰 발송 (FCM HTTP v1)
      * ============================================================ */
     public void sendToToken(String token, String title, String body, String url) {
-
         try {
             googleCredentials.refreshIfExpired();
             String accessToken = googleCredentials.getAccessToken().getTokenValue();
@@ -59,16 +56,15 @@ public class PushNotificationService {
     }
 
     /* ============================================================
-     * 2. 유저 단위 발송
+     * 2. 유저 단위 발송 (한 명)
+     *  - userId 로 PushDevice 조회 + 90일 이내 기기만 발송
      * ============================================================ */
     public void sendToUser(UUID userId, String title, String body, String url) {
-
         LocalDateTime expireThreshold = LocalDateTime.now().minusDays(DEVICE_ACTIVE_DAYS);
 
-        List<PushDevice> devices =
-                pushDeviceRepository.findAllByUserId(userId).stream()
-                        .filter(d -> d.getLastActiveAt().isAfter(expireThreshold)) // 오래된 기기 제외
-                        .toList();
+        List<PushDevice> devices = pushDeviceRepository.findAllByUserId(userId).stream()
+                .filter(d -> d.getLastActiveAt().isAfter(expireThreshold)) // 오래된 기기 제외
+                .toList();
 
         devices.stream()
                 .map(PushDevice::getFcmToken)
@@ -78,16 +74,16 @@ public class PushNotificationService {
 
     /* ============================================================
      * 3. 여러 유저 발송
+     *  - userIds 전체에 대해 PushDevice 조회 후 토큰만 모아서 발송
      * ============================================================ */
     public void sendToUsers(List<UUID> userIds, String title, String body, String url) {
         if (userIds == null || userIds.isEmpty()) return;
 
         LocalDateTime expireThreshold = LocalDateTime.now().minusDays(DEVICE_ACTIVE_DAYS);
 
-        List<PushDevice> devices =
-                pushDeviceRepository.findAllByUserIdIn(userIds).stream()
-                        .filter(d -> d.getLastActiveAt().isAfter(expireThreshold))
-                        .toList();
+        List<PushDevice> devices = pushDeviceRepository.findAllByUserIdIn(userIds).stream()
+                .filter(d -> d.getLastActiveAt().isAfter(expireThreshold))
+                .toList();
 
         devices.stream()
                 .map(PushDevice::getFcmToken)
@@ -96,60 +92,8 @@ public class PushNotificationService {
     }
 
     /* ============================================================
-     * 4. 서비스 알림 (전체)
+     * 4. FCM 메시지 JSON 생성
      * ============================================================ */
-
-    public void sendServiceNoticeToUser(UUID userId, String title, String body, String url) {
-        User user = userReader.getLoginAllowedUser(userId);
-
-        if (!user.isServiceNotificationEnabled()) return;
-
-        sendToUser(userId, title, body, url);
-    }
-
-    public void sendServiceNoticeToUsers(List<UUID> userIds, String title, String body, String url) {
-        List<UUID> targets = userReader.getLoginAllowedUsers(userIds).stream()
-                .filter(User::isServiceNotificationEnabled)
-                .map(User::getId)
-                .toList();
-
-        sendToUsers(targets, title, body, url);
-    }
-
-    public void sendSystemNotice(String title, String body, String url) {
-        List<UUID> targets = userReader.getAllLoginAllowedUsers().stream()
-                .filter(User::isServiceNotificationEnabled)
-                .map(User::getId)
-                .toList();
-
-        sendToUsers(targets, title, body, url);
-    }
-
-    /* ============================================================
-     * 5. 이벤트 알림
-     * ============================================================ */
-
-    public void sendEventNoticeToUsers(List<UUID> userIds, String title, String body, String url) {
-        List<UUID> targets = userReader.getLoginAllowedUsers(userIds).stream()
-                .filter(User::isEventNotificationEnabled)
-                .map(User::getId)
-                .toList();
-
-        sendToUsers(targets, title, body, url);
-    }
-
-    public void sendEventNoticeToUser(UUID userId, String title, String body, String url) {
-        User user = userReader.getLoginAllowedUser(userId);
-
-        if (!user.isEventNotificationEnabled()) return;
-
-        sendToUser(userId, title, body, url);
-    }
-
-    /* ============================================================
-     * 6. 메시지 JSON 생성
-     * ============================================================ */
-
     private String createMessage(String token, String title, String body, String url) {
         return """
         {

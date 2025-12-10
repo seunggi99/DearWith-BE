@@ -1,7 +1,6 @@
 package com.dearwith.dearwith_backend.notification.dto;
 
 import com.dearwith.dearwith_backend.notification.enums.Platform;
-import lombok.Getter;
 
 public record DeviceRegisterRequestDto(
         String deviceId,

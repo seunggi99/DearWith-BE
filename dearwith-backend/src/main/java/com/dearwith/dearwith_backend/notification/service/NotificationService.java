@@ -1,16 +1,21 @@
 package com.dearwith.dearwith_backend.notification.service;
 
+import com.dearwith.dearwith_backend.common.config.DearwithProperties;
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
+import com.dearwith.dearwith_backend.common.dto.ImageVariantDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.event.assembler.EventInfoAssembler;
 import com.dearwith.dearwith_backend.event.entity.Event;
+import com.dearwith.dearwith_backend.event.entity.EventNotice;
+import com.dearwith.dearwith_backend.event.repository.EventNoticeRepository;
 import com.dearwith.dearwith_backend.event.repository.EventRepository;
 import com.dearwith.dearwith_backend.notification.dto.NotificationResponseDto;
 import com.dearwith.dearwith_backend.notification.dto.UnreadExistsResponseDto;
 import com.dearwith.dearwith_backend.notification.entity.Notification;
 import com.dearwith.dearwith_backend.notification.enums.NotificationType;
 import com.dearwith.dearwith_backend.notification.repository.NotificationRepository;
+import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,8 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,20 +32,25 @@ import java.util.stream.Collectors;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final EventInfoAssembler eventInfoAssembler;
+    private final EventNoticeRepository eventNoticeRepository;
     private final EventRepository eventRepository;
+    private final EventInfoAssembler eventInfoAssembler;
     private final UserReader userReader;
+    private final PushNotificationService pushNotificationService;
+    private final DearwithProperties dearwithProperties;
 
-    private static final Pattern EVENT_NOTICE_PATTERN =
-            Pattern.compile("/events/(\\d+)(?:#notice-(\\d+))?");
+    private static final String SYSTEM_ICON_URL =
+            "https://d2xzrz4ksgmdkm.cloudfront.net/inline/common/icon.png";
 
     /* ================================================================
        1) 안 읽은 알림 존재 여부
      ================================================================ */
+    @Transactional(readOnly = true)
     public UnreadExistsResponseDto hasUnread(UUID userId) {
-        if(userId == null){
-            return new UnreadExistsResponseDto(false,0L);
+        if (userId == null) {
+            return new UnreadExistsResponseDto(false, 0L);
         }
+
         userReader.getLoginAllowedUser(userId);
 
         long count = notificationRepository.countByUserIdAndReadFalse(userId);
@@ -51,8 +59,15 @@ public class NotificationService {
 
     /* ================================================================
        2) 알림 목록 조회
+          - EVENT_NOTICE_CREATED  → targetId = noticeId
+          - EVENT_CHANGED         → targetId = eventId
+          - ARTIST_EVENT_CREATED  → targetId = eventId
+          - SYSTEM                → targetId = systemNoticeId
      ================================================================ */
-    public Page<NotificationResponseDto> getNotifications(UUID userId, boolean onlyUnread, Pageable pageable) {
+    @Transactional(readOnly = true)
+    public Page<NotificationResponseDto> getNotifications(UUID userId,
+                                                          boolean onlyUnread,
+                                                          Pageable pageable) {
         userReader.getLoginAllowedUser(userId);
 
         Page<Notification> page = onlyUnread
@@ -61,20 +76,41 @@ public class NotificationService {
 
         List<Notification> list = page.getContent();
 
-        // eventId 추출
-        Set<Long> eventIds = list.stream()
-                .map(this::parseEventLink)
-                .map(EventLink::eventId)
+        // 1) EVENT_NOTICE_CREATED → noticeId 모으기
+        List<Long> noticeIds = list.stream()
+                .filter(n -> n.getType() == NotificationType.EVENT_NOTICE_CREATED)
+                .map(Notification::getTargetId)   // targetId = noticeId
+                .filter(Objects::nonNull)
+                .toList();
+
+        // 2) EVENT_CHANGED / ARTIST_EVENT_CREATED → eventId 모으기
+        Set<Long> directEventIds = list.stream()
+                .filter(n -> n.getType() == NotificationType.EVENT_CHANGED
+                        || n.getType() == NotificationType.ARTIST_EVENT_CREATED)
+                .map(Notification::getTargetId)   // targetId = eventId
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        // 이벤트 배치 조회
-        Map<Long, Event> eventMap = eventIds.isEmpty()
+        // 3) noticeId → eventId 매핑 (EventNotice 한 번에 조회)
+        Map<Long, Long> noticeToEventIdMap = noticeIds.isEmpty()
                 ? Map.of()
-                : eventRepository.findByIdIn(eventIds).stream()
+                : eventNoticeRepository.findByIdIn(noticeIds).stream()
+                .filter(en -> en.getEvent() != null)
+                .collect(Collectors.toMap(
+                        EventNotice::getId,            // noticeId
+                        en -> en.getEvent().getId()    // eventId
+                ));
+
+        // 4) 전체 eventId 모아서 Event 배치 조회
+        Set<Long> allEventIds = new HashSet<>(directEventIds);
+        allEventIds.addAll(noticeToEventIdMap.values());
+
+        Map<Long, Event> eventMap = allEventIds.isEmpty()
+                ? Map.of()
+                : eventRepository.findByIdIn(allEventIds).stream()
                 .collect(Collectors.toMap(Event::getId, e -> e));
 
-        return page.map(n -> toDto(n, eventMap));
+        return page.map(n -> toDto(n, eventMap, noticeToEventIdMap));
     }
 
     /* ================================================================
@@ -141,59 +177,172 @@ public class NotificationService {
     }
 
     /* ================================================================
-       7) 알림 생성 (개인)
-     ================================================================ */
-    @Transactional
-    public void sendEventNoticeCreated(
-            UUID targetUserId,
-            Long eventId,
-            Long noticeId,
-            String eventTitle,
-            String noticeTitle
-    ) {
-        Notification n = new Notification();
-        n.setUserId(targetUserId);
-        n.setType(NotificationType.EVENT_NOTICE_CREATED);
-        n.setTitle(eventTitle);
-        n.setContent(noticeTitle);
-        n.setLinkUrl("/events/" + eventId + "#notice-" + noticeId);
-        n.setTargetId(noticeId);
-        n.setRead(false);
-
-        notificationRepository.save(n);
-    }
-
-    /* ================================================================
-       8) 알림 생성 (여러명)
-     ================================================================ */
+    7) 알림 생성 - 이벤트 공지 등록 (여러 명)
+       targetId = noticeId
+  ================================================================ */
     @Transactional
     public void sendEventNoticeCreatedToMany(
             List<UUID> targetUserIds,
-            Long eventId,
             Long noticeId,
             String eventTitle,
-            String noticeTitle
+            String noticeTitle,
+            boolean sendPush
     ) {
-        if (targetUserIds == null || targetUserIds.isEmpty()) return;
+        if (targetUserIds == null || targetUserIds.isEmpty()) {
+            return;
+        }
 
-        for (UUID uid : targetUserIds) {
-            sendEventNoticeCreated(uid, eventId, noticeId, eventTitle, noticeTitle);
+        // 1) 인앱 알림: 대상 유저 전체에게 항상 생성
+        String inAppTitle = eventTitle;
+        String inAppContent = noticeTitle;
+
+        List<Notification> notifications = targetUserIds.stream()
+                .map(uid -> Notification.builder()
+                        .userId(uid)
+                        .type(NotificationType.EVENT_NOTICE_CREATED)
+                        .title(inAppTitle)
+                        .content(inAppContent)
+                        .targetId(noticeId)
+                        .read(false)
+                        .build()
+                )
+                .toList();
+
+        notificationRepository.saveAll(notifications);
+
+        // 2) 푸시 알림: 이벤트 알림 허용한 유저만 필터링
+        if (sendPush) {
+            String pushTitle = "[공지] " + eventTitle;
+            String pushBody = noticeTitle;
+            String url = buildFullUrl(NotificationType.EVENT_NOTICE_CREATED, noticeId);
+
+            //  로그인 가능 + 이벤트 알림 허용한 유저만
+            List<UUID> pushTargets = userReader.getLoginAllowedUsers(targetUserIds).stream()
+                    .filter(User::isEventNotificationEnabled)
+                    .map(User::getId)
+                    .toList();
+
+            if (!pushTargets.isEmpty()) {
+                pushNotificationService.sendToUsers(pushTargets, pushTitle, pushBody, url);
+            }
         }
     }
 
     /* ================================================================
-       9) DTO 변환
+       8) 알림 생성 - 이벤트 공지 등록 (1명용)
      ================================================================ */
-    private NotificationResponseDto toDto(Notification n, Map<Long, Event> eventMap) {
+    @Transactional
+    public void sendEventNoticeCreatedToUser(
+            UUID targetUserId,
+            Long noticeId,
+            String eventTitle,
+            String noticeTitle,
+            boolean sendPush
+    ) {
+        sendEventNoticeCreatedToMany(
+                List.of(targetUserId),
+                noticeId,
+                eventTitle,
+                noticeTitle,
+                sendPush
+        );
+    }
 
-        Long eventId = null;
-        Long noticeId = null;
+    /* ================================================================
+    9) 알림 생성 - 시스템 공지 (다수)
+       targetId = systemNoticeId
+    ================================================================ */
+    @Transactional
+    public void sendSystemNoticeToUsers(
+            List<UUID> targetUserIds,
+            Long systemNoticeId,
+            String title,
+            String content,
+            boolean sendPush
+    ) {
+        if (targetUserIds == null || targetUserIds.isEmpty()) {
+            return;
+        }
+
+        // 1) 인앱 알림: 대상 유저 전체에게 항상 생성
+        List<Notification> notifications = targetUserIds.stream()
+                .map(uid -> Notification.builder()
+                        .userId(uid)
+                        .type(NotificationType.SYSTEM)
+                        .title(title)
+                        .content(content)   // 상세 내용
+                        .targetId(systemNoticeId)
+                        .read(false)
+                        .build()
+                )
+                .toList();
+
+        notificationRepository.saveAll(notifications);
+
+        // 2) 푸시 알림: 서비스 알림 허용한 유저만 필터링
+        if (sendPush) {
+            String pushTitle = "[디어위드] " + title;
+            String pushBody = content;
+            String url = buildFullUrl(NotificationType.SYSTEM, systemNoticeId);
+
+            // 로그인 가능 + 서비스 알림 허용한 유저만
+            List<UUID> pushTargets = userReader.getLoginAllowedUsers(targetUserIds).stream()
+                    .filter(User::isServiceNotificationEnabled)
+                    .map(User::getId)
+                    .toList();
+
+            if (!pushTargets.isEmpty()) {
+                pushNotificationService.sendToUsers(pushTargets, pushTitle, pushBody, url);
+            }
+        }
+    }
+
+    /**
+     *   전체 유저(로그인 가능한 계정)에게 시스템 공지 발송
+     *    - 인앱: 전체 로그인 가능 유저
+     *    - 푸시: 그 중 serviceNotificationEnabled = true 인 유저만
+     */
+    @Transactional
+    public void sendSystemNoticeToAllUsers(
+            Long systemNoticeId,
+            String title,
+            String content,
+            boolean sendPush
+    ) {
+        // 전체 인앱 대상: 로그인 가능한 유저 전체
+        List<User> loginAllowedUsers = userReader.getAllLoginAllowedUsers();
+
+        List<UUID> inAppTargets = loginAllowedUsers.stream()
+                .map(User::getId)
+                .toList();
+
+        // 위에 만든 공통 메서드 재사용 (여기서도 push 필터링은 안에서 처리)
+        sendSystemNoticeToUsers(inAppTargets, systemNoticeId, title, content, sendPush);
+    }
+
+
+    /* ================================================================
+       10) DTO 변환
+     ================================================================ */
+    private NotificationResponseDto toDto(
+            Notification n,
+            Map<Long, Event> eventMap,
+            Map<Long, Long> noticeToEventIdMap
+    ) {
         List<ImageGroupDto> cover = null;
 
-        if (n.getType() == NotificationType.EVENT_NOTICE_CREATED) {
-            EventLink link = parseEventLink(n);
-            eventId = link.eventId();
-            noticeId = link.noticeId();
+        if (n.getType() == NotificationType.EVENT_NOTICE_CREATED
+                || n.getType() == NotificationType.EVENT_CHANGED
+                || n.getType() == NotificationType.ARTIST_EVENT_CREATED) {
+
+            Long eventId = switch (n.getType()) {
+                case EVENT_NOTICE_CREATED -> {
+                    Long noticeId = n.getTargetId(); // targetId = noticeId
+                    yield noticeId == null ? null : noticeToEventIdMap.get(noticeId);
+                }
+                case EVENT_CHANGED, ARTIST_EVENT_CREATED -> n.getTargetId(); // targetId = eventId
+                case SYSTEM -> null;
+            };
 
             if (eventId != null) {
                 Event event = eventMap.get(eventId);
@@ -201,16 +350,28 @@ public class NotificationService {
                     cover = eventInfoAssembler.buildCoverImageGroups(event);
                 }
             }
+        } else if (n.getType() == NotificationType.SYSTEM) {
+            cover = List.of(
+                    ImageGroupDto.builder()
+                            .id(null)
+                            .variants(List.of(
+                                    ImageVariantDto.builder()
+                                            .name("logo@1x")
+                                            .url(SYSTEM_ICON_URL)
+                                            .build()
+                            ))
+                            .build()
+            );
         }
+
+        String linkUrl = buildFullUrl(n.getType(), n.getTargetId());
 
         return new NotificationResponseDto(
                 n.getId(),
                 n.getType(),
                 n.getTitle(),
                 n.getContent(),
-                eventId,
-                noticeId,
-                null,
+                linkUrl,
                 n.isRead(),
                 n.getReadAt(),
                 n.getCreatedAt(),
@@ -219,31 +380,34 @@ public class NotificationService {
     }
 
     /* ================================================================
-       10) 링크 파싱
-       - 규약이 깨져도 예외 던지면 안 됨 (프론트/백에서 URL 오염 가능)
-       - null 반환하고 정상 동작해야 UX 유지됨
+       11) 링크 URL 조립
+       - EVENT_NOTICE_CREATED → /notices/{noticeId}
+       - EVENT_CHANGED        → /events/{eventId}
+       - ARTIST_EVENT_CREATED → /events/{eventId}
+       - SYSTEM               → /system-notices/{id}
      ================================================================ */
-    private EventLink parseEventLink(Notification n) {
-        if (n.getType() != NotificationType.EVENT_NOTICE_CREATED) {
-            return new EventLink(null, null);
-        }
+    private String buildFullUrl(NotificationType type, Long targetId) {
+        String base = dearwithProperties.getBaseUrl(); // https://dearwith.kr
 
-        String url = n.getLinkUrl();
-        if (url == null || url.isBlank()) {
-            return new EventLink(null, null);
-        }
-
-        try {
-            Matcher m = EVENT_NOTICE_PATTERN.matcher(url);
-            if (m.find()) {
-                Long eventId = Long.valueOf(m.group(1));
-                Long noticeId = (m.group(2) != null) ? Long.valueOf(m.group(2)) : null;
-                return new EventLink(eventId, noticeId);
+        return switch (type) {
+            case EVENT_NOTICE_CREATED -> {
+                if (targetId == null) {
+                    yield base + "/notices";
+                }
+                yield base + "/notices/" + targetId; //  /notices/{noticeId}
             }
-        } catch (Exception ignore) { }
-
-        return new EventLink(null, null);
+            case EVENT_CHANGED, ARTIST_EVENT_CREATED -> {
+                if (targetId == null) {
+                    yield base + "/events";
+                }
+                yield base + "/events/" + targetId;  //  /events/{eventId}
+            }
+            case SYSTEM -> {
+                if (targetId == null) {
+                    yield base + "/system-notices";
+                }
+                yield base + "/system-notices/" + targetId;
+            }
+        };
     }
-
-    private record EventLink(Long eventId, Long noticeId) {}
 }

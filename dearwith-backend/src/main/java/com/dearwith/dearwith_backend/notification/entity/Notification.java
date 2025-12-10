@@ -31,9 +31,6 @@ public class Notification extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Column(length = 300)
-    private String linkUrl;
-
     private Long targetId;
 
     @Column(name = "is_read")
