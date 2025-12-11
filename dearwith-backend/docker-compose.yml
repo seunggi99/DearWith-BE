@@ -1,17 +1,4 @@
 services:
-  mongodb:
-    image: mongo:6.0
-    container_name: dearwith-backend-mongodb
-    restart: always
-    env_file:
-      - .env
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
-      MONGO_INITDB_DATABASE: dearwith
-    volumes:
-      - mongo-data:/data/db
-
   redis:
     image: redis:7-alpine
     container_name: dearwith-backend-redis
@@ -37,16 +24,16 @@ services:
     env_file:
       - .env
     environment:
-      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_USER}:${MONGO_PASS}@mongodb:27017/dearwith?authSource=admin
       SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
       SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
       SPRING_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD}
     depends_on:
-      - mongodb
       - redis
     restart: always
+    volumes:
+      - /home/ec2-user/app/logs:/app/logs
 
 volumes:
-  mongo-data:
+  redis-data:

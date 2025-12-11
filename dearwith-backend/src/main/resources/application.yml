@@ -42,8 +42,6 @@ spring:
 
 
   data:
-    mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI}
     redis:
       host: ${SPRING_REDIS_HOST}
       port: ${SPRING_REDIS_PORT}
@@ -146,7 +144,10 @@ decorator:
         enable-logging: true
         threshold: 5000
 logging:
+  file:
+    name: /home/ec2-user/app/logs/app.log
   level:
+    root: INFO
     com.github.gavlyukovskiy.boot.jdbc.decorator: DEBUG
 dearwith:
   backend-url: "https://dearwith.kr"
