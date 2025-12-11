@@ -145,7 +145,7 @@ decorator:
         threshold: 5000
 logging:
   file:
-    name: /home/ec2-user/app/logs/app.log
+    name: /app/logs/app.log
   level:
     root: INFO
     com.github.gavlyukovskiy.boot.jdbc.decorator: DEBUG
