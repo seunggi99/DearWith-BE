@@ -2,6 +2,10 @@ package com.dearwith.dearwith_backend.user.service;
 
 import com.dearwith.dearwith_backend.auth.dto.AgreementDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
+import com.dearwith.dearwith_backend.common.log.BusinessLogService;
+import com.dearwith.dearwith_backend.logging.constant.BusinessAction;
+import com.dearwith.dearwith_backend.logging.constant.TargetType;
+import com.dearwith.dearwith_backend.logging.enums.BusinessLogCategory;
 import com.dearwith.dearwith_backend.user.dto.*;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.user.entity.Agreement;
@@ -22,10 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -42,6 +43,7 @@ public class UserService {
     private final UserImageAppService userImageAppService;
     private final UserReader userReader;
     private final StringRedisTemplate stringRedisTemplate;
+    private final BusinessLogService businessLogService;
 
     private String passwordVerifiedKey(UUID userId) {
         return "user:password:verified:" + userId;
@@ -82,6 +84,19 @@ public class UserService {
         addAgreements(user, request.getAgreements());
         save(user);
 
+        businessLogService.info(
+                BusinessLogCategory.USER,
+                BusinessAction.User.USER_SIGN_UP,
+                user.getId(),
+                TargetType.USER,
+                user.getId().toString(),
+                "일반 회원가입 성공",
+                Map.of(
+                        "email", user.getEmail(),
+                        "nickname", user.getNickname()
+                )
+        );
+
         return SignUpResponseDto.builder()
                 .message("회원가입 성공")
                 .nickname(user.getNickname())
@@ -113,6 +128,21 @@ public class UserService {
         addAgreements(user, request.getAgreements());
 
         save(user);
+
+        businessLogService.info(
+                BusinessLogCategory.USER,
+                BusinessAction.User.USER_SIGN_UP_BY_ADMIN,
+                null,
+                TargetType.USER,
+                user.getId().toString(),
+                "관리자 생성 회원가입 성공",
+                Map.of(
+                        "email", user.getEmail(),
+                        "nickname", user.getNickname(),
+                        "role", user.getRole().name()
+                )
+        );
+
 
         return SignUpResponseDto.builder()
                 .message("관리자 생성 회원가입 성공")
@@ -183,6 +213,20 @@ public class UserService {
             default -> "소셜";
         };
 
+        businessLogService.info(
+                BusinessLogCategory.USER,
+                BusinessAction.User.USER_SOCIAL_SIGN_UP,
+                user.getId(),
+                TargetType.USER,
+                user.getId().toString(),
+                providerKor + " 회원가입 성공",
+                Map.of(
+                        "provider", request.getProvider().name(),
+                        "socialId", request.getSocialId(),
+                        "nickname", user.getNickname()
+                )
+        );
+
 
         return SignUpResponseDto.builder()
                 .message(providerKor + " 회원가입 성공")
@@ -238,6 +282,18 @@ public class UserService {
 
         // 3) 비밀번호 변경
         user.changePassword(passwordEncoder.encode(request.getNewPassword()));
+
+        businessLogService.info(
+                BusinessLogCategory.USER,
+                BusinessAction.User.USER_PASSWORD_RESET,
+                user.getId(),
+                TargetType.USER,
+                user.getId().toString(),
+                "비밀번호 재설정 성공",
+                Map.of(
+                        "via", "EMAIL_TICKET"
+                )
+        );
     }
 
     @Transactional
@@ -266,6 +322,16 @@ public class UserService {
         user.changePassword(passwordEncoder.encode(rawNewPassword));
 
         stringRedisTemplate.delete(key);
+
+        businessLogService.info(
+                BusinessLogCategory.USER,
+                BusinessAction.User.USER_PASSWORD_CHANGE,
+                userId,
+                TargetType.USER,
+                userId.toString(),
+                "비밀번호 변경 성공",
+                Map.of()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -294,16 +360,41 @@ public class UserService {
     @Transactional
     public void updateNickname(UUID userId, String newNickname) {
         User user = userReader.getLoginAllowedUser(userId);
+        String oldNickname = user.getNickname();
+
         validateDuplicateUserByNickname(newNickname);
         user.updateNickname(newNickname);
         userRepository.save(user);
+
+        businessLogService.info(
+                BusinessLogCategory.USER,
+                BusinessAction.User.USER_NICKNAME_CHANGE,
+                userId,
+                TargetType.USER,
+                userId.toString(),
+                "닉네임 변경 성공",
+                Map.of(
+                        "oldNickname", oldNickname,
+                        "newNickname", newNickname
+                )
+        );
     }
 
     @Transactional
-    public void deleteById(UUID id) {
-        User user = userReader.getUser(id);
+    public void deleteById(UUID userId) {
+        User user = userReader.getUser(userId);
         user.softDelete();
         userRepository.save(user);
+
+        businessLogService.info(
+                BusinessLogCategory.USER,
+                BusinessAction.User.USER_DELETE,
+                userId,
+                TargetType.USER,
+                userId.toString(),
+                "회원 탈퇴(soft delete) 처리",
+                Map.of()
+        );
     }
 
     @Transactional
@@ -336,8 +427,19 @@ public class UserService {
         }
 
         user.suspend(request.reason(), request.until());
-        log.info("[admin-suspend] adminId={} targetUserId={} reason={} until={}",
-                adminId, userId, request.reason(), request.until());
+
+        businessLogService.info(
+                BusinessLogCategory.USER,
+                BusinessAction.User.USER_SUSPEND,
+                adminId,
+                TargetType.USER,
+                userId.toString(),
+                "관리자에 의한 회원 정지",
+                Map.of(
+                        "reason", request.reason(),
+                        "until", String.valueOf(request.until())
+                )
+        );
     }
 
     @Transactional
@@ -363,8 +465,18 @@ public class UserService {
 
         user.restrictWrite(request.reason(), request.until());
 
-        log.info("[admin-write-restrict] adminId={} targetUserId={} reason={} until={}",
-                adminId, userId, request.reason(), request.until());
+        businessLogService.info(
+                BusinessLogCategory.USER,
+                BusinessAction.User.USER_WRITE_RESTRICT,
+                adminId,
+                TargetType.USER,
+                userId.toString(),
+                "관리자에 의한 회원 작성 제한",
+                Map.of(
+                        "reason", request.reason(),
+                        "until", String.valueOf(request.until())
+                )
+        );
     }
 
     @Transactional
@@ -373,9 +485,16 @@ public class UserService {
 
         user.unsuspend();
 
-        log.info("[admin-unsuspend] adminId={} targetUserId={}", adminId, userId);
+        businessLogService.info(
+                BusinessLogCategory.USER,
+                BusinessAction.User.USER_UNSUSPEND,
+                adminId,
+                TargetType.USER,
+                userId.toString(),
+                "관리자에 의한 회원 제재 해제",
+                Map.of()
+        );
     }
-
 
     /*────────────────────────────
      | 프로필 이미지 수정

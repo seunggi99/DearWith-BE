@@ -140,6 +140,7 @@ public class AuthController {
         return ResponseEntity.ok(res);
     }
 
+    @Operation(summary = "로그아웃", description = "쿠키에서 토큰 삭제, deviceId,fcmToken 로 기기등록 해제(웹에선 null) ")
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(
