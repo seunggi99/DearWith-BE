@@ -150,4 +150,4 @@ logging:
     root: INFO
     com.github.gavlyukovskiy.boot.jdbc.decorator: DEBUG
 dearwith:
-  backend-url: "https://dearwith.kr"
+  base-url: "https://dearwith.kr"

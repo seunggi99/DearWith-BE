@@ -52,11 +52,9 @@ public class User extends BaseDeletableEntity {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<SocialAccount> socialAccounts;
 
-    @Builder.Default
-    private boolean eventNotificationEnabled = true;   // 이벤트/콘텐츠 관련 알림
+    private boolean eventNotificationEnabled;
 
-    @Builder.Default
-    private boolean serviceNotificationEnabled = true; // 서비스/공지 관련 알림
+    private boolean serviceNotificationEnabled;
 
     String suspendedReason;        // 정지 사유
     LocalDate suspendedUntil;  // 정지 종료일 (null이면 무기한)
