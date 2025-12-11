@@ -7,16 +7,20 @@ import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Where;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Where(clause = "deleted_at IS NULL")
 @Setter
+@BatchSize(size = 50)
 @Getter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Event extends BaseAuditableEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,11 +50,13 @@ public class Event extends BaseAuditableEntity {
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<EventArtistMapping> artists = new ArrayList<>();
+    @BatchSize(size = 50)
+    private Set<EventArtistMapping> artists = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<EventArtistGroupMapping> artistGroups = new ArrayList<>();
+    @BatchSize(size = 50)
+    private Set<EventArtistGroupMapping> artistGroups = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("dayIndex ASC, displayOrder ASC")

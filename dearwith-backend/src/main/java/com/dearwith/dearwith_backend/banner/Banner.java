@@ -5,12 +5,14 @@ import com.dearwith.dearwith_backend.image.entity.Image;
 import jakarta.persistence.*;
 
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Where;
 
 @Entity
 @Where(clause = "deleted_at IS NULL")
 @Getter
 @Setter
+@BatchSize(size = 50)
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

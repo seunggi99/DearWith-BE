@@ -148,4 +148,17 @@ public interface EventRepository extends JpaRepository<Event, Long> {
     List<Event> findGlobalRecommendedFallback(@Param("today") LocalDate today, Pageable pageable);
 
     Page<Event> findByUser_Id(UUID userId, Pageable pageable);
+
+    @Query("""
+        select distinct e from Event e
+        left join fetch e.coverImage ci
+        left join fetch e.artists eam
+        left join fetch eam.artist a
+        left join fetch a.profileImage aImg
+        left join fetch e.artistGroups egm
+        left join fetch egm.artistGroup g
+        left join fetch g.profileImage gImg
+        where e.id in :ids
+        """)
+    List<Event> findWithMainPageRelationsByIdIn(@Param("ids") List<Long> ids);
 }

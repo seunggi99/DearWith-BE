@@ -5,6 +5,7 @@ import com.dearwith.dearwith_backend.image.entity.Image;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Where;
 
 import java.time.LocalDate;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 @Entity
 @Where(clause = "deleted_at IS NULL")
 @Getter @Setter
+@BatchSize(size = 50)
 @NoArgsConstructor @AllArgsConstructor @Builder
 public class Artist extends BaseAuditableEntity {
     @Id

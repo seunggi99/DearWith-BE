@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -63,19 +64,46 @@ public class EventQueryService {
                     today,
                     PageRequest.of(0, 10)
             );
-            return buildEventInfoList(fallback, null);
+
+            // 🆕 ID들만 뽑아서 연관관계까지 한 번에 로딩
+            List<Long> ids = fallback.stream()
+                    .map(Event::getId)
+                    .toList();
+
+            if (ids.isEmpty()) {
+                return List.of();
+            }
+
+            List<Event> loaded = eventRepository.findWithMainPageRelationsByIdIn(ids);
+            List<Event> ordered = sortByIdOrder(loaded, ids);
+
+            return buildEventInfoList(ordered, null);
         }
+
         UUID viewerId = normalizeUserId(userId);
 
         List<Long> artistIds = artistBookmarkRepository.findArtistIdsByUserId(viewerId);
         List<Long> groupIds  = artistGroupBookmarkRepository.findGroupIdsByUserId(viewerId);
 
+        // 북마크 없으면 global fallback
         if (artistIds.isEmpty() && groupIds.isEmpty()) {
             List<Event> fallback = eventRepository.findGlobalRecommendedFallback(
                     today,
                     PageRequest.of(0, 10)
             );
-            return buildEventInfoList(fallback, viewerId);
+
+            List<Long> ids = fallback.stream()
+                    .map(Event::getId)
+                    .toList();
+
+            if (ids.isEmpty()) {
+                return List.of();
+            }
+
+            List<Event> loaded = eventRepository.findWithMainPageRelationsByIdIn(ids);
+            List<Event> ordered = sortByIdOrder(loaded, ids);
+
+            return buildEventInfoList(ordered, viewerId);
         }
 
         if (artistIds.isEmpty()) artistIds = List.of(-1L);
@@ -83,6 +111,7 @@ public class EventQueryService {
 
         PageRequest limit10 = PageRequest.of(0, 10);
 
+        // 1) 개인화 추천 먼저 가져오기
         List<Event> personalized = new ArrayList<>(
                 eventRepository.findRecommendedForUser(
                         artistIds,
@@ -92,6 +121,7 @@ public class EventQueryService {
                 ).getContent()
         );
 
+        // 2) 부족하면 글로벌 fallback으로 채우기
         if (personalized.size() < 10) {
             List<Long> alreadyIds = personalized.stream()
                     .map(Event::getId)
@@ -108,7 +138,19 @@ public class EventQueryService {
                     .forEach(personalized::add);
         }
 
-        return buildEventInfoList(personalized, viewerId);
+        if (personalized.isEmpty()) {
+            return List.of();
+        }
+
+        // 3) 최종 ID 리스트 → 연관관계 한 번에 로딩
+        List<Long> ids = personalized.stream()
+                .map(Event::getId)
+                .toList();
+
+        List<Event> loaded = eventRepository.findWithMainPageRelationsByIdIn(ids);
+        List<Event> ordered = sortByIdOrder(loaded, ids);
+
+        return buildEventInfoList(ordered, viewerId);
     }
 
     /*──────────────────────────────────────────────
@@ -117,17 +159,20 @@ public class EventQueryService {
     @Transactional(readOnly = true)
     public List<EventInfoDto> getHotEvents(UUID userId) {
         UUID viewerId = normalizeUserId(userId);
-        List<EventInfoDto> hotEvents = hotEventService.getHotEvents(10);
+        List<EventInfoDto> hot = hotEventService.getHotEvents(10);
 
-        List<Long> ids = hotEvents.stream()
+        List<Long> ids = hot.stream()
                 .map(EventInfoDto::getId)
                 .toList();
 
-        if (ids.isEmpty()) return List.of();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
 
-        List<Event> events = eventRepository.findAllById(ids);
+        List<Event> loaded = eventRepository.findWithMainPageRelationsByIdIn(ids);
+        List<Event> ordered = sortByIdOrder(loaded, ids);
 
-        return buildEventInfoList(events, viewerId);
+        return buildEventInfoList(ordered, viewerId);
     }
 
     /*──────────────────────────────────────────────
@@ -136,8 +181,20 @@ public class EventQueryService {
     @Transactional(readOnly = true)
     public List<EventInfoDto> getNewEvents(UUID userId) {
         UUID viewerId = normalizeUserId(userId);
+
         List<Event> events = eventRepository.findTop10ByOrderByCreatedAtDesc();
-        return buildEventInfoList(events, viewerId);
+        if (events.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> ids = events.stream()
+                .map(Event::getId)
+                .toList();
+
+        List<Event> loaded = eventRepository.findWithMainPageRelationsByIdIn(ids);
+        List<Event> ordered = sortByIdOrder(loaded, ids);
+
+        return buildEventInfoList(ordered, viewerId);
     }
 
     /*──────────────────────────────────────────────
@@ -409,5 +466,14 @@ public class EventQueryService {
         }
         // 정지/탈퇴 차단, 작성제한 허용
         return userReader.getLoginAllowedUser(userId).getId();
+    }
+
+    private List<Event> sortByIdOrder(List<Event> loaded, List<Long> idOrder) {
+        Map<Long, Event> map = loaded.stream()
+                .collect(Collectors.toMap(Event::getId, e -> e));
+        return idOrder.stream()
+                .map(map::get)
+                .filter(Objects::nonNull)
+                .toList();
     }
 }

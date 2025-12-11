@@ -18,6 +18,7 @@ import java.util.List;
 @Where(clause = "deleted_at IS NULL")
 @Setter
 @Getter
+@BatchSize(size = 50)
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -61,6 +62,7 @@ public class Review extends BaseAuditableEntity {
 
     @Builder.Default
     @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 50)
     @OrderBy("displayOrder ASC")
     private List<ReviewImageMapping> images = new ArrayList<>();
 
