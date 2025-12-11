@@ -387,27 +387,21 @@ public class NotificationService {
        - SYSTEM               → /system-notices/{id}
      ================================================================ */
     private String buildFullUrl(NotificationType type, Long targetId) {
-        String base = dearwithProperties.getBaseUrl(); // https://dearwith.kr
+        String base = dearwithProperties.getBaseUrl();
+
+        if (targetId == null) {
+            throw BusinessException.withMessageAndDetail(ErrorCode.NOT_FOUND,
+                    "알 수 없는 오류가 발생했습니다.",
+                    "NOTIFICATION_TARGET_ID_NULL");
+        }
 
         return switch (type) {
-            case EVENT_NOTICE_CREATED -> {
-                if (targetId == null) {
-                    yield base + "/notices";
-                }
-                yield base + "/notices/" + targetId; //  /notices/{noticeId}
-            }
-            case EVENT_CHANGED, ARTIST_EVENT_CREATED -> {
-                if (targetId == null) {
-                    yield base + "/events";
-                }
-                yield base + "/events/" + targetId;  //  /events/{eventId}
-            }
-            case SYSTEM -> {
-                if (targetId == null) {
-                    yield base + "/system-notices";
-                }
-                yield base + "/system-notices/" + targetId;
-            }
+            case EVENT_NOTICE_CREATED ->
+                    base + "/notice-detail/" + targetId;
+            case EVENT_CHANGED, ARTIST_EVENT_CREATED ->
+                    base + "/event-detail/" + targetId;
+            case SYSTEM ->
+                    base + "/system-notice-detail/" + targetId;
         };
     }
 }
