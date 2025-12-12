@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.event.repository;
 
 import com.dearwith.dearwith_backend.event.entity.Event;
 import com.dearwith.dearwith_backend.event.enums.EventStatus;
+import com.dearwith.dearwith_backend.event.enums.EventType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,7 +11,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -161,4 +161,44 @@ public interface EventRepository extends JpaRepository<Event, Long> {
         where e.id in :ids
         """)
     List<Event> findWithMainPageRelationsByIdIn(@Param("ids") List<Long> ids);
+
+    @Query("""
+        SELECT m.artist.id AS artistId,
+               COUNT(DISTINCT e.id) AS cafeCount
+        FROM Event e
+        JOIN e.artists m
+        WHERE m.artist.id IN :artistIds
+          AND e.status IN :statuses
+          AND e.eventType = :eventType
+          AND e.startDate >= :startOfMonth
+          AND e.startDate <  :startOfNextMonth
+        GROUP BY m.artist.id
+    """)
+    List<ArtistBirthdayCafeCount> countBirthdayCafesByArtistIdsAndMonth(
+            @Param("artistIds") List<Long> artistIds,
+            @Param("statuses") List<EventStatus> statuses,
+            @Param("eventType") EventType eventType,
+            @Param("startOfMonth") LocalDate startOfMonth,
+            @Param("startOfNextMonth") LocalDate startOfNextMonth
+    );
+
+    @Query("""
+        SELECT g.artistGroup.id AS groupId,
+               COUNT(DISTINCT e.id) AS cafeCount
+        FROM Event e
+        JOIN e.artistGroups g
+        WHERE g.artistGroup.id IN :groupIds
+          AND e.status IN :statuses
+          AND e.eventType = :eventType
+          AND e.startDate >= :startOfMonth
+          AND e.startDate <  :startOfNextMonth
+        GROUP BY g.artistGroup.id
+    """)
+    List<GroupBirthdayCafeCount> countBirthdayCafesByGroupIdsAndMonth(
+            @Param("groupIds") List<Long> groupIds,
+            @Param("statuses") List<EventStatus> statuses,
+            @Param("eventType") EventType eventType,
+            @Param("startOfMonth") LocalDate startOfMonth,
+            @Param("startOfNextMonth") LocalDate startOfNextMonth
+    );
 }

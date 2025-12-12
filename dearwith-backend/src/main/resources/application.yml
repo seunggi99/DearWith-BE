@@ -3,8 +3,6 @@ spring:
     name: dearwith-backend
   config:
     import: optional:dotenv:./.env
-   ## activate:
-    ##  on-profile: prod
   web:
     encoding:
       enabled: true
