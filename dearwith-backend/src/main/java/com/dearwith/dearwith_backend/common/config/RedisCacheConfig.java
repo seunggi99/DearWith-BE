@@ -29,25 +29,21 @@ public class RedisCacheConfig {
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .build();
 
-        GenericJackson2JsonRedisSerializer defaultSerializer =
-                new GenericJackson2JsonRedisSerializer(om);
-
-        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+        var defaultSerializer = new GenericJackson2JsonRedisSerializer(om);
+        var defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(defaultSerializer))
                 .disableCachingNullValues()
                 .entryTtl(Duration.ofHours(24));
 
-        Jackson2JsonRedisSerializer<MonthlyAnniversaryCacheDto> annivSerializer =
-                new Jackson2JsonRedisSerializer<>(om, MonthlyAnniversaryCacheDto.class);
-
-        RedisCacheConfiguration annivConfig = RedisCacheConfiguration.defaultCacheConfig()
+        var annivSerializer = new Jackson2JsonRedisSerializer<>(om, MonthlyAnniversaryCacheDto.class);
+        var annivConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(annivSerializer))
                 .disableCachingNullValues()
                 .entryTtl(Duration.ofHours(24));
 
         return RedisCacheManager.builder(cf)
                 .cacheDefaults(defaultConfig)
-                .withCacheConfiguration("thisMonthAnniversaries", annivConfig)
+                .withCacheConfiguration("todayAnniversaries", annivConfig)
                 .build();
     }
 }
