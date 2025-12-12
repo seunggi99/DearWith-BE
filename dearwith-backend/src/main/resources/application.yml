@@ -46,7 +46,7 @@ spring:
       password: ${SPRING_REDIS_PASSWORD:}
       timeout: 2000ms
   cache:
-    type: none
+    type: redis
 
   security:
     oauth2:

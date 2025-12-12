@@ -25,6 +25,7 @@ import com.dearwith.dearwith_backend.user.service.UserReader;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +59,7 @@ public class EventCommandService {
     /*──────────────────────────────────────────────
      | 1. 이벤트 생성
      *──────────────────────────────────────────────*/
+    @CacheEvict(cacheNames = "thisMonthAnniversaries", allEntries = true)
     @Transactional
     public CreatedResponseDto create(UUID userId, EventCreateRequestDto req) {
 
