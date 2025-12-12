@@ -59,7 +59,7 @@ public class EventCommandService {
     /*──────────────────────────────────────────────
      | 1. 이벤트 생성
      *──────────────────────────────────────────────*/
-    @CacheEvict(cacheNames = "thisMonthAnniversaries", allEntries = true)
+    @CacheEvict(cacheNames = "todayAnniversaries", allEntries = true)
     @Transactional
     public CreatedResponseDto create(UUID userId, EventCreateRequestDto req) {
 
