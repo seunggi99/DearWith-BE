@@ -12,7 +12,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 
@@ -98,11 +97,14 @@ public class UserController {
         userService.deleteProfileImage(userId);
     }
 
-    @Operation(summary = "회원 소프트 삭제(Status 변경)")
-    @DeleteMapping("/me")
+    @Operation(summary = "회원 탈퇴", description = UserApiDocs.DELETE_DESC)
+    @PostMapping("/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteUser(@CurrentUser UUID userId) {
-        userService.deleteById(userId);
+    public void deleteUser(
+            @CurrentUser UUID userId,
+            @Valid @RequestBody UserWithdrawRequestDto req
+    ) {
+        userService.withdraw(userId, req);
     }
 
     @Operation(summary = "이메일 중복 검사")

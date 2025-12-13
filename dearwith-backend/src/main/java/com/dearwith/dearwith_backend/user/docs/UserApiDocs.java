@@ -84,4 +84,18 @@ public class UserApiDocs {
           ]
         }
         """;
+
+    public static final String DELETE_DESC = """
+        회원 탈퇴 요청 예시입니다. \n
+        {
+          "reason": "NO_LONGER_NEEDED",
+          "detail": "디어위드를 더 이상 사용하지 않아서 탈퇴합니다."
+        } \n
+        reason 사유는 아래와 같습니다. \n
+        NO_LONGER_NEEDED   // 디어위드 사용이 필요 없어짐 \n
+        LACK_OF_INFO       // 부실한 정보가 많음 \n
+        TOO_COMMERCIAL     // 상업적인 내용이 많음 \n
+        OTHER              // 그 외 사유 \n
+        
+    """;
 }

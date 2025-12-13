@@ -10,12 +10,14 @@ import com.dearwith.dearwith_backend.user.dto.*;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.user.entity.Agreement;
 import com.dearwith.dearwith_backend.user.entity.User;
+import com.dearwith.dearwith_backend.user.entity.UserWithdrawal;
 import com.dearwith.dearwith_backend.user.enums.AgreementType;
 import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import com.dearwith.dearwith_backend.user.enums.Role;
 import com.dearwith.dearwith_backend.user.enums.UserStatus;
 import com.dearwith.dearwith_backend.user.repository.SocialAccountRepository;
 import com.dearwith.dearwith_backend.user.repository.UserRepository;
+import com.dearwith.dearwith_backend.user.repository.UserWithdrawalRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -44,6 +46,7 @@ public class UserService {
     private final UserReader userReader;
     private final StringRedisTemplate stringRedisTemplate;
     private final BusinessLogService businessLogService;
+    private final UserWithdrawalRepository userWithdrawalRepository;
 
     private String passwordVerifiedKey(UUID userId) {
         return "user:password:verified:" + userId;
@@ -381,8 +384,21 @@ public class UserService {
     }
 
     @Transactional
-    public void deleteById(UUID userId) {
+    public void withdraw(UUID userId, UserWithdrawRequestDto req) {
+        req.validate();
+
         User user = userReader.getUser(userId);
+
+        if (user.isDeleted()) {
+            return;
+        }
+
+        if (!userWithdrawalRepository.existsByUser_Id(userId)) {
+            userWithdrawalRepository.save(
+                    UserWithdrawal.of(user, req.reason(), req.detail())
+            );
+        }
+
         user.softDelete();
         userRepository.save(user);
 
@@ -393,7 +409,10 @@ public class UserService {
                 TargetType.USER,
                 userId.toString(),
                 "회원 탈퇴(soft delete) 처리",
-                Map.of()
+                Map.of(
+                        "withdrawalReason", req.reason().name(),
+                        "withdrawalDetail", req.detail() == null ? "" : req.detail()
+                )
         );
     }
 
