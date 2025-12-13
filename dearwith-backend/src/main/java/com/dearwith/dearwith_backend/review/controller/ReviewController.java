@@ -65,13 +65,14 @@ public class ReviewController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/api/reviews/{reviewId}")
-    @Operation(summary = "리뷰 상세 조회 (이미지 제외)")
+    @GetMapping("/api/reviews/{reviewId}/{photoId}")
+    @Operation(summary = "리뷰 상세 조회")
     public ResponseEntity<EventReviewDetailResponseDto> getReviewDetail(
             @PathVariable Long reviewId,
+            @PathVariable Long photoId,
             @CurrentUser UUID userId
     ) {
-        EventReviewDetailResponseDto response = reviewService.getEventReviewDetail(reviewId, userId);
+        EventReviewDetailResponseDto response = reviewService.getEventReviewDetail(reviewId, photoId, userId);
         return ResponseEntity.ok(response);
     }
     @Operation(summary = "리뷰 좋아요 추가")

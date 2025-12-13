@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.review.dto;
 
+import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,6 +24,7 @@ public class EventReviewDetailResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    private List<ImageGroupDto> images;
     private List<String> tags;
 
     private int likeCount;

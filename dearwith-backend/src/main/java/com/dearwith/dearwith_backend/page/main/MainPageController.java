@@ -24,25 +24,9 @@ public class MainPageController {
     public MainPageResponseDto getMainPage(
             @CurrentUser UUID userId
     ) {
-        long t0 = System.nanoTime();
-
         MainPageResponseDto response;
-        long tServiceStart = System.nanoTime();
         response = mainPageService.getMainPage(userId);
-        long tServiceEnd = System.nanoTime();
-
-        long tBannerStart = System.nanoTime();
         response.setBanners(bannerService.getMainBanners());
-        long tBannerEnd = System.nanoTime();
-
-        long tEnd = System.nanoTime();
-
-        log.info("MAIN_API userId={} total={}ms mainPageService={}ms bannerService={}ms",
-                userId,
-                (tEnd - t0) / 1_000_000.0,
-                (tServiceEnd - tServiceStart) / 1_000_000.0,
-                (tBannerEnd - tBannerStart) / 1_000_000.0
-        );
 
         return response;
     }

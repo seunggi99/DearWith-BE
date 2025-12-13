@@ -12,6 +12,7 @@ import com.dearwith.dearwith_backend.image.asset.ImageVariantAssembler;
 import com.dearwith.dearwith_backend.image.asset.ImageVariantProfile;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
 import com.dearwith.dearwith_backend.image.entity.Image;
+import com.dearwith.dearwith_backend.image.repository.ImageRepository;
 import com.dearwith.dearwith_backend.page.my.dto.MyReviewResponseDto;
 import com.dearwith.dearwith_backend.review.dto.*;
 import com.dearwith.dearwith_backend.review.entity.Review;
@@ -46,6 +47,7 @@ public class ReviewService {
     private final ImageVariantAssembler imageVariantAssembler;
     private final AssetUrlService assetUrlService;
     private final UserReader userReader;
+    private final ImageRepository imageRepository;
 
     /*──────────────────────────────────────────────
      | 1. 리뷰 생성
@@ -376,6 +378,7 @@ public class ReviewService {
     @Transactional(readOnly = true)
     public EventReviewDetailResponseDto getEventReviewDetail(
             Long reviewId,
+            Long photoId,
             UUID userId
     ) {
         Review r = reviewRepository.findWithUserById(reviewId)
@@ -394,6 +397,27 @@ public class ReviewService {
                 && r.getUser() != null
                 && viewer.getId().equals(r.getUser().getId());
 
+        List<ImageGroupDto> images = List.of();
+        if (photoId != null) {
+            Image img = imageRepository.findById(photoId)
+                    .orElseThrow(() -> BusinessException.withMessage(
+                            ErrorCode.NOT_FOUND, "이미지를 찾을 수 없습니다."
+                    ));
+
+            ImageGroupDto imageGroup = ImageGroupDto.builder()
+                    .id(img.getId())
+                    .variants(
+                            imageVariantAssembler.toVariants(
+                                    assetUrlService.generatePublicUrl(img),
+                                    ImageVariantProfile.REVIEW_PHOTO
+                            )
+                    )
+                    .build();
+
+            images = List.of(imageGroup);
+        }
+
+
         return EventReviewDetailResponseDto.builder()
                 .id(r.getId())
                 .nickname(r.getUser() != null ? r.getUser().getNickname() : null)
@@ -405,6 +429,7 @@ public class ReviewService {
                 .content(r.getContent())
                 .createdAt(r.getCreatedAt())
                 .updatedAt(r.getUpdatedAt())
+                .images(images)
                 .tags(
                         r.getTags() == null
                                 ? List.of()
