@@ -83,14 +83,15 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(
-                "http://localhost:3000",
-                "https://dearwith.kr",
-                "https://www.dearwith.kr",
-                "https://api.dearwith.kr"
-        ));
-        config.setAllowedMethods(List.of("*"));
-        config.setAllowedHeaders(List.of("*"));
+
+     //   config.setAllowedOriginPatterns(List.of(
+     //           "https://dearwith.kr",
+     //           "https://www.dearwith.kr",
+     //           "https://api.dearwith.kr",
+     //           "https://*.dearwith.kr"
+     //   ));
+        config.addAllowedOriginPattern("*");
+        config.addAllowedMethod("*");        config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
@@ -111,6 +112,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler())    // 403 JSON
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // ===== 공개 =====
                         .requestMatchers(
                                 "/",

@@ -10,8 +10,6 @@ import org.springframework.stereotype.Component;
 @Setter
 @ConfigurationProperties(prefix = "jwt")
 public class AuthCookieProperties {
-
-    private String cookieDomain;
     private boolean cookieSecure;
     private String cookieSameSite;
     private long expirationTime;

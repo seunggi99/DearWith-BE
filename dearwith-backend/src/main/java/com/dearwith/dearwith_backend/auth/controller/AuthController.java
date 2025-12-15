@@ -70,7 +70,7 @@ public class AuthController {
         return ResponseEntity.ok(body);
     }
 
-    @Operation(summary = "카카오 로그인")
+    @Operation(summary = "카카오 로그인(웹)")
     @PostMapping("/oauth/kakao")
     public ResponseEntity<SocialSignInResponseDto> kakaoSignIn(
             @RequestBody KakaoSignInRequestDto request,
@@ -87,7 +87,40 @@ public class AuthController {
                     signIn.getRefreshToken()
             );
 
-            // 토큰 없는 signIn으로 다시 감싸기
+            SignInResponseDto sanitized = SignInResponseDto.builder()
+                    .message(signIn.getMessage())
+                    .userId(signIn.getUserId())
+                    .nickname(signIn.getNickname())
+                    .role(signIn.getRole())
+                    .build();
+
+            res = SocialSignInResponseDto.builder()
+                    .needSignUp(false)
+                    .provider(res.getProvider())
+                    .socialId(res.getSocialId())
+                    .signIn(sanitized)
+                    .build();
+        }
+        return ResponseEntity.ok(res);
+    }
+
+    @Operation(summary = "카카오 로그인(앱)")
+    @PostMapping("/oauth/kakao/native")
+    public ResponseEntity<SocialSignInResponseDto> NativeKakaoSignIn(
+            @RequestBody KakaoNativeSignInRequestDto request,
+            HttpServletResponse response
+    ) {
+        SocialSignInResponseDto res = authService.kakaoSignInWithAccessToken(request.getAccessToken());
+
+        if (!res.isNeedSignUp() && res.getSignIn() != null) {
+            SignInResponseDto signIn = res.getSignIn();
+
+            authCookieUtil.addAuthCookies(
+                    response,
+                    signIn.getToken(),
+                    signIn.getRefreshToken()
+            );
+
             SignInResponseDto sanitized = SignInResponseDto.builder()
                     .message(signIn.getMessage())
                     .userId(signIn.getUserId())

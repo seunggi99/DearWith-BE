@@ -141,11 +141,9 @@ public class AuthService {
     public SocialSignInResponseDto kakaoSignIn(String code) {
 
         AuthProvider provider = AuthProvider.KAKAO;
-        String accessToken;
-        KakaoUserInfoDto kakaoUser;
 
         try {
-            accessToken = kakaoAuthService.getAccessToken(code);
+            String accessToken = kakaoAuthService.getAccessToken(code);
 
             if (accessToken == null || accessToken.isBlank()) {
                 throw BusinessException.withMessage(
@@ -154,7 +152,7 @@ public class AuthService {
                 );
             }
 
-            kakaoUser = kakaoAuthService.getUserInfo(accessToken);
+            KakaoUserInfoDto kakaoUser = kakaoAuthService.getUserInfo(accessToken);
 
             if (kakaoUser == null) {
                 throw BusinessException.withMessage(
@@ -163,8 +161,9 @@ public class AuthService {
                 );
             }
 
-        } catch (HttpClientErrorException e) {
+            return handleKakaoUser(provider, kakaoUser);
 
+        } catch (HttpClientErrorException e) {
             businessLogService.error(
                     BusinessLogCategory.AUTH,
                     BusinessAction.Auth.KAKAO_SIGN_IN_FAILED,
@@ -186,8 +185,8 @@ public class AuthService {
                     "Kakao API error: status=" + e.getStatusCode() + ", body=" + e.getResponseBodyAsString(),
                     e
             );
-        } catch (Exception e) {
 
+        } catch (Exception e) {
             businessLogService.error(
                     BusinessLogCategory.AUTH,
                     BusinessAction.Auth.KAKAO_SIGN_IN_FAILED,
@@ -207,67 +206,75 @@ public class AuthService {
                     e
             );
         }
+    }
 
-        String socialId = String.valueOf(kakaoUser.getId());
+    @Transactional
+    public SocialSignInResponseDto kakaoSignInWithAccessToken(String accessToken) {
 
-        Optional<SocialAccount> existing =
-                socialAccountService.findByProviderAndSocialId(provider, socialId);
+        AuthProvider provider = AuthProvider.KAKAO;
 
-        /* 기존 계정 있음 → 바로 로그인 처리 */
-        if (existing.isPresent()) {
-            User user = existing.get().getUser();
-            userReader.getLoginAllowedUser(user.getId());
-            userService.updateLastLoginAt(user);
-
-            TokenCreateRequestDto tokenDTO = toTokenDto(user);
-            String token = jwtTokenProvider.generateToken(tokenDTO);
-            String refreshToken = jwtTokenProvider.generateRefreshToken(tokenDTO);
-
-            // 카카오 로그인 성공 로그
-            businessLogService.info(
-                    BusinessLogCategory.AUTH,
-                    BusinessAction.Auth.KAKAO_SIGN_IN_SUCCESS,
-                    user.getId(),
-                    TargetType.USER,
-                    null,
-                    "카카오 로그인 성공",
-                    Map.of("socialId", socialId)
+        if (accessToken == null || accessToken.isBlank()) {
+            throw BusinessException.withMessage(
+                    ErrorCode.KAKAO_AUTH_FAILED,
+                    "카카오 인증에 실패했습니다. 다시 시도해주세요."
             );
-
-            SignInResponseDto signIn = SignInResponseDto.builder()
-                    .message("카카오 로그인 성공")
-                    .userId(user.getId())
-                    .nickname(user.getNickname())
-                    .role(user.getRole())
-                    .token(token)
-                    .refreshToken(refreshToken)
-                    .build();
-
-            return SocialSignInResponseDto.builder()
-                    .needSignUp(false)
-                    .signIn(signIn)
-                    .provider(provider)
-                    .socialId(socialId)
-                    .build();
         }
 
-        // 신규 회원
-        businessLogService.info(
-                BusinessLogCategory.AUTH,
-                BusinessAction.Auth.KAKAO_NEED_SIGNUP,
-                null,
-                TargetType.USER,
-                null,
-                "카카오 신규 회원 가입 필요",
-                Map.of("socialId", socialId)
-        );
+        try {
+            KakaoUserInfoDto kakaoUser = kakaoAuthService.getUserInfo(accessToken);
 
-        return SocialSignInResponseDto.builder()
-                .needSignUp(true)
-                .provider(provider)
-                .socialId(socialId)
-                .signIn(null)
-                .build();
+            if (kakaoUser == null) {
+                throw BusinessException.withMessage(
+                        ErrorCode.KAKAO_AUTH_FAILED,
+                        "카카오 사용자 정보를 가져오지 못했습니다."
+                );
+            }
+
+            return handleKakaoUser(provider, kakaoUser);
+
+        } catch (HttpClientErrorException e) {
+            businessLogService.error(
+                    BusinessLogCategory.AUTH,
+                    BusinessAction.Auth.KAKAO_SIGN_IN_FAILED,
+                    null,
+                    TargetType.USER,
+                    null,
+                    "카카오 로그인 실패 (HTTP 오류, native token)",
+                    Map.of(
+                            "statusCode", e.getStatusCode().value(),
+                            "responseBody", e.getResponseBodyAsString()
+                    ),
+                    e
+            );
+
+            throw BusinessException.withAll(
+                    ErrorCode.KAKAO_AUTH_FAILED,
+                    null,
+                    "KAKAO_HTTP_ERROR",
+                    "Kakao API error: status=" + e.getStatusCode() + ", body=" + e.getResponseBodyAsString(),
+                    e
+            );
+
+        } catch (Exception e) {
+            businessLogService.error(
+                    BusinessLogCategory.AUTH,
+                    BusinessAction.Auth.KAKAO_SIGN_IN_FAILED,
+                    null,
+                    TargetType.USER,
+                    null,
+                    "카카오 로그인 실패 (Unknown 오류, native token)",
+                    Map.of("errorMessage", e.getMessage()),
+                    e
+            );
+
+            throw BusinessException.withAll(
+                    ErrorCode.KAKAO_AUTH_FAILED,
+                    null,
+                    "KAKAO_UNKNOWN_ERROR",
+                    "Unknown Kakao login error: " + e.getMessage(),
+                    e
+            );
+        }
     }
 
 
@@ -510,6 +517,69 @@ public class AuthService {
                 .userId(user.getId())
                 .email(user.getEmail())
                 .role(user.getRole().name())
+                .build();
+    }
+
+    private SocialSignInResponseDto handleKakaoUser(AuthProvider provider, KakaoUserInfoDto kakaoUser) {
+
+        String socialId = String.valueOf(kakaoUser.getId());
+
+        Optional<SocialAccount> existing =
+                socialAccountService.findByProviderAndSocialId(provider, socialId);
+
+        /* 기존 계정 있음 → 바로 로그인 처리 */
+        if (existing.isPresent()) {
+            User user = existing.get().getUser();
+            userReader.getLoginAllowedUser(user.getId());
+            userService.updateLastLoginAt(user);
+
+            TokenCreateRequestDto tokenDTO = toTokenDto(user);
+            String token = jwtTokenProvider.generateToken(tokenDTO);
+            String refreshToken = jwtTokenProvider.generateRefreshToken(tokenDTO);
+
+            businessLogService.info(
+                    BusinessLogCategory.AUTH,
+                    BusinessAction.Auth.KAKAO_SIGN_IN_SUCCESS,
+                    user.getId(),
+                    TargetType.USER,
+                    null,
+                    "카카오 로그인 성공",
+                    Map.of("socialId", socialId)
+            );
+
+            SignInResponseDto signIn = SignInResponseDto.builder()
+                    .message("카카오 로그인 성공")
+                    .userId(user.getId())
+                    .nickname(user.getNickname())
+                    .role(user.getRole())
+                    .token(token)
+                    .refreshToken(refreshToken)
+                    .build();
+
+            return SocialSignInResponseDto.builder()
+                    .needSignUp(false)
+                    .signIn(signIn)
+                    .provider(provider)
+                    .socialId(socialId)
+                    .build();
+        }
+
+        // 신규 회원
+        businessLogService.info(
+                BusinessLogCategory.AUTH,
+                BusinessAction.Auth.KAKAO_NEED_SIGNUP,
+                null,
+                TargetType.USER,
+                null,
+                "카카오 신규 회원 가입 필요",
+                Map.of("socialId", socialId)
+        );
+
+        return SocialSignInResponseDto.builder()
+                .needSignUp(true)
+                .provider(provider)
+                .socialId(socialId)
+                .signIn(null)
                 .build();
     }
 
