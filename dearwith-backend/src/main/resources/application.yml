@@ -90,7 +90,8 @@ jwt:
   cookie-same-site: None
   secret: ${SECRET_KEY}
   expiration-time: 600000          # 10분 (ms)
-  refresh-expiration-time: 1209600000   # 14일 (ms)
+  refresh-expiration-time-web: 1209600000   # 14일 (ms)
+  refresh-expiration-time-app: 5184000000   # 60d
 
 kakao:
   api-base: https://dapi.kakao.com

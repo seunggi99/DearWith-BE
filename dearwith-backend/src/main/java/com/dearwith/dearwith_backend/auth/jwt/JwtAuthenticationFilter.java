@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.auth.jwt;
 
 import com.dearwith.dearwith_backend.auth.service.CustomUserDetailsService;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,7 +17,6 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import io.jsonwebtoken.JwtException;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -27,6 +27,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final String TOKEN_TYPE_CLAIM = "typ";
+    private static final String ACCESS_TYPE = "ACCESS";
+
     private final JwtTokenProvider tokenProvider;
     private final CustomUserDetailsService userDetailsService;
 
@@ -36,29 +39,39 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain chain)
             throws ServletException, IOException {
 
-        // 1) 쿠키에서 ACCESS_TOKEN 추출
         String jwtToken = resolveAccessToken(request);
 
-        // 토큰 없으면 비로그인 요청으로 처리
         if (jwtToken == null || jwtToken.isBlank()) {
             chain.doFilter(request, response);
             return;
         }
 
         try {
+            // 0) typ 체크: ACCESS만 일반 API 인증 허용
+            String typ = tokenProvider.extractClaim(jwtToken, claims -> {
+                Object v = claims.get(TOKEN_TYPE_CLAIM);
+                return v != null ? v.toString() : null;
+            });
+
+            if (!ACCESS_TYPE.equals(typ)) {
+                chain.doFilter(request, response);
+                return;
+            }
+
+            // 1) access token 유효성 검사
+            if (!tokenProvider.validateToken(jwtToken)) {
+                chain.doFilter(request, response);
+                return;
+            }
+
             UUID userId = tokenProvider.extractUserId(jwtToken);
 
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
-                if (!tokenProvider.validateToken(jwtToken)) {
-                    chain.doFilter(request, response);
-                    return;
-                }
-
                 UserDetails userDetails = userDetailsService.loadUserById(userId);
 
                 var authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
+                        userDetails, null, userDetails.getAuthorities()
+                );
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContext context = SecurityContextHolder.createEmptyContext();
@@ -73,49 +86,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.warn("Invalid JWT token: {}", e.getMessage());
             chain.doFilter(request, response);
         } catch (UsernameNotFoundException ex) {
-            log.warn("JWT 유저를 찾을 수 없습니다. 토큰 무시: {}", ex.getMessage());
             SecurityContextHolder.clearContext();
+            log.warn("JWT 유저를 찾을 수 없습니다. 토큰 무시: {}", ex.getMessage());
             chain.doFilter(request, response);
         }
     }
 
-    private String resolveToken(HttpServletRequest request) {
-        // 1) Authorization 헤더 우선 (Swagger용, 외부 툴용)
-        String bearer = request.getHeader("Authorization");
-        if (bearer != null && bearer.startsWith("Bearer ")) {
-            return bearer.substring(7);
-        }
-
-        // 2) 쿠키 (실제 웹/앱에서 사용하는 경로)
-        if (request.getCookies() != null) {
-            for (var cookie : request.getCookies()) {
-                if ("ACCESS_TOKEN".equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
-            }
-        }
-        return null;
-    }
-
     private String resolveAccessToken(HttpServletRequest request) {
-        // 1) 쿠키 우선
+        // 1) Authorization 헤더 우선
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7).trim();
+            if (!token.isBlank()) return token;
+        }
+
+        // 2) 쿠키 fallback
         if (request.getCookies() != null) {
             for (var cookie : request.getCookies()) {
                 if ("ACCESS_TOKEN".equals(cookie.getName())) {
                     String value = cookie.getValue();
-                    if (value != null && !value.isBlank()) {
-                        return value;
-                    }
+                    if (value != null && !value.isBlank()) return value;
                 }
-            }
-        }
-
-        // 2) Authorization 헤더 (Bearer 토큰)
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            if (!token.isBlank()) {
-                return token;
             }
         }
 

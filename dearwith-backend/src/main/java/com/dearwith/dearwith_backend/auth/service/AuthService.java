@@ -1,9 +1,11 @@
 package com.dearwith.dearwith_backend.auth.service;
 
-import com.dearwith.dearwith_backend.auth.jwt.JwtTokenProvider;
 import com.dearwith.dearwith_backend.auth.dto.*;
-import com.dearwith.dearwith_backend.common.exception.ErrorCode;
+import com.dearwith.dearwith_backend.auth.enums.ClientPlatform;
+import com.dearwith.dearwith_backend.auth.jwt.JwtTokenProvider;
+import com.dearwith.dearwith_backend.auth.jwt.RefreshTokenStore;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
+import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.common.log.BusinessLogService;
 import com.dearwith.dearwith_backend.external.apple.AppleIdTokenClaims;
 import com.dearwith.dearwith_backend.external.apple.AppleIdTokenVerifier;
@@ -13,25 +15,27 @@ import com.dearwith.dearwith_backend.logging.constant.BusinessAction;
 import com.dearwith.dearwith_backend.logging.constant.TargetType;
 import com.dearwith.dearwith_backend.logging.enums.BusinessLogCategory;
 import com.dearwith.dearwith_backend.notification.service.PushDeviceService;
+import com.dearwith.dearwith_backend.user.dto.SignInRequestDto;
+import com.dearwith.dearwith_backend.user.dto.SignInResponseDto;
 import com.dearwith.dearwith_backend.user.entity.SocialAccount;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.enums.AuthProvider;
-import com.dearwith.dearwith_backend.user.dto.SignInRequestDto;
-import com.dearwith.dearwith_backend.user.dto.SignInResponseDto;
 import com.dearwith.dearwith_backend.user.service.SocialAccountService;
 import com.dearwith.dearwith_backend.user.service.UserReader;
 import com.dearwith.dearwith_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.HttpClientErrorException;
 
+import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -47,21 +51,54 @@ public class AuthService {
     private final PushDeviceService pushDeviceService;
     private final BusinessLogService businessLogService;
 
+    private final RefreshTokenStore refreshTokenStore;
 
-    /*──────────────────────────────────────────────
-     | 1. 이메일 로그인
-     *──────────────────────────────────────────────*/
+    /* ==========================
+     * 공통: 토큰 발급 + refresh 저장 (FULL)
+     * ========================== */
+    private SignInResponseDto issueTokens(User user, String message, ClientPlatform platform) {
+        TokenCreateRequestDto tokenDTO = toTokenDto(user);
+
+        String accessToken = jwtTokenProvider.generateToken(tokenDTO);
+        String refreshToken = (platform == ClientPlatform.WEB)
+                ? jwtTokenProvider.generateRefreshTokenWeb(tokenDTO)
+                : jwtTokenProvider.generateRefreshTokenApp(tokenDTO);
+
+        storeRefresh(refreshToken, user.getId());
+
+        return SignInResponseDto.builder()
+                .message(message)
+                .userId(user.getId())
+                .nickname(user.getNickname())
+                .role(user.getRole())
+                .token(accessToken)
+                .refreshToken(refreshToken)
+                .build();
+    }
+
+    private void storeRefresh(String refreshToken, UUID userId) {
+        String jti = jwtTokenProvider.extractJti(refreshToken);
+        if (jti == null || jti.isBlank()) throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+
+        Date exp = jwtTokenProvider.extractExpiration(refreshToken);
+        if (exp == null) throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+
+        long ttlMs = exp.getTime() - System.currentTimeMillis();
+        if (ttlMs <= 0) throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+
+        refreshTokenStore.save(jti, userId.toString(), java.time.Duration.ofMillis(ttlMs));
+    }
+
+    /* ==========================
+     * 1) 이메일 로그인 (FULL)
+     * ========================== */
     @Transactional
-    public SignInResponseDto signIn(SignInRequestDto request) {
+    public SignInResponseDto signInInternal(SignInRequestDto request, ClientPlatform platform) {
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            request.getEmail(),
-                            request.getPassword()
-                    )
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
         } catch (Exception e) {
-
             businessLogService.warn(
                     BusinessLogCategory.AUTH,
                     BusinessAction.Auth.EMAIL_SIGN_IN_FAILED,
@@ -74,14 +111,8 @@ public class AuthService {
             throw e;
         }
 
-
         User user = userService.findByEmail(request.getEmail());
         userReader.getLoginAllowedUser(user.getId());
-        TokenCreateRequestDto tokenDTO = toTokenDto(user);
-
-        String token = jwtTokenProvider.generateToken(tokenDTO);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(tokenDTO);
-
         userService.updateLastLoginAt(user);
 
         businessLogService.info(
@@ -94,448 +125,61 @@ public class AuthService {
                 Map.of("email", user.getEmail())
         );
 
-        return SignInResponseDto.builder()
-                .message("로그인 성공")
-                .userId(user.getId())
-                .nickname(user.getNickname())
-                .role(user.getRole())
-                .token(token)
-                .refreshToken(refreshToken)
-                .build();
+        return issueTokens(user, "로그인 성공", platform);
     }
 
+    /* ==========================
+     * 2) 카카오 로그인 (FULL)
+     * ========================== */
     @Transactional
-    public void logout(UUID userId, LogoutRequestDto request) {
-
-        if (request != null) {
-            pushDeviceService.unregister(
-                    userId,
-                    request.deviceId(),
-                    request.fcmToken()
-            );
-        }
-
-        businessLogService.info(
-                BusinessLogCategory.AUTH,
-                BusinessAction.Auth.LOGOUT,
-                userId,
-                TargetType.USER,
-                null,
-                "로그아웃",
-                request != null
-                        ? Map.of(
-                        "deviceId", request.deviceId(),
-                        "hasFcmToken", request.fcmToken() != null
-                )
-                        : Map.of(
-                        "deviceId", null,
-                        "hasFcmToken", false
-                )
-        );
-    }
-
-    /*──────────────────────────────────────────────
-     | 2. 카카오 로그인
-     *──────────────────────────────────────────────*/
-    @Transactional
-    public SocialSignInResponseDto kakaoSignIn(String code) {
-
+    public SocialSignInResponseDto kakaoSignInByCodeInternal(String code, ClientPlatform platform) {
         AuthProvider provider = AuthProvider.KAKAO;
 
-        try {
-            String accessToken = kakaoAuthService.getAccessToken(code);
-
-            if (accessToken == null || accessToken.isBlank()) {
-                throw BusinessException.withMessage(
-                        ErrorCode.KAKAO_AUTH_FAILED,
-                        "카카오 인증에 실패했습니다. 잠시 후 다시 시도해주세요."
-                );
-            }
-
-            KakaoUserInfoDto kakaoUser = kakaoAuthService.getUserInfo(accessToken);
-
-            if (kakaoUser == null) {
-                throw BusinessException.withMessage(
-                        ErrorCode.KAKAO_AUTH_FAILED,
-                        "카카오 사용자 정보를 가져오지 못했습니다."
-                );
-            }
-
-            return handleKakaoUser(provider, kakaoUser);
-
-        } catch (HttpClientErrorException e) {
-            businessLogService.error(
-                    BusinessLogCategory.AUTH,
-                    BusinessAction.Auth.KAKAO_SIGN_IN_FAILED,
-                    null,
-                    TargetType.USER,
-                    null,
-                    "카카오 로그인 실패 (HTTP 오류)",
-                    Map.of(
-                            "statusCode", e.getStatusCode().value(),
-                            "responseBody", e.getResponseBodyAsString()
-                    ),
-                    e
-            );
-
-            throw BusinessException.withAll(
-                    ErrorCode.KAKAO_AUTH_FAILED,
-                    null,
-                    "KAKAO_HTTP_ERROR",
-                    "Kakao API error: status=" + e.getStatusCode() + ", body=" + e.getResponseBodyAsString(),
-                    e
-            );
-
-        } catch (Exception e) {
-            businessLogService.error(
-                    BusinessLogCategory.AUTH,
-                    BusinessAction.Auth.KAKAO_SIGN_IN_FAILED,
-                    null,
-                    TargetType.USER,
-                    null,
-                    "카카오 로그인 실패 (Unknown 오류)",
-                    Map.of("errorMessage", e.getMessage()),
-                    e
-            );
-
-            throw BusinessException.withAll(
-                    ErrorCode.KAKAO_AUTH_FAILED,
-                    null,
-                    "KAKAO_UNKNOWN_ERROR",
-                    "Unknown Kakao login error: " + e.getMessage(),
-                    e
-            );
+        String accessToken = kakaoAuthService.getAccessToken(code);
+        if (accessToken == null || accessToken.isBlank()) {
+            throw BusinessException.withMessage(ErrorCode.KAKAO_AUTH_FAILED,
+                    "카카오 인증에 실패했습니다. 잠시 후 다시 시도해주세요.");
         }
+
+        KakaoUserInfoDto kakaoUser = kakaoAuthService.getUserInfo(accessToken);
+        if (kakaoUser == null) {
+            throw BusinessException.withMessage(ErrorCode.KAKAO_AUTH_FAILED,
+                    "카카오 사용자 정보를 가져오지 못했습니다.");
+        }
+
+        return handleKakaoUser(provider, kakaoUser, platform);
     }
 
     @Transactional
-    public SocialSignInResponseDto kakaoSignInWithAccessToken(String accessToken) {
-
+    public SocialSignInResponseDto kakaoSignInByAccessTokenInternal(String accessToken, ClientPlatform platform) {
         AuthProvider provider = AuthProvider.KAKAO;
 
         if (accessToken == null || accessToken.isBlank()) {
-            throw BusinessException.withMessage(
-                    ErrorCode.KAKAO_AUTH_FAILED,
-                    "카카오 인증에 실패했습니다. 다시 시도해주세요."
-            );
+            throw BusinessException.withMessage(ErrorCode.KAKAO_AUTH_FAILED,
+                    "카카오 인증에 실패했습니다. 다시 시도해주세요.");
         }
 
-        try {
-            KakaoUserInfoDto kakaoUser = kakaoAuthService.getUserInfo(accessToken);
-
-            if (kakaoUser == null) {
-                throw BusinessException.withMessage(
-                        ErrorCode.KAKAO_AUTH_FAILED,
-                        "카카오 사용자 정보를 가져오지 못했습니다."
-                );
-            }
-
-            return handleKakaoUser(provider, kakaoUser);
-
-        } catch (HttpClientErrorException e) {
-            businessLogService.error(
-                    BusinessLogCategory.AUTH,
-                    BusinessAction.Auth.KAKAO_SIGN_IN_FAILED,
-                    null,
-                    TargetType.USER,
-                    null,
-                    "카카오 로그인 실패 (HTTP 오류, native token)",
-                    Map.of(
-                            "statusCode", e.getStatusCode().value(),
-                            "responseBody", e.getResponseBodyAsString()
-                    ),
-                    e
-            );
-
-            throw BusinessException.withAll(
-                    ErrorCode.KAKAO_AUTH_FAILED,
-                    null,
-                    "KAKAO_HTTP_ERROR",
-                    "Kakao API error: status=" + e.getStatusCode() + ", body=" + e.getResponseBodyAsString(),
-                    e
-            );
-
-        } catch (Exception e) {
-            businessLogService.error(
-                    BusinessLogCategory.AUTH,
-                    BusinessAction.Auth.KAKAO_SIGN_IN_FAILED,
-                    null,
-                    TargetType.USER,
-                    null,
-                    "카카오 로그인 실패 (Unknown 오류, native token)",
-                    Map.of("errorMessage", e.getMessage()),
-                    e
-            );
-
-            throw BusinessException.withAll(
-                    ErrorCode.KAKAO_AUTH_FAILED,
-                    null,
-                    "KAKAO_UNKNOWN_ERROR",
-                    "Unknown Kakao login error: " + e.getMessage(),
-                    e
-            );
+        KakaoUserInfoDto kakaoUser = kakaoAuthService.getUserInfo(accessToken);
+        if (kakaoUser == null) {
+            throw BusinessException.withMessage(ErrorCode.KAKAO_AUTH_FAILED,
+                    "카카오 사용자 정보를 가져오지 못했습니다.");
         }
+
+        return handleKakaoUser(provider, kakaoUser, platform);
     }
 
-
-    /*──────────────────────────────────────────────
-    | 2-2. 애플 로그인
-    *──────────────────────────────────────────────*/
-    @Transactional
-    public SocialSignInResponseDto appleSignIn(AppleSignInRequestDto request) {
-
-        AuthProvider provider = AuthProvider.APPLE;
-
-        // (1) 값 검증
-        if ((request.authorizationCode() == null || request.authorizationCode().isBlank())
-                && (request.idToken() == null || request.idToken().isBlank())) {
-
-            businessLogService.warn(
-                    BusinessLogCategory.AUTH,
-                    BusinessAction.Auth.APPLE_SIGN_IN_FAILED,
-                    null,
-                    TargetType.USER,
-                    null,
-                    "애플 로그인 요청 값이 올바르지 않음",
-                    Map.of()
-            );
-
-            throw BusinessException.withMessage(
-                    ErrorCode.OPERATION_FAILED,
-                    "애플 로그인 정보가 올바르지 않습니다."
-            );
-        }
-
-        String idToken = request.idToken();
-
-        try {
-            // (2) id_token 없으면 authorization_code로 교환
-            if (idToken == null || idToken.isBlank()) {
-                AppleTokenResponse tokenResponse =
-                        appleTokenClient.exchangeCodeForToken(request.authorizationCode());
-
-                idToken = tokenResponse.idToken();
-                if (idToken == null || idToken.isBlank()) {
-                    throw BusinessException.withMessage(
-                            ErrorCode.OPERATION_FAILED,
-                            "애플 토큰 응답에 ID 토큰이 없습니다."
-                    );
-                }
-            }
-
-            // (3) id_token 검증 → sub(emailX), email, flags
-            AppleIdTokenClaims claims = appleIdTokenVerifier.verify(idToken);
-
-            String appleUserId = claims.sub();
-            if (appleUserId == null || appleUserId.isBlank()) {
-                throw BusinessException.withMessage(
-                        ErrorCode.OPERATION_FAILED,
-                        "애플 계정 정보에 사용자 식별자가 없습니다."
-                );
-            }
-
-            String socialId = appleUserId;
-
-            // (4) 기존 소셜 계정 체크
-            Optional<SocialAccount> existing =
-                    socialAccountService.findByProviderAndSocialId(provider, socialId);
-
-            if (existing.isPresent()) {
-                // (4-1) 기존 회원 로그인 처리
-                User user = existing.get().getUser();
-                userReader.getLoginAllowedUser(user.getId());
-                userService.updateLastLoginAt(user);
-
-                TokenCreateRequestDto tokenDTO = toTokenDto(user);
-
-                String token = jwtTokenProvider.generateToken(tokenDTO);
-                String refreshToken = jwtTokenProvider.generateRefreshToken(tokenDTO);
-
-                businessLogService.info(
-                        BusinessLogCategory.AUTH,
-                        BusinessAction.Auth.APPLE_SIGN_IN_SUCCESS,
-                        user.getId(),
-                        TargetType.USER,
-                        null,
-                        "애플 로그인 성공",
-                        Map.of(
-                                "provider", provider.name(),
-                                "socialId", socialId
-                        )
-                );
-
-                SignInResponseDto signIn = SignInResponseDto.builder()
-                        .message("애플 로그인 성공")
-                        .userId(user.getId())
-                        .nickname(user.getNickname())
-                        .role(user.getRole())
-                        .token(token)
-                        .refreshToken(refreshToken)
-                        .build();
-
-                return SocialSignInResponseDto.builder()
-                        .needSignUp(false)
-                        .provider(provider)
-                        .socialId(socialId)
-                        .signIn(signIn)
-                        .build();
-            }
-
-            // (4-2) 신규 회원 → 추가 정보 입력 화면으로
-            businessLogService.info(
-                    BusinessLogCategory.AUTH,
-                    BusinessAction.Auth.APPLE_NEED_SIGNUP,
-                    null,
-                    TargetType.USER,
-                    null,
-                    "애플 신규 회원 가입 필요",
-                    Map.of(
-                            "provider", provider.name(),
-                            "socialId", socialId
-                    )
-            );
-
-            return SocialSignInResponseDto.builder()
-                    .needSignUp(true)
-                    .provider(provider)
-                    .socialId(socialId)
-                    .signIn(null)
-                    .build();
-
-        } catch (BusinessException e) {
-            throw e;
-
-        } catch (Exception e) {
-            businessLogService.error(
-                    BusinessLogCategory.AUTH,
-                    BusinessAction.Auth.APPLE_SIGN_IN_FAILED,
-                    null,
-                    TargetType.USER,
-                    null,
-                    "애플 로그인 처리 중 오류",
-                    Map.of(
-                            "errorMessage", e.getMessage()
-                    ),
-                    e
-            );
-
-            throw BusinessException.withAll(
-                    ErrorCode.OPERATION_FAILED,
-                    null,
-                    "APPLE_LOGIN_ERROR",
-                    "애플 로그인 처리 중 오류: " + e.getMessage(),
-                    e
-            );
-        }
-    }
-
-    /*──────────────────────────────────────────────
-    | 3. 토큰 재발급
-    *──────────────────────────────────────────────*/
-    @Transactional(readOnly = true)
-    public TokenReissueResponseDto reissueToken(String refreshToken) {
-
-        UUID userId;
-        try {
-            userId = jwtTokenProvider.extractUserId(refreshToken);
-        } catch (Exception e) {
-
-            businessLogService.warn(
-                    BusinessLogCategory.AUTH,
-                    BusinessAction.Auth.TOKEN_REISSUE_FAILED,
-                    null,
-                    TargetType.TOKEN,
-                    null,
-                    "리프레시 토큰에서 userId 추출 실패",
-                    Map.of()
-            );
-
-            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
-        }
-
-        User user = userReader.getLoginAllowedUser(userId);
-
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
-
-            businessLogService.warn(
-                    BusinessLogCategory.AUTH,
-                    BusinessAction.Auth.TOKEN_REISSUE_FAILED,
-                    userId,
-                    TargetType.TOKEN,
-                    null,
-                    "리프레시 토큰 유효성 검사 실패",
-                    Map.of()
-            );
-
-            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
-        }
-
-        TokenCreateRequestDto tokenDTO = toTokenDto(user);
-        String newAccessToken = jwtTokenProvider.generateToken(tokenDTO);
-
-        businessLogService.info(
-                BusinessLogCategory.AUTH,
-                BusinessAction.Auth.TOKEN_REISSUE_SUCCESS,
-                userId,
-                TargetType.TOKEN,
-                null,
-                "토큰 재발급 성공",
-                Map.of("expiration", "10min")
-        );
-
-        return TokenReissueResponseDto.builder()
-                .message("토큰 재발급 성공")
-                .token(newAccessToken)
-                .refreshToken(refreshToken)
-                .expirationTime("10min")
-                .build();
-    }
-
-    /*──────────────────────────────────────────────
-     | 4. 토큰 유효성 검사
-     *──────────────────────────────────────────────*/
-    @Transactional(readOnly = true)
-    public void validateToken(String token) {
-        try {
-            jwtTokenProvider.extractUserId(token);
-        } catch (Exception e) {
-            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
-
-        }
-
-        if (!jwtTokenProvider.validateToken(token)) {
-            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
-        }
-    }
-
-
-    /*──────────────────────────────────────────────
-     | 5. Helper
-     *──────────────────────────────────────────────*/
-    private TokenCreateRequestDto toTokenDto(User user) {
-        return TokenCreateRequestDto.builder()
-                .userId(user.getId())
-                .email(user.getEmail())
-                .role(user.getRole().name())
-                .build();
-    }
-
-    private SocialSignInResponseDto handleKakaoUser(AuthProvider provider, KakaoUserInfoDto kakaoUser) {
-
+    private SocialSignInResponseDto handleKakaoUser(AuthProvider provider, KakaoUserInfoDto kakaoUser, ClientPlatform platform) {
         String socialId = String.valueOf(kakaoUser.getId());
 
         Optional<SocialAccount> existing =
                 socialAccountService.findByProviderAndSocialId(provider, socialId);
 
-        /* 기존 계정 있음 → 바로 로그인 처리 */
         if (existing.isPresent()) {
             User user = existing.get().getUser();
             userReader.getLoginAllowedUser(user.getId());
             userService.updateLastLoginAt(user);
 
-            TokenCreateRequestDto tokenDTO = toTokenDto(user);
-            String token = jwtTokenProvider.generateToken(tokenDTO);
-            String refreshToken = jwtTokenProvider.generateRefreshToken(tokenDTO);
+            SignInResponseDto signIn = issueTokens(user, "카카오 로그인 성공", platform);
 
             businessLogService.info(
                     BusinessLogCategory.AUTH,
@@ -547,24 +191,14 @@ public class AuthService {
                     Map.of("socialId", socialId)
             );
 
-            SignInResponseDto signIn = SignInResponseDto.builder()
-                    .message("카카오 로그인 성공")
-                    .userId(user.getId())
-                    .nickname(user.getNickname())
-                    .role(user.getRole())
-                    .token(token)
-                    .refreshToken(refreshToken)
-                    .build();
-
             return SocialSignInResponseDto.builder()
                     .needSignUp(false)
-                    .signIn(signIn)
                     .provider(provider)
                     .socialId(socialId)
+                    .signIn(signIn)
                     .build();
         }
 
-        // 신규 회원
         businessLogService.info(
                 BusinessLogCategory.AUTH,
                 BusinessAction.Auth.KAKAO_NEED_SIGNUP,
@@ -583,10 +217,198 @@ public class AuthService {
                 .build();
     }
 
-    /*──────────────────────────────────────────────
-     | 6. Owner 검증
-     *──────────────────────────────────────────────*/
+    /* ==========================
+     * 3) 애플 로그인 (FULL)
+     * ========================== */
+    @Transactional
+    public SocialSignInResponseDto appleSignInInternal(AppleSignInRequestDto request, ClientPlatform platform) {
+        AuthProvider provider = AuthProvider.APPLE;
+
+        if ((request.authorizationCode() == null || request.authorizationCode().isBlank())
+                && (request.idToken() == null || request.idToken().isBlank())) {
+            throw BusinessException.withMessage(ErrorCode.OPERATION_FAILED, "애플 로그인 정보가 올바르지 않습니다.");
+        }
+
+        String idToken = request.idToken();
+
+        try {
+            if (idToken == null || idToken.isBlank()) {
+                AppleTokenResponse tokenResponse =
+                        appleTokenClient.exchangeCodeForToken(request.authorizationCode());
+                idToken = tokenResponse.idToken();
+                if (idToken == null || idToken.isBlank()) {
+                    throw BusinessException.withMessage(ErrorCode.OPERATION_FAILED, "애플 토큰 응답에 ID 토큰이 없습니다.");
+                }
+            }
+
+            AppleIdTokenClaims claims = appleIdTokenVerifier.verify(idToken);
+            String socialId = claims.sub();
+            if (socialId == null || socialId.isBlank()) {
+                throw BusinessException.withMessage(ErrorCode.OPERATION_FAILED, "애플 계정 정보에 사용자 식별자가 없습니다.");
+            }
+
+            Optional<SocialAccount> existing =
+                    socialAccountService.findByProviderAndSocialId(provider, socialId);
+
+            if (existing.isPresent()) {
+                User user = existing.get().getUser();
+                userReader.getLoginAllowedUser(user.getId());
+                userService.updateLastLoginAt(user);
+
+                SignInResponseDto signIn = issueTokens(user, "애플 로그인 성공", platform);
+
+                return SocialSignInResponseDto.builder()
+                        .needSignUp(false)
+                        .provider(provider)
+                        .socialId(socialId)
+                        .signIn(signIn)
+                        .build();
+            }
+
+            return SocialSignInResponseDto.builder()
+                    .needSignUp(true)
+                    .provider(provider)
+                    .socialId(socialId)
+                    .signIn(null)
+                    .build();
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            businessLogService.error(
+                    BusinessLogCategory.AUTH,
+                    BusinessAction.Auth.APPLE_SIGN_IN_FAILED,
+                    null,
+                    TargetType.USER,
+                    null,
+                    "애플 로그인 처리 중 오류",
+                    Map.of("errorMessage", e.getMessage()),
+                    e
+            );
+            throw BusinessException.withAll(
+                    ErrorCode.OPERATION_FAILED,
+                    null,
+                    "APPLE_LOGIN_ERROR",
+                    "애플 로그인 처리 중 오류: " + e.getMessage(),
+                    e
+            );
+        }
+    }
+
+    /* ==========================
+     * 4) 재발급 (FULL + rotation)
+     * ========================== */
+    @Transactional
+    public TokenReissueResponseDto reissueTokenInternal(String refreshToken, ClientPlatform platform) {
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
+
+        String typ = jwtTokenProvider.extractClaim(refreshToken, c -> (String) c.get("typ"));
+        if (!"REFRESH".equals(typ)) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
+
+        String oldJti = jwtTokenProvider.extractJti(refreshToken);
+        if (oldJti == null || !refreshTokenStore.exists(oldJti)) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
+
+        UUID userId = jwtTokenProvider.extractUserId(refreshToken);
+        User user = userReader.getLoginAllowedUser(userId);
+
+        // rotation: 기존 refresh 세션 폐기
+        refreshTokenStore.delete(oldJti);
+
+        TokenCreateRequestDto tokenDTO = toTokenDto(user);
+        String newAccess = jwtTokenProvider.generateToken(tokenDTO);
+        String newRefresh = (platform == ClientPlatform.WEB)
+                ? jwtTokenProvider.generateRefreshTokenWeb(tokenDTO)
+                : jwtTokenProvider.generateRefreshTokenApp(tokenDTO);
+
+        storeRefresh(newRefresh, userId);
+
+        businessLogService.info(
+                BusinessLogCategory.AUTH,
+                BusinessAction.Auth.TOKEN_REISSUE_SUCCESS,
+                userId,
+                TargetType.TOKEN,
+                null,
+                "토큰 재발급 성공",
+                Map.of("expiration", "10min")
+        );
+
+        return TokenReissueResponseDto.builder()
+                .message("토큰 재발급 성공")
+                .token(newAccess)
+                .refreshToken(newRefresh)
+                .expirationTime("10min")
+                .build();
+    }
+
+    /* ==========================
+     * 5) 로그아웃 (refresh revoke)
+     * ========================== */
+    @Transactional
+    public void logoutInternal(UUID userId, LogoutRequestDto request, String refreshToken) {
+
+        if (request != null) {
+            pushDeviceService.unregister(userId, request.deviceId(), request.fcmToken());
+        }
+
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            try {
+                String typ = jwtTokenProvider.extractClaim(refreshToken, c -> (String) c.get("typ"));
+                if ("REFRESH".equals(typ)) {
+                    String jti = jwtTokenProvider.extractJti(refreshToken);
+                    if (jti != null && !jti.isBlank()) {
+                        refreshTokenStore.delete(jti);
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("logout refresh revoke skipped: {}", e.getMessage());
+            }
+        }
+
+        Map<String, Object> details = new java.util.HashMap<>();
+        details.put("deviceId", request != null ? request.deviceId() : null);
+        details.put("hasFcmToken", request != null && request.fcmToken() != null);
+
+        businessLogService.info(
+                BusinessLogCategory.AUTH,
+                BusinessAction.Auth.LOGOUT,
+                userId,
+                TargetType.USER,
+                null,
+                "로그아웃",
+                details
+        );
+    }
+
     @Transactional(readOnly = true)
+    public void validateToken(String token) {
+        try {
+            jwtTokenProvider.extractUserId(token);
+        } catch (Exception e) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
+        if (!jwtTokenProvider.validateToken(token)) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
+    }
+
+    private TokenCreateRequestDto toTokenDto(User user) {
+        return TokenCreateRequestDto.builder()
+                .userId(user.getId())
+                .email(user.getEmail())
+                .role(user.getRole().name())
+                .build();
+    }
+
+
+    /* ──────────────────────────────────────────────
+     * Owner 검증
+     * ────────────────────────────────────────────── */
     public void validateOwner(User owner, User requester, String message) {
 
         if (requester == null) {
@@ -611,6 +433,14 @@ public class AuthService {
 
         if (owner == null || owner.getId() == null || !owner.getId().equals(requester.getId())) {
 
+            Map<String, Object> details = new java.util.HashMap<>();
+            details.put("message", message);
+            details.put("requesterId", requester.getId().toString());
+
+            if (owner != null && owner.getId() != null) {
+                details.put("ownerId", owner.getId().toString());
+            }
+
             businessLogService.warn(
                     BusinessLogCategory.AUTH,
                     BusinessAction.Auth.OWNER_VALIDATE_UNAUTHORIZED,
@@ -618,16 +448,12 @@ public class AuthService {
                     TargetType.USER,
                     null,
                     "소유자 검증 실패: 권한 없음",
-                    Map.of(
-                            "message", message,
-                            "requesterId", requester.getId().toString(),
-                            "ownerId", owner != null && owner.getId() != null ? owner.getId().toString() : null
-                    )
+                    details
             );
 
             throw BusinessException.withMessage(
                     ErrorCode.UNAUTHORIZED,
-                    message != null ? message : "권한이 없습니다."
+                    "권한이 없습니다."
             );
         }
     }

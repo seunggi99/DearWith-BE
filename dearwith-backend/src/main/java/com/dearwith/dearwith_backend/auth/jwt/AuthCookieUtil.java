@@ -21,7 +21,7 @@ public class AuthCookieUtil {
                 .secure(props.isCookieSecure())
                 .sameSite(props.getCookieSameSite())
                 .path("/")
-                .maxAge(props.getExpirationTime())
+                .maxAge(props.getExpirationTime() / 1000)
                 .build();
 
         ResponseCookie refreshCookie = ResponseCookie.from("REFRESH_TOKEN", refreshToken)
@@ -29,7 +29,7 @@ public class AuthCookieUtil {
                 .secure(props.isCookieSecure())
                 .sameSite(props.getCookieSameSite())
                 .path("/")
-                .maxAge(props.getRefreshExpirationTime())
+                .maxAge(props.getExpirationTime() / 1000)
                 .build();
 
         response.addHeader("Set-Cookie", accessCookie.toString());

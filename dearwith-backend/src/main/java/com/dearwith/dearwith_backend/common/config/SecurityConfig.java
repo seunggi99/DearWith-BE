@@ -84,14 +84,20 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-     //   config.setAllowedOriginPatterns(List.of(
-     //           "https://dearwith.kr",
-     //           "https://www.dearwith.kr",
-     //           "https://api.dearwith.kr",
-     //           "https://*.dearwith.kr"
-     //   ));
-        config.addAllowedOriginPattern("*");
-        config.addAllowedMethod("*");        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedOriginPatterns(List.of(
+                "https://dearwith.kr",
+                "https://www.dearwith.kr",
+                "https://*.dearwith.kr",
+                "http://localhost:*",
+                "http://192.168.219.106:*"
+        ));
+        config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        config.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "X-Refresh-Token"
+        ));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
@@ -121,8 +127,12 @@ public class SecurityConfig {
                                 "/auth/signup/email/verify",
                                 "/auth/oauth/kakao",
                                 "/auth/oauth/apple",
+                                "/auth/signin/native",
+                                "/auth/oauth/kakao/native",
+                                "/auth/oauth/apple/native",
                                 "/auth/validate",
                                 "/auth/refresh",
+                                "/auth/refresh/native",
 
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
@@ -181,6 +191,7 @@ public class SecurityConfig {
 
                                 // 로그 아웃
                                 "/auth/logout",
+                                "/auth/logout/native",
 
                                 // 업로드
                                 "/api/uploads/*",

@@ -23,8 +23,27 @@ public class OpenApiConfig {
                         .title("DearWith API")
                         .version("v1")
                         .description("DearWith Backend API 명세"))
-                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
-                .components(new Components().addSecuritySchemes("bearerAuth",
-                        new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")));
+                .addSecurityItem(new SecurityRequirement()
+                        .addList("bearerAuth")
+                        .addList("refreshToken"))
+
+                .components(new Components()
+                        // Access Token
+                        .addSecuritySchemes("bearerAuth",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                                        .description("Access Token (Authorization: Bearer {token})")
+                        )
+                        // Refresh Token
+                        .addSecuritySchemes("refreshToken",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.APIKEY)
+                                        .in(SecurityScheme.In.HEADER)
+                                        .name("X-Refresh-Token")
+                                        .description("Refresh Token (X-Refresh-Token 헤더)")
+                        )
+                );
     }
 }

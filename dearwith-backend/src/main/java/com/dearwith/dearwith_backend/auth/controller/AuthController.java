@@ -1,8 +1,9 @@
 package com.dearwith.dearwith_backend.auth.controller;
 
 import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
-import com.dearwith.dearwith_backend.auth.jwt.AuthCookieUtil;
 import com.dearwith.dearwith_backend.auth.dto.*;
+import com.dearwith.dearwith_backend.auth.enums.ClientPlatform;
+import com.dearwith.dearwith_backend.auth.jwt.AuthCookieUtil;
 import com.dearwith.dearwith_backend.auth.service.AuthService;
 import com.dearwith.dearwith_backend.auth.service.EmailVerificationService;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
@@ -29,6 +30,10 @@ public class AuthController {
     private final EmailVerificationService emailService;
     private final AuthService authService;
     private final AuthCookieUtil authCookieUtil;
+
+    /* ==========================
+     * 이메일 인증
+     * ========================== */
     @Operation(summary = "이메일 인증 코드 발송",
             description = "purpose : SIGNUP(가입), RESET_PASSWORD(비밀번호 변경)")
     @PostMapping("/signup/email/send")
@@ -44,197 +49,225 @@ public class AuthController {
         return ResponseEntity.ok(emailService.verifyCode(request));
     }
 
-    @Operation(summary = "로그인")
+    /* ==========================
+     * 이메일 로그인
+     * ========================== */
+
+    @Operation(summary = "이메일 로그인(웹) - 쿠키 세팅")
     @PostMapping("/signin")
-    public ResponseEntity<SignInResponseDto> signIn(
+    public ResponseEntity<SignInResponseDto> signInWeb(
             @RequestBody @Valid SignInRequestDto request,
             HttpServletResponse response
-    ){
-        SignInResponseDto signIn = authService.signIn(request);
-
-        // 1) 쿠키 세팅
-        authCookieUtil.addAuthCookies(
-                response,
-                signIn.getToken(),
-                signIn.getRefreshToken()
-        );
-
-        // 2) 응답 바디에서는 토큰 제거
-        SignInResponseDto body = SignInResponseDto.builder()
-                .message(signIn.getMessage())
-                .userId(signIn.getUserId())
-                .nickname(signIn.getNickname())
-                .role(signIn.getRole())
-                .build();
-
-        return ResponseEntity.ok(body);
+    ) {
+        SignInResponseDto full = authService.signInInternal(request, ClientPlatform.WEB);
+        setAuthCookies(response, full);
+        return ResponseEntity.ok(sanitizeSignIn(full));
     }
 
-    @Operation(summary = "카카오 로그인(웹)")
+    @Operation(summary = "이메일 로그인(앱) - 바디로 FULL 토큰 반환")
+    @PostMapping("/signin/native")
+    public ResponseEntity<SignInResponseDto> signInNative(
+            @RequestBody @Valid SignInRequestDto request
+    ) {
+        return ResponseEntity.ok(authService.signInInternal(request, ClientPlatform.APP));
+    }
+
+    /* ==========================
+     * 카카오 로그인
+     * ========================== */
+
+    @Operation(summary = "카카오 로그인(웹) - 쿠키 세팅")
     @PostMapping("/oauth/kakao")
-    public ResponseEntity<SocialSignInResponseDto> kakaoSignIn(
+    public ResponseEntity<SocialSignInResponseDto> kakaoSignInWeb(
             @RequestBody KakaoSignInRequestDto request,
             HttpServletResponse response
     ) {
-        SocialSignInResponseDto res = authService.kakaoSignIn(request.getCode());
-        // 기존 계정 로그인인 경우에만 쿠키 세팅
-        if (!res.isNeedSignUp() && res.getSignIn() != null) {
-            SignInResponseDto signIn = res.getSignIn();
+        SocialSignInResponseDto full =
+                authService.kakaoSignInByCodeInternal(request.getCode(), ClientPlatform.WEB);
 
-            authCookieUtil.addAuthCookies(
-                    response,
-                    signIn.getToken(),
-                    signIn.getRefreshToken()
-            );
-
-            SignInResponseDto sanitized = SignInResponseDto.builder()
-                    .message(signIn.getMessage())
-                    .userId(signIn.getUserId())
-                    .nickname(signIn.getNickname())
-                    .role(signIn.getRole())
-                    .build();
-
-            res = SocialSignInResponseDto.builder()
-                    .needSignUp(false)
-                    .provider(res.getProvider())
-                    .socialId(res.getSocialId())
-                    .signIn(sanitized)
-                    .build();
-        }
-        return ResponseEntity.ok(res);
+        SocialSignInResponseDto body = webSocialLoginResponse(response, full);
+        return ResponseEntity.ok(body);
     }
 
-    @Operation(summary = "카카오 로그인(앱)")
+    @Operation(summary = "카카오 로그인(앱) - 바디로 FULL 토큰 반환")
     @PostMapping("/oauth/kakao/native")
-    public ResponseEntity<SocialSignInResponseDto> NativeKakaoSignIn(
-            @RequestBody KakaoNativeSignInRequestDto request,
-            HttpServletResponse response
+    public ResponseEntity<SocialSignInResponseDto> kakaoSignInNative(
+            @RequestBody KakaoNativeSignInRequestDto request
     ) {
-        SocialSignInResponseDto res = authService.kakaoSignInWithAccessToken(request.getAccessToken());
-
-        if (!res.isNeedSignUp() && res.getSignIn() != null) {
-            SignInResponseDto signIn = res.getSignIn();
-
-            authCookieUtil.addAuthCookies(
-                    response,
-                    signIn.getToken(),
-                    signIn.getRefreshToken()
-            );
-
-            SignInResponseDto sanitized = SignInResponseDto.builder()
-                    .message(signIn.getMessage())
-                    .userId(signIn.getUserId())
-                    .nickname(signIn.getNickname())
-                    .role(signIn.getRole())
-                    .build();
-
-            res = SocialSignInResponseDto.builder()
-                    .needSignUp(false)
-                    .provider(res.getProvider())
-                    .socialId(res.getSocialId())
-                    .signIn(sanitized)
-                    .build();
-        }
-        return ResponseEntity.ok(res);
+        return ResponseEntity.ok(
+                authService.kakaoSignInByAccessTokenInternal(request.getAccessToken(), ClientPlatform.APP)
+        );
     }
 
-    @Operation(summary = "애플 로그인")
+    /* ==========================
+     * 애플 로그인
+     * ========================== */
+
+    @Operation(summary = "애플 로그인(웹) - 쿠키 세팅")
     @PostMapping("/oauth/apple")
-    public ResponseEntity<SocialSignInResponseDto> appleSignIn(
+    public ResponseEntity<SocialSignInResponseDto> appleSignInWeb(
             @RequestBody AppleSignInRequestDto request,
             HttpServletResponse response
     ) {
-        SocialSignInResponseDto res = authService.appleSignIn(request);
+        SocialSignInResponseDto full = authService.appleSignInInternal(request, ClientPlatform.WEB);
 
-        if (!res.isNeedSignUp() && res.getSignIn() != null) {
-            SignInResponseDto signIn = res.getSignIn();
-
-            authCookieUtil.addAuthCookies(
-                    response,
-                    signIn.getToken(),
-                    signIn.getRefreshToken()
-            );
-
-            SignInResponseDto sanitized = SignInResponseDto.builder()
-                    .message(signIn.getMessage())
-                    .userId(signIn.getUserId())
-                    .nickname(signIn.getNickname())
-                    .role(signIn.getRole())
-                    .build();
-
-            res = SocialSignInResponseDto.builder()
-                    .needSignUp(false)
-                    .provider(res.getProvider())
-                    .socialId(res.getSocialId())
-                    .signIn(sanitized)
-                    .build();
-        }
-
-        return ResponseEntity.ok(res);
+        SocialSignInResponseDto body = webSocialLoginResponse(response, full);
+        return ResponseEntity.ok(body);
     }
 
-    @Operation(summary = "로그아웃", description = "쿠키에서 토큰 삭제, deviceId,fcmToken 로 기기등록 해제(웹에선 null) ")
+    @Operation(summary = "애플 로그인(앱) - 바디로 FULL 토큰 반환")
+    @PostMapping("/oauth/apple/native")
+    public ResponseEntity<SocialSignInResponseDto> appleSignInNative(
+            @RequestBody AppleSignInRequestDto request
+    ) {
+        return ResponseEntity.ok(authService.appleSignInInternal(request, ClientPlatform.APP));
+    }
+
+    /* ==========================
+     * 로그아웃
+     * ========================== */
+
+    @Operation(summary = "로그아웃(웹)", description = "쿠키 삭제 + refresh 세션 폐기")
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(
+    public void logoutWeb(
+            HttpServletRequest httpRequest,
             @CurrentUser UUID userId,
-            @RequestBody(required = false) LogoutRequestDto request,
             HttpServletResponse response
     ) {
-        authService.logout(userId, request);
+        String refreshToken = extractCookie(httpRequest, "REFRESH_TOKEN");
+        authService.logoutInternal(userId, null, refreshToken);
+
         authCookieUtil.clearCookie(response, "ACCESS_TOKEN");
         authCookieUtil.clearCookie(response, "REFRESH_TOKEN");
     }
 
-    @Operation(summary = "토큰 유효 검사")
+    @Operation(summary = "로그아웃(앱) - X-Refresh-Token")
+    @PostMapping("/logout/native")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logoutNative(
+            HttpServletRequest request,
+            @CurrentUser UUID userId,
+            @RequestBody(required = false) LogoutRequestDto body
+    ) {
+        String refreshToken = request.getHeader("X-Refresh-Token");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
+        authService.logoutInternal(userId, body, refreshToken);
+    }
+    /* ==========================
+     * 토큰 검증
+     * ========================== */
+
+    @Operation(summary = "토큰 유효 검사(웹)")
     @PostMapping("/validate")
     public ResponseEntity<ErrorResponse> validateToken(HttpServletRequest request) {
         String accessToken = extractCookie(request, "ACCESS_TOKEN");
         if (accessToken == null || accessToken.isBlank()) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
         }
-
         authService.validateToken(accessToken);
         return ResponseEntity.ok(ErrorResponse.of(ErrorCode.TOKEN_SUCCESS));
     }
 
-    @Operation(summary = "토큰 재발급")
+    @Operation(summary = "토큰 유효 검사(앱)")
+    @PostMapping("/validate/native")
+    public ResponseEntity<ErrorResponse> validateTokenNative(HttpServletRequest request) {
+        String accessToken = extractBearer(request);
+        if (accessToken == null || accessToken.isBlank()) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
+        authService.validateToken(accessToken);
+        return ResponseEntity.ok(ErrorResponse.of(ErrorCode.TOKEN_SUCCESS));
+    }
+
+    /* ==========================
+     * 재발급
+     * ========================== */
+
+    @Operation(summary = "토큰 재발급(웹-쿠키) - 쿠키 갱신")
     @PostMapping("/refresh")
-    public ResponseEntity<TokenReissueResponseDto> refreshToken(
+    public ResponseEntity<TokenReissueResponseDto> refreshTokenWeb(
             HttpServletRequest request,
             HttpServletResponse response
-    ){
+    ) {
         String refreshToken = extractCookie(request, "REFRESH_TOKEN");
         if (refreshToken == null || refreshToken.isBlank()) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
         }
 
-        TokenReissueResponseDto reissued = authService.reissueToken(refreshToken);
+        TokenReissueResponseDto full = authService.reissueTokenInternal(refreshToken, ClientPlatform.WEB);
 
-        // 새 Access 토큰을 쿠키에 다시 심기 (refresh는 그대로 사용)
-        authCookieUtil.addAuthCookies(
-                response,
-                reissued.getToken(),
-                reissued.getRefreshToken()
-        );
+        // rotation 전제: access + refresh 둘 다 갱신
+        authCookieUtil.addAuthCookies(response, full.getToken(), full.getRefreshToken());
 
-        // 응답 바디에서는 토큰 제거
+        // 웹은 바디에서 토큰 숨김
         TokenReissueResponseDto body = TokenReissueResponseDto.builder()
-                .message(reissued.getMessage())
-                .expirationTime(reissued.getExpirationTime())
+                .message(full.getMessage())
+                .expirationTime(full.getExpirationTime())
                 .build();
 
         return ResponseEntity.ok(body);
     }
 
+    @Operation(summary = "토큰 재발급(앱) - X-Refresh-Token")
+    @PostMapping("/refresh/native")
+    public ResponseEntity<TokenReissueResponseDto> refreshTokenNative(HttpServletRequest request) {
+
+        String refreshToken = request.getHeader("X-Refresh-Token");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
+
+        return ResponseEntity.ok(authService.reissueTokenInternal(refreshToken, ClientPlatform.APP));
+    }
+
+    /* ==========================
+     * 공통 헬퍼
+     * ========================== */
+
+    private void setAuthCookies(HttpServletResponse response, SignInResponseDto full) {
+        authCookieUtil.addAuthCookies(response, full.getToken(), full.getRefreshToken());
+    }
+
+    private SocialSignInResponseDto webSocialLoginResponse(HttpServletResponse response, SocialSignInResponseDto full) {
+        // 신규 가입 필요면 쿠키/바디 건드릴 게 없음
+        if (full.isNeedSignUp() || full.getSignIn() == null) {
+            return full;
+        }
+
+        SignInResponseDto signIn = full.getSignIn();
+        setAuthCookies(response, signIn);
+
+        return SocialSignInResponseDto.builder()
+                .needSignUp(false)
+                .provider(full.getProvider())
+                .socialId(full.getSocialId())
+                .signIn(sanitizeSignIn(signIn))
+                .build();
+    }
+
+    private SignInResponseDto sanitizeSignIn(SignInResponseDto full) {
+        return SignInResponseDto.builder()
+                .message(full.getMessage())
+                .userId(full.getUserId())
+                .nickname(full.getNickname())
+                .role(full.getRole())
+                .build();
+    }
+
     private String extractCookie(HttpServletRequest request, String name) {
         if (request.getCookies() == null) return null;
         for (var cookie : request.getCookies()) {
-            if (name.equals(cookie.getName())) {
-                return cookie.getValue();
-            }
+            if (name.equals(cookie.getName())) return cookie.getValue();
         }
         return null;
     }
 
+    private String extractBearer(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
+        return authHeader.substring(7).trim();
+    }
 }

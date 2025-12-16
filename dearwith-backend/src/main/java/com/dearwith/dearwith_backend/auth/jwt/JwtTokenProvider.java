@@ -4,19 +4,22 @@ import com.dearwith.dearwith_backend.auth.dto.TokenCreateRequestDto;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
-import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Component
 public class JwtTokenProvider {
+
     private SecretKey key;
 
     @Value("${jwt.secret}")
@@ -25,104 +28,124 @@ public class JwtTokenProvider {
     @Value("${jwt.expiration-time}")
     private long expirationTime; // ms
 
-    @Value("${jwt.refresh-expiration-time}")
-    private long refreshExpirationTime; // ms
+    @Value("${jwt.refresh-expiration-time-web}")
+    private long refreshExpirationTimeWeb; // ms
+
+    @Value("${jwt.refresh-expiration-time-app}")
+    private long refreshExpirationTimeApp; // ms
 
     @PostConstruct
     public void init() {
         this.key = Keys.hmacShaKeyFor(secretString.getBytes(StandardCharsets.UTF_8));
     }
 
-    // 일반 토큰 생성
+    // ACCESS 토큰
     public String generateToken(TokenCreateRequestDto request) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", request.getUserId());
+        claims.put("userId", request.getUserId().toString());
         claims.put("email", request.getEmail());
         claims.put("role", request.getRole());
+        claims.put("typ", "ACCESS");
 
         return buildToken(claims, request.getEmail(), expirationTime);
     }
 
-    // 리프레시 토큰 생성
-    public String generateRefreshToken(TokenCreateRequestDto request) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", request.getUserId());
-        claims.put("email", request.getEmail());
-        claims.put("role", request.getRole());
-
-        return buildToken(claims, request.getEmail(), refreshExpirationTime);
+    // REFRESH 토큰 (웹/앱 TTL 분리)
+    public String generateRefreshTokenWeb(TokenCreateRequestDto dto) {
+        return generateRefreshToken(dto, refreshExpirationTimeWeb);
     }
 
-    // 토큰 생성 내부 로직
-    private String buildToken(Map<String, Object> claims, String subject, long expireMillis) {
-        long now = System.currentTimeMillis();
+    public String generateRefreshTokenApp(TokenCreateRequestDto dto) {
+        return generateRefreshToken(dto, refreshExpirationTimeApp);
+    }
+
+    private String generateRefreshToken(TokenCreateRequestDto dto, long refreshTtlMillis) {
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + refreshTtlMillis);
+        String jti = UUID.randomUUID().toString();
+
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(subject)
-                .setIssuedAt(new Date(now))
-                .setExpiration(new Date(now + expireMillis))
-                .signWith(key, SignatureAlgorithm.HS256)
+                .subject(dto.getEmail())
+                .id(jti)
+                .issuedAt(now)
+                .expiration(exp)
+                .claim("userId", dto.getUserId().toString())
+                .claim("email", dto.getEmail())
+                .claim("role", dto.getRole())
+                .claim("typ", "REFRESH")
+                .signWith(key)
                 .compact();
     }
 
-    // Claims 추출
-    public Claims extractAllClaims(String token) {
-        return Jwts.parser()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+    private String buildToken(Map<String, Object> claims, String subject, long expireMillis) {
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .subject(subject)
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + expireMillis))
+                .claims(claims)
+                .signWith(key)
+                .compact();
     }
 
-    // 개별 Claim 추출 (람다 적용)
+    // Claims 추출 (✅ 최신 parser)
+    public Claims extractAllClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         return claimsResolver.apply(extractAllClaims(token));
     }
 
-    // 이메일(=subject) 추출
-    public String extractEmail(String token) {
-        return extractClaim(token, Claims::getSubject);
-    }
-
-    // userId 추출
     public UUID extractUserId(String token) {
         Object value = extractAllClaims(token).get("userId");
-        if (value == null) return null;
-        return UUID.fromString(value.toString());
+        return value == null ? null : UUID.fromString(value.toString());
     }
 
-    // role 추출
-    public String extractRole(String token) {
-        Object value = extractAllClaims(token).get("role");
-        return value != null ? value.toString() : null;
+    public String extractJti(String token) {
+        return extractClaim(token, Claims::getId);
     }
 
-    // 만료 체크
-    public boolean isTokenExpired(String token) {
-        Date expiration = extractClaim(token, Claims::getExpiration);
-        return expiration.before(new Date());
+    public Date extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration);
     }
 
-    // (UserDetails 기반 검증 – 필요하면 계속 사용)
-    public boolean isTokenValid(String token, org.springframework.security.core.userdetails.UserDetails userDetails) {
-        final String email = extractEmail(token);
-        return (email.equals(userDetails.getUsername()) && !isTokenExpired(token));
-    }
-
-    // 토큰 유효성 검사 (단순/범용)
     public boolean validateToken(String token) {
         try {
-            return !isTokenExpired(token);
+            Date exp = extractExpiration(token);
+            return exp != null && exp.after(new Date());
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }
 
-    public long getAccessTokenTtlSeconds() {
-        return expirationTime / 1000L;
+    public boolean isAccessToken(String token) {
+        try {
+            Object typ = extractAllClaims(token).get("typ");
+            return "ACCESS".equals(String.valueOf(typ));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
-    public long getRefreshTokenTtlSeconds() {
-        return refreshExpirationTime / 1000L;
+    public boolean isRefreshToken(String token) {
+        try {
+            Object typ = extractAllClaims(token).get("typ");
+            return "REFRESH".equals(String.valueOf(typ));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public long getRefreshTokenTtlSecondsWeb() {
+        return refreshExpirationTimeWeb / 1000L;
+    }
+
+    public long getRefreshTokenTtlSecondsApp() {
+        return refreshExpirationTimeApp / 1000L;
     }
 }
