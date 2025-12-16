@@ -39,8 +39,12 @@ public record EventCreateRequestDto(
         List<@Valid ImageAttachmentRequestDto> images,
         List<BenefitDto> benefits,
         @NotNull(message = "주최자 정보는 필수입니다.")
-        OrganizerDto organizer
-
+        OrganizerDto organizer,
+        @Pattern(
+                regexp = "^(https?://)?([\\w-]+\\.)+[\\w-]+(/.*)?$",
+                message = "올바른 URL 형식이 아닙니다."
+        )
+        String xLink
 ) {
     public record PlaceDto(
             String kakaoPlaceId,

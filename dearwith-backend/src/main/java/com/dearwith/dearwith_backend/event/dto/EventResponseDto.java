@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.event.dto;
 
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.event.enums.BenefitType;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -11,7 +12,9 @@ import java.util.List;
 public record EventResponseDto(
         Long id,
         String title,
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm")
         LocalTime openTime,
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm")
         LocalTime closeTime,
         LocalDate startDate,
         LocalDate endDate,

@@ -82,6 +82,8 @@ public class Event extends BaseAuditableEntity {
     @Builder.Default
     private OrganizerInfo organizer = new OrganizerInfo();
 
+    private String xLink;
+
     public void addBenefit(EventBenefit benefit) {
         this.benefits.add(benefit);
         benefit.setEvent(this);
