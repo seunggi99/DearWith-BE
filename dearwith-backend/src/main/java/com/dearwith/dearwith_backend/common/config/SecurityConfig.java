@@ -43,9 +43,33 @@ public class SecurityConfig {
         return (req, res, ex) -> {
             res.setStatus(401);
             res.setContentType("application/json;charset=UTF-8");
+
+            String reason = (String) req.getAttribute("auth_error");
+
+            String code;
+            String message;
+
+            if ("TOKEN_EXPIRED".equals(reason)) {
+                code = "TOKEN_EXPIRED";
+                message = "토큰이 만료되었습니다.";
+            } else if ("TOKEN_INVALID".equals(reason)) {
+                code = "TOKEN_INVALID";
+                message = "토큰이 유효하지 않습니다.";
+            } else if ("USER_NOT_FOUND".equals(reason)) {
+                code = "USER_NOT_FOUND";
+                message = "사용자를 찾을 수 없습니다.";
+            } else if ("TOKEN_WRONG_TYPE".equals(reason)) {
+                code = "TOKEN_WRONG_TYPE";
+                message = "잘못된 토큰 타입입니다.";
+            } else {
+                code = "AUTH_REQUIRED";
+                message = "로그인이 필요합니다.";
+            }
+
             String body = """
-                    {"timestamp":"%s","status":401,"error":"Unauthorized","message":"로그인이 필요합니다.","path":"%s"}
-                    """.formatted(OffsetDateTime.now(), req.getRequestURI());
+                {"timestamp":"%s","status":401,"error":"Unauthorized","code":"%s","message":"%s","path":"%s"}
+                """.formatted(OffsetDateTime.now(), code, message, req.getRequestURI());
+
             res.getWriter().write(body);
         };
     }

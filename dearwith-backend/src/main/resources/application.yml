@@ -89,7 +89,7 @@ jwt:
   cookie-secure: true
   cookie-same-site: None
   secret: ${SECRET_KEY}
-  expiration-time: 600000          # 10분 (ms)
+  expiration-time: 60000000          # 1000분 임시 (ms)
   refresh-expiration-time-web: 1209600000   # 14일 (ms)
   refresh-expiration-time-app: 5184000000   # 60d
 

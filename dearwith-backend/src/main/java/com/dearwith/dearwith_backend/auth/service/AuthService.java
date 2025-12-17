@@ -23,12 +23,15 @@ import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import com.dearwith.dearwith_backend.user.service.SocialAccountService;
 import com.dearwith.dearwith_backend.user.service.UserReader;
 import com.dearwith.dearwith_backend.user.service.UserService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import io.jsonwebtoken.JwtException;
 
 import java.util.Date;
 import java.util.Map;
@@ -59,7 +62,7 @@ public class AuthService {
     private SignInResponseDto issueTokens(User user, String message, ClientPlatform platform) {
         TokenCreateRequestDto tokenDTO = toTokenDto(user);
 
-        String accessToken = jwtTokenProvider.generateToken(tokenDTO);
+        String accessToken = jwtTokenProvider.generateAccessToken(tokenDTO);
         String refreshToken = (platform == ClientPlatform.WEB)
                 ? jwtTokenProvider.generateRefreshTokenWeb(tokenDTO)
                 : jwtTokenProvider.generateRefreshTokenApp(tokenDTO);
@@ -77,11 +80,26 @@ public class AuthService {
     }
 
     private void storeRefresh(String refreshToken, UUID userId) {
-        String jti = jwtTokenProvider.extractJti(refreshToken);
-        if (jti == null || jti.isBlank()) throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        final Claims claims;
+        try {
+            claims = jwtTokenProvider.parseClaims(refreshToken);
+        } catch (ExpiredJwtException e) {
+            throw BusinessException.of(ErrorCode.TOKEN_EXPIRED);
+        } catch (JwtException | IllegalArgumentException e) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
 
-        Date exp = jwtTokenProvider.extractExpiration(refreshToken);
-        if (exp == null) throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        String typ = claims.get("typ", String.class);
+        if (!JwtTokenProvider.TYP_REFRESH.equals(typ)) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
+
+        String jti = claims.getId();
+        Date exp = claims.getExpiration();
+
+        if (jti == null || jti.isBlank() || exp == null) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
 
         long ttlMs = exp.getTime() - System.currentTimeMillis();
         if (ttlMs <= 0) throw BusinessException.of(ErrorCode.TOKEN_INVALID);
@@ -300,43 +318,47 @@ public class AuthService {
      * ========================== */
     @Transactional
     public TokenReissueResponseDto reissueTokenInternal(String refreshToken, ClientPlatform platform) {
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
+
+        final Claims claims;
+        try {
+            claims = jwtTokenProvider.parseClaims(refreshToken);
+        } catch (ExpiredJwtException e) {
+            throw BusinessException.of(ErrorCode.REFRESH_TOKEN_EXPIRED);
+        } catch (JwtException | IllegalArgumentException e) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
         }
 
-        String typ = jwtTokenProvider.extractClaim(refreshToken, c -> (String) c.get("typ"));
-        if (!"REFRESH".equals(typ)) {
+        String typ = claims.get("typ", String.class);
+        if (!JwtTokenProvider.TYP_REFRESH.equals(typ)) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
         }
 
-        String oldJti = jwtTokenProvider.extractJti(refreshToken);
+        String oldJti = claims.getId();
         if (oldJti == null || !refreshTokenStore.exists(oldJti)) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
         }
 
-        UUID userId = jwtTokenProvider.extractUserId(refreshToken);
+        String userIdStr = claims.get("userId", String.class);
+        if (userIdStr == null) throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+
+        UUID userId;
+        try {
+            userId = UUID.fromString(userIdStr);
+        } catch (IllegalArgumentException e) {
+            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+        }
+
         User user = userReader.getLoginAllowedUser(userId);
 
-        // rotation: 기존 refresh 세션 폐기
         refreshTokenStore.delete(oldJti);
 
         TokenCreateRequestDto tokenDTO = toTokenDto(user);
-        String newAccess = jwtTokenProvider.generateToken(tokenDTO);
+        String newAccess = jwtTokenProvider.generateAccessToken(tokenDTO);
         String newRefresh = (platform == ClientPlatform.WEB)
                 ? jwtTokenProvider.generateRefreshTokenWeb(tokenDTO)
                 : jwtTokenProvider.generateRefreshTokenApp(tokenDTO);
 
         storeRefresh(newRefresh, userId);
-
-        businessLogService.info(
-                BusinessLogCategory.AUTH,
-                BusinessAction.Auth.TOKEN_REISSUE_SUCCESS,
-                userId,
-                TargetType.TOKEN,
-                null,
-                "토큰 재발급 성공",
-                Map.of("expiration", "10min")
-        );
 
         return TokenReissueResponseDto.builder()
                 .message("토큰 재발급 성공")
@@ -388,11 +410,14 @@ public class AuthService {
     @Transactional(readOnly = true)
     public void validateToken(String token) {
         try {
-            jwtTokenProvider.extractUserId(token);
-        } catch (Exception e) {
-            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
-        }
-        if (!jwtTokenProvider.validateToken(token)) {
+            Claims claims = jwtTokenProvider.parseClaims(token);
+            String typ = claims.get("typ", String.class);
+            if (!JwtTokenProvider.TYP_ACCESS.equals(typ)) {
+                throw BusinessException.of(ErrorCode.TOKEN_INVALID);
+            }
+        } catch (ExpiredJwtException e) {
+            throw BusinessException.of(ErrorCode.TOKEN_EXPIRED);
+        } catch (JwtException | IllegalArgumentException e) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
         }
     }

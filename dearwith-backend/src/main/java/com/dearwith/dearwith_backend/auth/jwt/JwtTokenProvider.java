@@ -2,7 +2,6 @@ package com.dearwith.dearwith_backend.auth.jwt;
 
 import com.dearwith.dearwith_backend.auth.dto.TokenCreateRequestDto;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
@@ -19,6 +18,14 @@ import java.util.function.Function;
 
 @Component
 public class JwtTokenProvider {
+
+    private static final String CLAIM_USER_ID = "userId";
+    private static final String CLAIM_EMAIL = "email";
+    private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_TYP = "typ";
+
+    public static final String TYP_ACCESS = "ACCESS";
+    public static final String TYP_REFRESH = "REFRESH";
 
     private SecretKey key;
 
@@ -39,15 +46,19 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(secretString.getBytes(StandardCharsets.UTF_8));
     }
 
-    // ACCESS 토큰
-    public String generateToken(TokenCreateRequestDto request) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", request.getUserId().toString());
-        claims.put("email", request.getEmail());
-        claims.put("role", request.getRole());
-        claims.put("typ", "ACCESS");
+    /* =========================
+     *  Token 생성
+     * ========================= */
 
-        return buildToken(claims, request.getEmail(), expirationTime);
+    // ACCESS 토큰
+    public String generateAccessToken(TokenCreateRequestDto dto) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(CLAIM_USER_ID, dto.getUserId().toString());
+        claims.put(CLAIM_EMAIL, dto.getEmail());
+        claims.put(CLAIM_ROLE, dto.getRole());
+        claims.put(CLAIM_TYP, TYP_ACCESS);
+
+        return buildToken(claims, dto.getEmail(), expirationTime, null);
     }
 
     // REFRESH 토큰 (웹/앱 TTL 분리)
@@ -60,36 +71,36 @@ public class JwtTokenProvider {
     }
 
     private String generateRefreshToken(TokenCreateRequestDto dto, long refreshTtlMillis) {
-        Date now = new Date();
-        Date exp = new Date(now.getTime() + refreshTtlMillis);
         String jti = UUID.randomUUID().toString();
 
-        return Jwts.builder()
-                .subject(dto.getEmail())
-                .id(jti)
-                .issuedAt(now)
-                .expiration(exp)
-                .claim("userId", dto.getUserId().toString())
-                .claim("email", dto.getEmail())
-                .claim("role", dto.getRole())
-                .claim("typ", "REFRESH")
-                .signWith(key)
-                .compact();
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(CLAIM_USER_ID, dto.getUserId().toString());
+        claims.put(CLAIM_EMAIL, dto.getEmail());
+        claims.put(CLAIM_ROLE, dto.getRole());
+        claims.put(CLAIM_TYP, TYP_REFRESH);
+
+        return buildToken(claims, dto.getEmail(), refreshTtlMillis, jti);
     }
 
-    private String buildToken(Map<String, Object> claims, String subject, long expireMillis) {
+    private String buildToken(Map<String, Object> claims, String subject, long expireMillis, String jti) {
         long now = System.currentTimeMillis();
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(subject)
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + expireMillis))
                 .claims(claims)
-                .signWith(key)
-                .compact();
+                .signWith(key);
+
+        if (jti != null) builder.id(jti);
+
+        return builder.compact();
     }
 
-    // Claims 추출 (✅ 최신 parser)
-    public Claims extractAllClaims(String token) {
+    /* =========================
+     *  파싱/검증
+     * ========================= */
+
+    public Claims parseClaims(String token) {
         return Jwts.parser()
                 .verifyWith(key)
                 .build()
@@ -97,48 +108,21 @@ public class JwtTokenProvider {
                 .getPayload();
     }
 
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        return claimsResolver.apply(extractAllClaims(token));
+    public <T> T extractClaim(String token, Function<Claims, T> resolver) {
+        return resolver.apply(parseClaims(token));
     }
 
     public UUID extractUserId(String token) {
-        Object value = extractAllClaims(token).get("userId");
-        return value == null ? null : UUID.fromString(value.toString());
+        String v = parseClaims(token).get(CLAIM_USER_ID, String.class);
+        return v == null ? null : UUID.fromString(v);
+    }
+
+    public String extractTyp(String token) {
+        return parseClaims(token).get(CLAIM_TYP, String.class);
     }
 
     public String extractJti(String token) {
-        return extractClaim(token, Claims::getId);
-    }
-
-    public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
-    }
-
-    public boolean validateToken(String token) {
-        try {
-            Date exp = extractExpiration(token);
-            return exp != null && exp.after(new Date());
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
-    }
-
-    public boolean isAccessToken(String token) {
-        try {
-            Object typ = extractAllClaims(token).get("typ");
-            return "ACCESS".equals(String.valueOf(typ));
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    public boolean isRefreshToken(String token) {
-        try {
-            Object typ = extractAllClaims(token).get("typ");
-            return "REFRESH".equals(String.valueOf(typ));
-        } catch (Exception e) {
-            return false;
-        }
+        return parseClaims(token).getId();
     }
 
     public long getRefreshTokenTtlSecondsWeb() {

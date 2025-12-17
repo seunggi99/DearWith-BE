@@ -23,6 +23,8 @@ public enum ErrorCode {
     // 공통 인증/인가
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "권한이 없습니다."),
     TOKEN_INVALID(HttpStatus.UNAUTHORIZED,"로그인 정보가 유효하지 않습니다."),
+    TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "로그인 정보가 만료되었습니다."),
+    REFRESH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "로그인 정보가 만료되었습니다. 다시 로그인해주세요."),
     TOKEN_SUCCESS(HttpStatus.OK, "토큰이 유효합니다."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "관리자 계정에는 이 작업을 수행할 수 없습니다"),
     FORBIDDEN(HttpStatus.FORBIDDEN, "이 작업을 수행할 권한이 없습니다."),

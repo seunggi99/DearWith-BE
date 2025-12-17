@@ -13,5 +13,6 @@ public class AuthCookieProperties {
     private boolean cookieSecure;
     private String cookieSameSite;
     private long expirationTime;
-    private long refreshExpirationTime;
+    private long refreshExpirationTimeWeb;
+    private long refreshExpirationTimeApp;
 }

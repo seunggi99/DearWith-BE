@@ -1,6 +1,8 @@
 package com.dearwith.dearwith_backend.auth.jwt;
 
 import com.dearwith.dearwith_backend.auth.service.CustomUserDetailsService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -47,24 +49,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            // 0) typ 체크: ACCESS만 일반 API 인증 허용
-            String typ = tokenProvider.extractClaim(jwtToken, claims -> {
-                Object v = claims.get(TOKEN_TYPE_CLAIM);
-                return v != null ? v.toString() : null;
-            });
+            Claims claims = tokenProvider.parseClaims(jwtToken);
 
-            if (!ACCESS_TYPE.equals(typ)) {
+            String typ = claims.get("typ", String.class);
+            if (!JwtTokenProvider.TYP_ACCESS.equals(typ)) {
+                request.setAttribute("auth_error", "TOKEN_WRONG_TYPE");
+                SecurityContextHolder.clearContext();
                 chain.doFilter(request, response);
                 return;
             }
 
-            // 1) access token 유효성 검사
-            if (!tokenProvider.validateToken(jwtToken)) {
-                chain.doFilter(request, response);
-                return;
-            }
-
-            UUID userId = tokenProvider.extractUserId(jwtToken);
+            String userIdStr = claims.get("userId", String.class);
+            UUID userId = (userIdStr == null) ? null : UUID.fromString(userIdStr);
 
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserById(userId);
@@ -81,13 +77,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             chain.doFilter(request, response);
 
-        } catch (JwtException e) {
+        } catch (ExpiredJwtException e) {
+            request.setAttribute("auth_error", "TOKEN_EXPIRED");
             SecurityContextHolder.clearContext();
-            log.warn("Invalid JWT token: {}", e.getMessage());
             chain.doFilter(request, response);
-        } catch (UsernameNotFoundException ex) {
+
+        } catch (JwtException | IllegalArgumentException e) {
+            request.setAttribute("auth_error", "TOKEN_INVALID");
             SecurityContextHolder.clearContext();
-            log.warn("JWT 유저를 찾을 수 없습니다. 토큰 무시: {}", ex.getMessage());
+            chain.doFilter(request, response);
+
+        } catch (UsernameNotFoundException e) {
+            request.setAttribute("auth_error", "USER_NOT_FOUND");
+            SecurityContextHolder.clearContext();
             chain.doFilter(request, response);
         }
     }

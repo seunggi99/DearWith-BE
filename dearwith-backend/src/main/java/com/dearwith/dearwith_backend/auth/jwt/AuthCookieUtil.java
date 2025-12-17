@@ -29,7 +29,7 @@ public class AuthCookieUtil {
                 .secure(props.isCookieSecure())
                 .sameSite(props.getCookieSameSite())
                 .path("/")
-                .maxAge(props.getExpirationTime() / 1000)
+                .maxAge(props.getRefreshExpirationTimeWeb() / 1000)
                 .build();
 
         response.addHeader("Set-Cookie", accessCookie.toString());
