@@ -242,7 +242,7 @@ public class UserService {
      *──────────────────────────────────────────────*/
 
     public User findByEmail(String email) {
-        return userRepository.findByEmail(email)
+        return userRepository.findByEmailAndDeletedAtIsNull(email)
                 .orElseThrow(() -> BusinessException.withMessage(
                         ErrorCode.INVALID_EMAIL,
                         ErrorCode.INVALID_EMAIL.getMessage()
@@ -280,7 +280,7 @@ public class UserService {
         );
 
         // 2) 유저 조회
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
                 .orElseThrow(() -> BusinessException.withMessage(ErrorCode.NOT_FOUND, "가입되지 않은 이메일입니다."));
 
         // 3) 비밀번호 변경
@@ -555,17 +555,17 @@ public class UserService {
      *──────────────────────────────────────────────*/
 
     public void validateDuplicateUserByEmail(String email) {
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmailAndDeletedAtIsNull(email)) {
             throw BusinessException.of(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
     }
 
     public boolean existsByEmail(String email) {
-        return userRepository.existsByEmail(email);
+        return userRepository.existsByEmailAndDeletedAtIsNull(email);
     }
 
     public void validateDuplicateUserByNickname(String nickname) {
-        if (userRepository.existsByNickname(nickname)) {
+        if (userRepository.existsByNicknameAndDeletedAtIsNull(nickname)) {
             throw BusinessException.of(ErrorCode.NICKNAME_ALREADY_EXISTS);
         }
     }

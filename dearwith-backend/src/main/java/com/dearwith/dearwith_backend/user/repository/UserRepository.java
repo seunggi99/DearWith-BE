@@ -11,12 +11,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface UserRepository extends JpaRepository<User, UUID> {
-    Optional<User> findByEmail(String email);
 
-    boolean existsByEmail(String email);
-    Optional<User> findByNickname(String nickname);
-    boolean existsByNickname(String nickname);
-
+    Optional<User> findByEmailAndDeletedAtIsNull(String email);
+    boolean existsByEmailAndDeletedAtIsNull(String email);
+    Optional<User> findByNicknameAndDeletedAtIsNull(String nickname);
+    boolean existsByNicknameAndDeletedAtIsNull(String nickname);
     @Query("""
     SELECT u
     FROM User u
