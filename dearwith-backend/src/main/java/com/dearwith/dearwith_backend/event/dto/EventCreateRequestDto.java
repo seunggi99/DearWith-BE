@@ -2,6 +2,7 @@ package com.dearwith.dearwith_backend.event.dto;
 
 import com.dearwith.dearwith_backend.event.enums.BenefitType;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -23,8 +24,10 @@ public record EventCreateRequestDto(
         String title,
 
         @NotNull(message = "이벤트 운영 시간을 입력해주세요.")
+        @Schema(example = "10:00")
         LocalTime openTime,
         @NotNull(message = "이벤트 운영 시간을 입력해주세요.")
+        @Schema(example = "18:00")
         LocalTime closeTime,
         @NotNull(message = "이벤트 기간을 입력해주세요.")
         LocalDate startDate,
@@ -40,6 +43,8 @@ public record EventCreateRequestDto(
         List<BenefitDto> benefits,
         @NotNull(message = "주최자 정보는 필수입니다.")
         OrganizerDto organizer,
+        @Size(max = 32, message = "X 핸들은 최대 32자까지 입력할 수 있습니다.")
+        @Schema(example = "https://x.com/dearwith_kr")
         @Pattern(
                 regexp = "^(https?://)?([\\w-]+\\.)+[\\w-]+(/.*)?$",
                 message = "올바른 URL 형식이 아닙니다."
@@ -74,6 +79,8 @@ public record EventCreateRequestDto(
     public record OrganizerDto(
             boolean verified,
             @NotBlank(message = "X 계정 링크를 입력해주세요.")
+            @Size(max = 32, message = "X 핸들은 최대 32자까지 입력할 수 있습니다.")
+            @Schema(example = "dearwith_kr")
             @Pattern(
                     regexp = "^[A-Za-z0-9._-]+$",
                     message = "X 계정 링크를 다시 입력해주세요."
