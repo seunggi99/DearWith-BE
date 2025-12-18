@@ -9,7 +9,9 @@ public interface BusinessAction {
         String LOGOUT = "LOGOUT";
 
         // 토큰 재발급
-        String TOKEN_REISSUE_SUCCESS = "TOKEN_REISSUE_SUCCESS";
+        String TOKEN_REISSUE_SUCCESS_WEB = "TOKEN_REISSUE_SUCCESS_WEB";
+        String TOKEN_REISSUE_SUCCESS_APP = "TOKEN_REISSUE_SUCCESS_APP";
+
         String TOKEN_REISSUE_FAILED = "TOKEN_REISSUE_FAILED";
 
         // 카카오

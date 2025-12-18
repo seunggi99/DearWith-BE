@@ -275,10 +275,9 @@ public class AuthService {
 
                 SignInResponseDto signIn = issueTokens(user, "애플 로그인 성공", platform);
 
-                // ✅ 애플 로그인 성공 로그 추가
                 businessLogService.info(
                         BusinessLogCategory.AUTH,
-                        BusinessAction.Auth.APPLE_SIGN_IN_SUCCESS, // 없으면 추가 or 기존 네이밍으로 변경
+                        BusinessAction.Auth.APPLE_SIGN_IN_SUCCESS,
                         user.getId(),
                         TargetType.USER,
                         null,
@@ -294,10 +293,9 @@ public class AuthService {
                         .build();
             }
 
-            // ✅ 애플 신규 가입 필요 로그 추가
             businessLogService.info(
                     BusinessLogCategory.AUTH,
-                    BusinessAction.Auth.APPLE_NEED_SIGNUP, // 없으면 추가 or 기존 네이밍으로 변경
+                    BusinessAction.Auth.APPLE_NEED_SIGNUP,
                     null,
                     TargetType.USER,
                     null,
@@ -423,6 +421,23 @@ public class AuthService {
 
         storeRefresh(newRefresh, userId);
 
+        businessLogService.info(
+                BusinessLogCategory.AUTH,
+                (platform == ClientPlatform.WEB)
+                        ? BusinessAction.Auth.TOKEN_REISSUE_SUCCESS_WEB
+                        : BusinessAction.Auth.TOKEN_REISSUE_SUCCESS_APP,
+                userId,
+                TargetType.USER,
+                null,
+                "토큰 재발급 성공",
+                Map.of(
+                        "platform", String.valueOf(platform),
+                        "userId", String.valueOf(userId),
+                        "oldJti", oldJti,
+                        "newRefreshJti", jwtTokenProvider.parseClaims(newRefresh).getId()
+                )
+        );
+
         return TokenReissueResponseDto.builder()
                 .message("토큰 재발급 성공")
                 .token(newAccess)
@@ -494,7 +509,6 @@ public class AuthService {
                 throw BusinessException.of(ErrorCode.TOKEN_INVALID);
             }
         } catch (ExpiredJwtException e) {
-            // (원하면 여기에도 warn 로그 추가 가능)
             throw BusinessException.of(ErrorCode.TOKEN_EXPIRED);
         } catch (JwtException | IllegalArgumentException e) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
