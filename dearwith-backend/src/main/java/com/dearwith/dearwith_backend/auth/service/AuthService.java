@@ -25,13 +25,13 @@ import com.dearwith.dearwith_backend.user.service.UserReader;
 import com.dearwith.dearwith_backend.user.service.UserService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import io.jsonwebtoken.JwtException;
 
 import java.util.Date;
 import java.util.Map;
@@ -124,7 +124,7 @@ public class AuthService {
                     TargetType.USER,
                     null,
                     "이메일 로그인 실패",
-                    Map.of("email", request.getEmail())
+                    logDetails(platform, Map.of("email", request.getEmail()))
             );
             throw e;
         }
@@ -140,7 +140,7 @@ public class AuthService {
                 TargetType.USER,
                 null,
                 "이메일 로그인 성공",
-                Map.of("email", user.getEmail())
+                logDetails(platform, Map.of("email", user.getEmail()))
         );
 
         return issueTokens(user, "로그인 성공", platform);
@@ -206,7 +206,7 @@ public class AuthService {
                     TargetType.USER,
                     null,
                     "카카오 로그인 성공",
-                    Map.of("socialId", socialId)
+                    logDetails(platform, Map.of("socialId", socialId))
             );
 
             return SocialSignInResponseDto.builder()
@@ -224,7 +224,7 @@ public class AuthService {
                 TargetType.USER,
                 null,
                 "카카오 신규 회원 가입 필요",
-                Map.of("socialId", socialId)
+                logDetails(platform, Map.of("socialId", socialId))
         );
 
         return SocialSignInResponseDto.builder()
@@ -275,6 +275,17 @@ public class AuthService {
 
                 SignInResponseDto signIn = issueTokens(user, "애플 로그인 성공", platform);
 
+                // ✅ 애플 로그인 성공 로그 추가
+                businessLogService.info(
+                        BusinessLogCategory.AUTH,
+                        BusinessAction.Auth.APPLE_SIGN_IN_SUCCESS, // 없으면 추가 or 기존 네이밍으로 변경
+                        user.getId(),
+                        TargetType.USER,
+                        null,
+                        "애플 로그인 성공",
+                        logDetails(platform, Map.of("socialId", socialId))
+                );
+
                 return SocialSignInResponseDto.builder()
                         .needSignUp(false)
                         .provider(provider)
@@ -282,6 +293,17 @@ public class AuthService {
                         .signIn(signIn)
                         .build();
             }
+
+            // ✅ 애플 신규 가입 필요 로그 추가
+            businessLogService.info(
+                    BusinessLogCategory.AUTH,
+                    BusinessAction.Auth.APPLE_NEED_SIGNUP, // 없으면 추가 or 기존 네이밍으로 변경
+                    null,
+                    TargetType.USER,
+                    null,
+                    "애플 신규 회원 가입 필요",
+                    logDetails(platform, Map.of("socialId", socialId))
+            );
 
             return SocialSignInResponseDto.builder()
                     .needSignUp(true)
@@ -300,7 +322,7 @@ public class AuthService {
                     TargetType.USER,
                     null,
                     "애플 로그인 처리 중 오류",
-                    Map.of("errorMessage", e.getMessage()),
+                    logDetails(platform, Map.of("errorMessage", e.getMessage())),
                     e
             );
             throw BusinessException.withAll(
@@ -323,28 +345,69 @@ public class AuthService {
         try {
             claims = jwtTokenProvider.parseClaims(refreshToken);
         } catch (ExpiredJwtException e) {
+
+            businessLogService.warn(
+                    BusinessLogCategory.AUTH,
+                    BusinessAction.Auth.TOKEN_REISSUE_FAILED,
+                    null,
+                    TargetType.USER,
+                    null,
+                    "토큰 재발급 실패: refresh 만료",
+                    logDetails(platform)
+            );
+
             throw BusinessException.of(ErrorCode.REFRESH_TOKEN_EXPIRED);
+
         } catch (JwtException | IllegalArgumentException e) {
+
+            businessLogService.warn(
+                    BusinessLogCategory.AUTH,
+                    BusinessAction.Auth.TOKEN_REISSUE_FAILED,
+                    null,
+                    TargetType.USER,
+                    null,
+                    "토큰 재발급 실패: refresh invalid",
+                    logDetails(platform)
+            );
+
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
         }
 
         String typ = claims.get("typ", String.class);
-        if (!JwtTokenProvider.TYP_REFRESH.equals(typ)) {
-            throw BusinessException.of(ErrorCode.TOKEN_INVALID);
-        }
-
         String oldJti = claims.getId();
-        if (oldJti == null || !refreshTokenStore.exists(oldJti)) {
+
+        if (!JwtTokenProvider.TYP_REFRESH.equals(typ)
+                || oldJti == null
+                || !refreshTokenStore.exists(oldJti)) {
+
+            businessLogService.warn(
+                    BusinessLogCategory.AUTH,
+                    BusinessAction.Auth.TOKEN_REISSUE_FAILED,
+                    null,
+                    TargetType.USER,
+                    null,
+                    "토큰 재발급 실패: refresh invalid/rotation",
+                    logDetails(platform)
+            );
+
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
         }
-
-        String userIdStr = claims.get("userId", String.class);
-        if (userIdStr == null) throw BusinessException.of(ErrorCode.TOKEN_INVALID);
 
         UUID userId;
         try {
-            userId = UUID.fromString(userIdStr);
-        } catch (IllegalArgumentException e) {
+            userId = UUID.fromString(claims.get("userId", String.class));
+        } catch (Exception e) {
+
+            businessLogService.warn(
+                    BusinessLogCategory.AUTH,
+                    BusinessAction.Auth.TOKEN_REISSUE_FAILED,
+                    null,
+                    TargetType.USER,
+                    null,
+                    "토큰 재발급 실패: userId invalid",
+                    logDetails(platform)
+            );
+
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
         }
 
@@ -371,8 +434,14 @@ public class AuthService {
     /* ==========================
      * 5) 로그아웃 (refresh revoke)
      * ========================== */
+
     @Transactional
     public void logoutInternal(UUID userId, LogoutRequestDto request, String refreshToken) {
+        logoutInternal(userId, request, refreshToken, null);
+    }
+
+    @Transactional
+    public void logoutInternal(UUID userId, LogoutRequestDto request, String refreshToken, ClientPlatform platform) {
 
         if (request != null) {
             pushDeviceService.unregister(userId, request.deviceId(), request.fcmToken());
@@ -381,7 +450,7 @@ public class AuthService {
         if (refreshToken != null && !refreshToken.isBlank()) {
             try {
                 String typ = jwtTokenProvider.extractClaim(refreshToken, c -> (String) c.get("typ"));
-                if ("REFRESH".equals(typ)) {
+                if (JwtTokenProvider.TYP_REFRESH.equals(typ) || "REFRESH".equals(typ)) {
                     String jti = jwtTokenProvider.extractJti(refreshToken);
                     if (jti != null && !jti.isBlank()) {
                         refreshTokenStore.delete(jti);
@@ -392,7 +461,7 @@ public class AuthService {
             }
         }
 
-        Map<String, Object> details = new java.util.HashMap<>();
+        Map<String, Object> details = logDetails(platform);
         details.put("deviceId", request != null ? request.deviceId() : null);
         details.put("hasFcmToken", request != null && request.fcmToken() != null);
 
@@ -407,8 +476,17 @@ public class AuthService {
         );
     }
 
+    /* ==========================
+     * 토큰 검증
+     * ========================== */
+
     @Transactional(readOnly = true)
     public void validateToken(String token) {
+        validateToken(token, null);
+    }
+
+    @Transactional(readOnly = true)
+    public void validateToken(String token, ClientPlatform platform) {
         try {
             Claims claims = jwtTokenProvider.parseClaims(token);
             String typ = claims.get("typ", String.class);
@@ -416,6 +494,7 @@ public class AuthService {
                 throw BusinessException.of(ErrorCode.TOKEN_INVALID);
             }
         } catch (ExpiredJwtException e) {
+            // (원하면 여기에도 warn 로그 추가 가능)
             throw BusinessException.of(ErrorCode.TOKEN_EXPIRED);
         } catch (JwtException | IllegalArgumentException e) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
@@ -430,11 +509,27 @@ public class AuthService {
                 .build();
     }
 
+    private Map<String, Object> logDetails(ClientPlatform platform) {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("clientPlatform", platform != null ? platform.name() : null);
+        return m;
+    }
+
+    private Map<String, Object> logDetails(ClientPlatform platform, Map<String, Object> extra) {
+        Map<String, Object> m = logDetails(platform);
+        if (extra != null) m.putAll(extra);
+        return m;
+    }
 
     /* ──────────────────────────────────────────────
      * Owner 검증
      * ────────────────────────────────────────────── */
+
     public void validateOwner(User owner, User requester, String message) {
+        validateOwner(owner, requester, message, null);
+    }
+
+    public void validateOwner(User owner, User requester, String message, ClientPlatform platform) {
 
         if (requester == null) {
 
@@ -445,7 +540,7 @@ public class AuthService {
                     TargetType.USER,
                     null,
                     "소유자 검증 실패: requester 없음",
-                    Map.of("message", message)
+                    logDetails(platform, Map.of("message", message))
             );
 
             throw BusinessException.withMessage(
@@ -458,7 +553,7 @@ public class AuthService {
 
         if (owner == null || owner.getId() == null || !owner.getId().equals(requester.getId())) {
 
-            Map<String, Object> details = new java.util.HashMap<>();
+            Map<String, Object> details = logDetails(platform);
             details.put("message", message);
             details.put("requesterId", requester.getId().toString());
 
