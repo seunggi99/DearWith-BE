@@ -2,10 +2,12 @@ package com.dearwith.dearwith_backend.user.controller;
 
 
 import com.dearwith.dearwith_backend.auth.annotation.CurrentUser;
+import com.dearwith.dearwith_backend.auth.jwt.AuthCookieUtil;
 import com.dearwith.dearwith_backend.user.dto.*;
 import com.dearwith.dearwith_backend.user.docs.UserApiDocs;
 import com.dearwith.dearwith_backend.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+    private final AuthCookieUtil authCookieUtil;
 
     @Operation(summary = "회원가입" , description = UserApiDocs.CREATE_DESC)
     @PostMapping("/signup")
@@ -102,9 +105,14 @@ public class UserController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(
             @CurrentUser UUID userId,
-            @Valid @RequestBody UserWithdrawRequestDto req
+            @Valid @RequestBody UserWithdrawRequestDto req,
+            HttpServletResponse response
+
     ) {
         userService.withdraw(userId, req);
+
+        authCookieUtil.clearCookie(response, "ACCESS_TOKEN");
+        authCookieUtil.clearCookie(response, "REFRESH_TOKEN");
     }
 
     @Operation(summary = "이메일 중복 검사")

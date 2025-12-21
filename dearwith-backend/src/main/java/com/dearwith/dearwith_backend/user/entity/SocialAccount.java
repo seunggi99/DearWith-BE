@@ -1,5 +1,6 @@
 package com.dearwith.dearwith_backend.user.entity;
 
+import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
 import com.dearwith.dearwith_backend.common.jpa.BaseTimeEntity;
 import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import jakarta.persistence.*;
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Getter @NoArgsConstructor @AllArgsConstructor @Builder
-public class SocialAccount extends BaseTimeEntity {
+public class SocialAccount extends BaseDeletableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -21,8 +22,8 @@ public class SocialAccount extends BaseTimeEntity {
     private User user;
 
     @Enumerated(EnumType.STRING)
-    private AuthProvider provider; // KAKAO, APPLE, GOOGLE 등 // 소셜 제공자
+    private AuthProvider provider;
 
     private String socialId;          // 제공자에서 발급한 고유 ID
-    private LocalDateTime linkedAt;   // 연동 시각
+    private LocalDateTime linkedAt;
 }

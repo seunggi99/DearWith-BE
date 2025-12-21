@@ -136,7 +136,7 @@ public class AuthController {
             HttpServletResponse response
     ) {
         String refreshToken = extractCookie(httpRequest, "REFRESH_TOKEN");
-        authService.logoutInternal(userId, null, refreshToken);
+        authService.logoutInternal(userId, null, refreshToken, ClientPlatform.WEB);
 
         authCookieUtil.clearCookie(response, "ACCESS_TOKEN");
         authCookieUtil.clearCookie(response, "REFRESH_TOKEN");
@@ -154,7 +154,7 @@ public class AuthController {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw BusinessException.of(ErrorCode.TOKEN_INVALID);
         }
-        authService.logoutInternal(userId, body, refreshToken);
+        authService.logoutInternal(userId, body, refreshToken, ClientPlatform.APP);
     }
     /* ==========================
      * 토큰 검증

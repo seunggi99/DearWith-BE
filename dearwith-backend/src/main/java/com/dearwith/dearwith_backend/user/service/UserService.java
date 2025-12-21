@@ -1,11 +1,13 @@
 package com.dearwith.dearwith_backend.user.service;
 
 import com.dearwith.dearwith_backend.auth.dto.AgreementDto;
+import com.dearwith.dearwith_backend.auth.jwt.RefreshTokenStore;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.log.BusinessLogService;
 import com.dearwith.dearwith_backend.logging.constant.BusinessAction;
 import com.dearwith.dearwith_backend.logging.constant.TargetType;
 import com.dearwith.dearwith_backend.logging.enums.BusinessLogCategory;
+import com.dearwith.dearwith_backend.notification.service.PushDeviceService;
 import com.dearwith.dearwith_backend.user.dto.*;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.user.entity.Agreement;
@@ -47,7 +49,8 @@ public class UserService {
     private final StringRedisTemplate stringRedisTemplate;
     private final BusinessLogService businessLogService;
     private final UserWithdrawalRepository userWithdrawalRepository;
-
+    private final RefreshTokenStore refreshTokenStore;
+    private final PushDeviceService pushDeviceService;
     private String passwordVerifiedKey(UUID userId) {
         return "user:password:verified:" + userId;
     }
@@ -176,7 +179,7 @@ public class UserService {
         validateDuplicateUserByNickname(request.getNickname());
 
         // 3) 이미 소셜 계정이 존재하는지 한 번 더 체크
-        if (socialAccountRepository.existsByProviderAndSocialId(
+        if (socialAccountRepository.existsByProviderAndSocialIdAndDeletedAtIsNull(
                 request.getProvider(), request.getSocialId())) {
             throw BusinessException.withMessage(
                     ErrorCode.DUPLICATE_SOCIAL_ACCOUNT,
@@ -203,7 +206,7 @@ public class UserService {
         // 4) 약관 저장
         addAgreements(user, request.getAgreements());
 
-        // 5) 소셜 계정 연결 (provider/socialId 유효성은 내부에서 한 번 더 검증)
+        // 5) 소셜 계정 연결
         socialAccountService.connectSocialAccount(
                 user,
                 request.getProvider(),
@@ -399,7 +402,10 @@ public class UserService {
             );
         }
 
+        revokeAll(userId);
         user.softDelete();
+        int deletedSocialCount = socialAccountRepository.softDeleteAllByUserId(userId);
+
         userRepository.save(user);
 
         businessLogService.info(
@@ -411,9 +417,15 @@ public class UserService {
                 "회원 탈퇴(soft delete) 처리",
                 Map.of(
                         "withdrawalReason", req.reason().name(),
-                        "withdrawalDetail", req.detail() == null ? "" : req.detail()
+                        "withdrawalDetail", req.detail() == null ? "" : req.detail(),
+                        "deletedSocialAccounts", String.valueOf(deletedSocialCount)
                 )
         );
+    }
+
+    public void revokeAll(UUID userId) {
+        refreshTokenStore.deleteAllByUserId(userId);
+        pushDeviceService.unregisterAll(userId);
     }
 
     @Transactional

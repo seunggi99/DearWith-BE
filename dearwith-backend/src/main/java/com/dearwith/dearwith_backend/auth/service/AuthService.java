@@ -53,11 +53,10 @@ public class AuthService {
     private final UserReader userReader;
     private final PushDeviceService pushDeviceService;
     private final BusinessLogService businessLogService;
-
     private final RefreshTokenStore refreshTokenStore;
 
     /* ==========================
-     * 공통: 토큰 발급 + refresh 저장 (FULL)
+     * 공통: 토큰 발급 + refresh 저장
      * ========================== */
     private SignInResponseDto issueTokens(User user, String message, ClientPlatform platform) {
         TokenCreateRequestDto tokenDTO = toTokenDto(user);
@@ -108,10 +107,13 @@ public class AuthService {
     }
 
     /* ==========================
-     * 1) 이메일 로그인 (FULL)
+     * 1) 이메일 로그인
      * ========================== */
     @Transactional
     public SignInResponseDto signInInternal(SignInRequestDto request, ClientPlatform platform) {
+        User user = userService.findByEmail(request.getEmail());
+        userReader.getLoginAllowedUser(user.getId());
+
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
@@ -129,8 +131,6 @@ public class AuthService {
             throw e;
         }
 
-        User user = userService.findByEmail(request.getEmail());
-        userReader.getLoginAllowedUser(user.getId());
         userService.updateLastLoginAt(user);
 
         businessLogService.info(
@@ -147,7 +147,7 @@ public class AuthService {
     }
 
     /* ==========================
-     * 2) 카카오 로그인 (FULL)
+     * 2) 카카오 로그인
      * ========================== */
     @Transactional
     public SocialSignInResponseDto kakaoSignInByCodeInternal(String code, ClientPlatform platform) {
@@ -194,6 +194,26 @@ public class AuthService {
 
         if (existing.isPresent()) {
             User user = existing.get().getUser();
+
+            if (user.getDeletedAt() != null) {
+                businessLogService.info(
+                        BusinessLogCategory.AUTH,
+                        BusinessAction.Auth.KAKAO_NEED_SIGNUP,
+                        null,
+                        TargetType.USER,
+                        null,
+                        "카카오 탈퇴 회원 재가입 필요",
+                        logDetails(platform, Map.of("socialId", socialId))
+                );
+
+                return SocialSignInResponseDto.builder()
+                        .needSignUp(true)
+                        .provider(provider)
+                        .socialId(socialId)
+                        .signIn(null)
+                        .build();
+            }
+
             userReader.getLoginAllowedUser(user.getId());
             userService.updateLastLoginAt(user);
 
@@ -236,7 +256,7 @@ public class AuthService {
     }
 
     /* ==========================
-     * 3) 애플 로그인 (FULL)
+     * 3) 애플 로그인
      * ========================== */
     @Transactional
     public SocialSignInResponseDto appleSignInInternal(AppleSignInRequestDto request, ClientPlatform platform) {
@@ -270,6 +290,26 @@ public class AuthService {
 
             if (existing.isPresent()) {
                 User user = existing.get().getUser();
+
+                if (user.getDeletedAt() != null) {
+                    businessLogService.info(
+                            BusinessLogCategory.AUTH,
+                            BusinessAction.Auth.APPLE_NEED_SIGNUP,
+                            null,
+                            TargetType.USER,
+                            null,
+                            "애플 탈퇴 회원 재가입 필요",
+                            logDetails(platform, Map.of("socialId", socialId))
+                    );
+
+                    return SocialSignInResponseDto.builder()
+                            .needSignUp(true)
+                            .provider(provider)
+                            .socialId(socialId)
+                            .signIn(null)
+                            .build();
+                }
+
                 userReader.getLoginAllowedUser(user.getId());
                 userService.updateLastLoginAt(user);
 
@@ -334,7 +374,7 @@ public class AuthService {
     }
 
     /* ==========================
-     * 4) 재발급 (FULL + rotation)
+     * 4) 재발급
      * ========================== */
     @Transactional
     public TokenReissueResponseDto reissueTokenInternal(String refreshToken, ClientPlatform platform) {
@@ -449,12 +489,6 @@ public class AuthService {
     /* ==========================
      * 5) 로그아웃 (refresh revoke)
      * ========================== */
-
-    @Transactional
-    public void logoutInternal(UUID userId, LogoutRequestDto request, String refreshToken) {
-        logoutInternal(userId, request, refreshToken, null);
-    }
-
     @Transactional
     public void logoutInternal(UUID userId, LogoutRequestDto request, String refreshToken, ClientPlatform platform) {
 
@@ -465,7 +499,7 @@ public class AuthService {
         if (refreshToken != null && !refreshToken.isBlank()) {
             try {
                 String typ = jwtTokenProvider.extractClaim(refreshToken, c -> (String) c.get("typ"));
-                if (JwtTokenProvider.TYP_REFRESH.equals(typ) || "REFRESH".equals(typ)) {
+                if (JwtTokenProvider.TYP_REFRESH.equals(typ)) {
                     String jti = jwtTokenProvider.extractJti(refreshToken);
                     if (jti != null && !jti.isBlank()) {
                         refreshTokenStore.delete(jti);

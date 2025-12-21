@@ -57,9 +57,8 @@ public class SocialAccountService {
             );
         }
 
-        boolean exists = socialAccountRepository.existsByProviderAndSocialId(provider, socialId);
+        boolean exists = socialAccountRepository.existsByProviderAndSocialIdAndDeletedAtIsNull(provider, socialId);
         if (exists) {
-            // 사용자용 메시지는 간결하게
             throw BusinessException.withMessageAndDetail(
                     ErrorCode.DUPLICATE_SOCIAL_ACCOUNT,
                     ErrorCode.DUPLICATE_SOCIAL_ACCOUNT.getMessage(),

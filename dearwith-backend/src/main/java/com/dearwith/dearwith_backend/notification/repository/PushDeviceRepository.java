@@ -13,4 +13,5 @@ public interface PushDeviceRepository extends JpaRepository<PushDevice, Long> {
     Optional<PushDevice> findByDeviceIdAndUserId(String deviceId, UUID userId);
     int deleteByUserIdAndFcmToken(UUID userId, String fcmToken);
     int deleteByUserIdAndDeviceId(UUID userId, String deviceId);
+    int deleteByUserId(UUID userId);
 }

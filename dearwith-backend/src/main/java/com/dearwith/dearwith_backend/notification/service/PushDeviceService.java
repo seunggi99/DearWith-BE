@@ -148,4 +148,37 @@ public class PushDeviceService {
             );
         }
     }
+
+    @Transactional
+    public void unregisterAll(UUID userId) {
+        if (userId == null) return;
+
+        int cnt = repository.deleteByUserId(userId);
+
+        if (cnt > 0) {
+            log.info("[PushDevice] delete all: userId={}, deleted={}", userId, cnt);
+
+            businessLogService.info(
+                    BusinessLogCategory.PUSH,
+                    BusinessAction.Push.PUSH_DEVICE_UNREGISTER,
+                    userId,
+                    TargetType.USER,
+                    userId.toString(),
+                    "푸시 디바이스 전체 해제 (userId 기준)",
+                    Map.of(
+                            "deleted", String.valueOf(cnt)
+                    )
+            );
+        } else {
+            businessLogService.warn(
+                    BusinessLogCategory.PUSH,
+                    BusinessAction.Push.PUSH_DEVICE_UNREGISTER,
+                    userId,
+                    TargetType.USER,
+                    userId.toString(),
+                    "푸시 디바이스 전체 해제 대상 없음",
+                    Map.of()
+            );
+        }
+    }
 }

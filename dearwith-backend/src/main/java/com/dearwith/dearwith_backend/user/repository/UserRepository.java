@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByEmailAndDeletedAtIsNull(String email);
+    Optional<User> findByEmail(String email);
     boolean existsByEmailAndDeletedAtIsNull(String email);
     Optional<User> findByNicknameAndDeletedAtIsNull(String nickname);
     boolean existsByNicknameAndDeletedAtIsNull(String nickname);
