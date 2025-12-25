@@ -8,6 +8,7 @@ import com.dearwith.dearwith_backend.image.asset.VariantSpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
+import net.coobird.thumbnailator.geometry.Positions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -47,20 +48,15 @@ public class ImageVariantService {
                 specs
         );
 
-        // S3에서 원본 로드 (여기서 발생하는 BusinessException은 그대로 전달)
         byte[] originalBytes = s3.read(originalKey);
 
         BufferedImage src;
         try {
             src = ImageIO.read(new ByteArrayInputStream(originalBytes));
-            if (src == null) {
-                throw new IllegalStateException("ImageIO.read() returned null");
-            }
+            if (src == null) throw new IllegalStateException("ImageIO.read() returned null");
         } catch (BusinessException e) {
-            // S3 쪽에서 이미 의미 있는 BusinessException을 던진 경우 그대로 전파
             throw e;
         } catch (Exception e) {
-            // 사용자가 올린 이미지가 손상/지원 불가 포맷인 경우
             log.error("[variants] failed to read source image. key={}, reason={}",
                     originalKey, e.getMessage(), e);
 
@@ -79,13 +75,12 @@ public class ImageVariantService {
 
         for (VariantSpec spec : specs) {
             try {
-                String fmt = normalizeFormat(spec.format());
+                String fmt = normalizeFormat(spec.getFormat());
 
-                byte[] out = resizeOrContain(src, spec, fmt);
-                String key = variantDir + spec.filename();
+                byte[] out = renderVariant(src, spec, fmt);
+                String key = variantDir + spec.getFilename();
 
                 String contentType = "image/" + (fmt.equals("jpg") ? "jpeg" : fmt);
-
                 s3.put(key, out, contentType, cacheControl);
 
                 log.info("[variants] uploaded key={}, size={}B", key, out.length);
@@ -93,14 +88,14 @@ public class ImageVariantService {
                 throw e;
             } catch (Exception ex) {
                 log.error("[variants] failed filename={}, reason={}",
-                        spec.filename(), ex, ex);
+                        spec.getFilename(), ex, ex);
 
                 throw BusinessException.withAll(
                         ErrorCode.IMAGE_PROCESSING_FAILED,
                         ErrorCode.IMAGE_PROCESSING_FAILED.getMessage(),
-                        "IMAGE_VARIANT_GENERATION_FAILED:" + spec.filename(),
+                        "IMAGE_VARIANT_GENERATION_FAILED:" + spec.getFilename(),
                         "Variant generation failed. originalKey=" + originalKey
-                                + ", filename=" + spec.filename()
+                                + ", filename=" + spec.getFilename()
                                 + ", reason=" + ex.getMessage(),
                         ex
                 );
@@ -112,7 +107,6 @@ public class ImageVariantService {
     }
 
     public String generateSingleVariant(String originalKey, AssetVariantPreset preset) {
-
         if (preset == null) {
             throw BusinessException.withMessageAndDetail(
                     ErrorCode.IMAGE_PROCESSING_FAILED,
@@ -123,16 +117,14 @@ public class ImageVariantService {
 
         VariantSpec spec = preset.specs().get(0);
         long t0 = System.currentTimeMillis();
-        log.info("[single-variant] start originalKey={}, spec={}", originalKey, preset);
+        log.info("[single-variant] start originalKey={}, spec={}", originalKey, spec);
 
         byte[] originalBytes = s3.read(originalKey);
 
         BufferedImage src;
         try {
             src = ImageIO.read(new ByteArrayInputStream(originalBytes));
-            if (src == null) {
-                throw new IllegalStateException("ImageIO.read() returned null");
-            }
+            if (src == null) throw new IllegalStateException("ImageIO.read() returned null");
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -153,13 +145,12 @@ public class ImageVariantService {
         String variantDir = baseDir + stem + "/";
 
         try {
-            String fmt = normalizeFormat(spec.format());
+            String fmt = normalizeFormat(spec.getFormat());
 
-            byte[] out = resizeOrContain(src, spec, fmt);
-            String key = variantDir + spec.filename(); // inline/.../stem/main.webp
+            byte[] out = renderVariant(src, spec, fmt);
+            String key = variantDir + spec.getFilename();
 
             String contentType = "image/" + (fmt.equals("jpg") ? "jpeg" : fmt);
-
             s3.put(key, out, contentType, cacheControl);
 
             log.info("[single-variant] uploaded key={}, size={}B ({}ms)",
@@ -170,90 +161,68 @@ public class ImageVariantService {
             throw e;
         } catch (Exception ex) {
             log.error("[single-variant] failed filename={}, reason={}",
-                    spec.filename(), ex, ex);
+                    spec.getFilename(), ex, ex);
 
             throw BusinessException.withAll(
                     ErrorCode.IMAGE_PROCESSING_FAILED,
                     ErrorCode.IMAGE_PROCESSING_FAILED.getMessage(),
-                    "IMAGE_SINGLE_VARIANT_GENERATION_FAILED:" + spec.filename(),
+                    "IMAGE_SINGLE_VARIANT_GENERATION_FAILED:" + spec.getFilename(),
                     "Single variant generation failed. originalKey=" + originalKey
-                            + ", filename=" + spec.filename()
+                            + ", filename=" + spec.getFilename()
                             + ", reason=" + ex.getMessage(),
                     ex
             );
         }
     }
 
-    /* ===== helpers ===== */
+    /* ===== 모드별 렌더 ===== */
 
-    private byte[] resizeOrContain(BufferedImage src, VariantSpec spec, String fmt) throws Exception {
-        if (spec.maxWidth() != null && spec.maxHeight() != null) {
-            int targetW = spec.maxWidth();
-            int targetH = spec.maxHeight();
-            int w = src.getWidth(), h = src.getHeight();
+    private byte[] renderVariant(BufferedImage src, VariantSpec spec, String fmt) throws Exception {
+        Integer mw = spec.getMaxWidth();
+        Integer mh = spec.getMaxHeight();
 
-            double scale = Math.min(targetW / (double) w, targetH / (double) h);
-            int rw = Math.max(1, (int) Math.round(w * scale));
-            int rh = Math.max(1, (int) Math.round(h * scale));
+        double q = ((spec.getQuality() == null ? 80 : spec.getQuality()) / 100.0);
 
-            // 1) 비율 유지 리사이즈 (중간 PNG)
-            BufferedImage resized;
+        if (mw != null && mh != null) {
+            var mode = spec.getResizeMode();
+            boolean fillCrop = (mode != null && mode.name().equalsIgnoreCase("FILL_CROP"));
+
             try (var baos = new ByteArrayOutputStream()) {
-                Thumbnails.of(src)
-                        .size(rw, rh)
-                        .outputFormat("png")
-                        .toOutputStream(baos);
-                resized = ImageIO.read(new ByteArrayInputStream(baos.toByteArray()));
-            }
+                var t = Thumbnails.of(src)
+                        .size(mw, mh)
+                        .outputFormat(fmt.equals("jpeg") ? "jpg" : fmt)
+                        .outputQuality(q);
 
-            // 2) 캔버스 합성 (contain)
-            boolean transparent = fmt.equals("png") || fmt.equals("webp");
-            int type = transparent ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB;
-            BufferedImage canvas = new BufferedImage(targetW, targetH, type);
-            var g = canvas.createGraphics();
-            try {
-                if (transparent) {
-                    g.setComposite(java.awt.AlphaComposite.Src);
-                    g.setColor(new java.awt.Color(0, 0, 0, 0));
+                if (fillCrop) {
+                    t.crop(Positions.CENTER);
                 } else {
-                    g.setColor(java.awt.Color.WHITE);
+                    t.keepAspectRatio(true);
                 }
-                g.fillRect(0, 0, targetW, targetH);
 
-                int x = (targetW - rw) / 2;
-                int y = (targetH - rh) / 2;
-                g.drawImage(resized, x, y, null);
-            } finally {
-                g.dispose();
-            }
-
-            try (var baos = new ByteArrayOutputStream()) {
-                ImageIO.write(canvas, fmt.equals("jpeg") ? "jpg" : fmt, baos);
+                t.toOutputStream(baos);
                 return baos.toByteArray();
             }
-        } else {
-            int longEdge = (spec.maxWidth() != null)
-                    ? spec.maxWidth()
-                    : (spec.maxHeight() != null ? spec.maxHeight() : 2048);
+        }
 
-            int w = src.getWidth(), h = src.getHeight();
-            int targetLong = Math.min(longEdge, Math.max(w, h));
+        int longEdge = (mw != null) ? mw : (mh != null ? mh : 2048);
 
-            int tw = (w >= h)
-                    ? targetLong
-                    : (int) Math.round((targetLong / (double) h) * w);
-            int th = (w >= h)
-                    ? (int) Math.round((targetLong / (double) w) * h)
-                    : targetLong;
+        int w = src.getWidth(), h = src.getHeight();
+        int targetLong = Math.min(longEdge, Math.max(w, h));
 
-            try (var baos = new ByteArrayOutputStream()) {
-                Thumbnails.of(src)
-                        .size(Math.max(1, tw), Math.max(1, th))
-                        .outputFormat(fmt)
-                        .outputQuality((spec.quality() == null ? 80 : spec.quality()) / 100.0)
-                        .toOutputStream(baos);
-                return baos.toByteArray();
-            }
+        int tw = (w >= h)
+                ? targetLong
+                : (int) Math.round((targetLong / (double) h) * w);
+        int th = (w >= h)
+                ? (int) Math.round((targetLong / (double) w) * h)
+                : targetLong;
+
+        try (var baos = new ByteArrayOutputStream()) {
+            Thumbnails.of(src)
+                    .size(Math.max(1, tw), Math.max(1, th))
+                    .outputFormat(fmt.equals("jpeg") ? "jpg" : fmt)
+                    .outputQuality(q)
+                    .toOutputStream(baos);
+            return baos.toByteArray();
         }
     }
 
@@ -272,7 +241,6 @@ public class ImageVariantService {
         if (fmt == null) return "jpeg";
         String f = fmt.toLowerCase(Locale.ROOT);
 
-        // mac arm 등 webp 문제 회피
         if (f.equals("webp")) {
             String arch = System.getProperty("os.arch");
             String os   = System.getProperty("os.name");
@@ -285,5 +253,4 @@ public class ImageVariantService {
         if (f.equals("png") || f.equals("jpeg") || f.equals("webp")) return f;
         return "jpeg";
     }
-
 }

@@ -29,7 +29,7 @@ public class ImageVariantAssembler {
 
 
         for (VariantSpec spec : preset.specs()) {
-            String filename = spec.filename();
+            String filename = spec.getFilename();
             String code = filename.endsWith(".webp")
                     ? filename.substring(0, filename.length() - ".webp".length())
                     : filename;
