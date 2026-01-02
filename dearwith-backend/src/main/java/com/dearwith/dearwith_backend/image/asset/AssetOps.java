@@ -32,7 +32,6 @@ public class AssetOps {
     private final ImageAssetService imageAssetService;
     private final ImageVariantService imageVariantService;
     private final S3Waiter s3Waiter;
-    private final AssetUrlService assetUrlService;
     private final EntityManager entityManager;
     private final AwsS3ClientAdapter s3Adapter;
 

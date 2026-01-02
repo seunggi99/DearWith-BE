@@ -39,6 +39,7 @@ public class MyPageService {
         MyPageResponseDto.Profile profile = MyPageResponseDto.Profile.builder()
                 .nickname(user.getNickname())
                 .profileImageUrl(profileImageUrl)
+                .passwordChangeAvailable(user.isPasswordChangeAvailable())
                 .build();
 
         /* 통계 */

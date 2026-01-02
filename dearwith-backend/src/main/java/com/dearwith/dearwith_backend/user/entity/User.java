@@ -138,6 +138,10 @@ public class User extends BaseDeletableEntity {
     }
     public void setProfileImage(Image newImage) {this.profileImage = newImage;}
 
+    public boolean isPasswordChangeAvailable() {
+        return this.password != null;
+    }
+
     public void suspend(String reason, LocalDate until) {
         this.userStatus = UserStatus.SUSPENDED;
         this.suspendedReason = reason;

@@ -16,6 +16,8 @@ public class MyPageResponseDto {
     public static class Profile {
         private String nickname;
         private String profileImageUrl;
+
+        private boolean passwordChangeAvailable;
     }
 
     @Data
