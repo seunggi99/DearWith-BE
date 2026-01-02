@@ -577,6 +577,28 @@ public class AuthService {
         validateOwner(owner, requester, message, null);
     }
 
+    public boolean isOwner(User owner, UUID requesterId) {
+        if (requesterId == null) {
+            return false;
+        }
+
+        User requester = userReader.getUser(requesterId);
+        return isOwner(owner, requester);
+    }
+
+    public boolean isOwner(User owner, User requester) {
+        if (owner == null || requester == null) {
+            return false;
+        }
+
+        if (requester.isAdmin()) {
+            return true;
+        }
+
+        return owner.getId() != null
+                && owner.getId().equals(requester.getId());
+    }
+
     public void validateOwner(User owner, User requester, String message, ClientPlatform platform) {
 
         if (requester == null) {

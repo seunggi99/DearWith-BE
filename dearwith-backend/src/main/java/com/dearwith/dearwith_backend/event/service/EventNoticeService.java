@@ -41,7 +41,6 @@ public class EventNoticeService {
     private final EventBookmarkRepository eventBookmarkRepository;
     private final ViewCountLimiter viewCountLimiter;
     private final UserReader userReader;
-    private final PushNotificationService pushNotificationService;
 
     /*────────────────────────────
      | 개별 공지 조회

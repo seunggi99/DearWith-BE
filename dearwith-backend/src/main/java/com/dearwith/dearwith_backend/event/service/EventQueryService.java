@@ -4,6 +4,7 @@ import com.dearwith.dearwith_backend.artist.repository.ArtistBookmarkRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupBookmarkRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
+import com.dearwith.dearwith_backend.auth.service.AuthService;
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
@@ -49,6 +50,7 @@ public class EventQueryService {
     private final ArtistGroupBookmarkRepository artistGroupBookmarkRepository;
     private final AssetUrlService assetUrlService;
     private final UserReader userReader;
+    private final AuthService authService;
 
     /*──────────────────────────────────────────────
      | 메인페이지 추천 이벤트
@@ -228,6 +230,7 @@ public class EventQueryService {
                 eventNoticeService.getLatestNoticesForEvent(eventId);
 
         boolean bookmarked = isBookmarked(eventId, viewerId);
+        boolean editable =  authService.isOwner(e.getUser(), userId);
 
         hotEventService.onEventViewed(eventId, viewerId);
 
@@ -239,7 +242,8 @@ public class EventQueryService {
                 artistGroups,
                 notices,
                 bookmarked,
-                assetUrlService
+                assetUrlService,
+                editable
         );
     }
 

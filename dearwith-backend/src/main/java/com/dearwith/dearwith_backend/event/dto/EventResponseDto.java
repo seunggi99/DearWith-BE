@@ -26,7 +26,8 @@ public record EventResponseDto(
         OrganizerDto organizer,
         Long bookmarkCount,
         boolean bookmarked,
-        List<EventNoticeInfoDto> notices
+        List<EventNoticeInfoDto> notices,
+        boolean editable
 ) {
     public record ArtistDto(
             Long id,

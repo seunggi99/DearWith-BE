@@ -57,7 +57,8 @@ public interface EventMapper {
             List<EventArtistGroupMapping> artistGroupMappings,
             List<EventNoticeInfoDto> notices,
             boolean bookmarked,
-            @Context AssetUrlService assetUrlService
+            @Context AssetUrlService assetUrlService,
+            boolean editable
     );
 
     // PlaceInfo -> Response.PlaceDto
