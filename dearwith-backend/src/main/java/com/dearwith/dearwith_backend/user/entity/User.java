@@ -12,8 +12,8 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -37,7 +37,7 @@ public class User extends BaseDeletableEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
     private Image profileImage;
 
-    private LocalDateTime lastLoginAt;
+    private Instant lastLoginAt;
 
     @Enumerated(EnumType.STRING)
     private Role role;
@@ -61,7 +61,7 @@ public class User extends BaseDeletableEntity {
 
     public void updateNickname(String newNickname) {
         this.nickname = newNickname;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = Instant.now();
     }
 
     public void changePassword(String encodedPassword) {
@@ -122,7 +122,7 @@ public class User extends BaseDeletableEntity {
     }
 
     public void updateLastLoginAt() {
-        this.lastLoginAt = LocalDateTime.now();
+        this.lastLoginAt = Instant.now();
     }
 
     public boolean isAdmin() {

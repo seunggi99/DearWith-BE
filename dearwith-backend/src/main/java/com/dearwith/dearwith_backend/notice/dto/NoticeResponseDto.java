@@ -3,7 +3,7 @@ package com.dearwith.dearwith_backend.notice.dto;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Builder
@@ -14,5 +14,5 @@ public class NoticeResponseDto {
     private String content;
     private boolean important;
     private boolean pushEnabled;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 }

@@ -3,7 +3,7 @@ package com.dearwith.dearwith_backend.notification.dto;
 import com.dearwith.dearwith_backend.common.dto.ImageGroupDto;
 import com.dearwith.dearwith_backend.notification.enums.NotificationType;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 public record NotificationResponseDto(
@@ -13,7 +13,7 @@ public record NotificationResponseDto(
         String content,
         String linkUrl,
         boolean read,
-        LocalDateTime readAt,
-        LocalDateTime createdAt,
+        Instant readAt,
+        Instant createdAt,
         List<ImageGroupDto> coverImage
 ) {}

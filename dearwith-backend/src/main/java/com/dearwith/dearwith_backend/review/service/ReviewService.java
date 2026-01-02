@@ -30,7 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -453,7 +453,10 @@ public class ReviewService {
         User user = userReader.getLoginAllowedUser(userId);
 
         int monthValue = (months == null || months < 1) ? 1 : months;
-        LocalDateTime from = LocalDateTime.now().minusMonths(monthValue);
+
+        Instant from = java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC)
+                .minusMonths(monthValue)
+                .toInstant();
 
         Pageable pageable = PageRequest.of(
                 page,

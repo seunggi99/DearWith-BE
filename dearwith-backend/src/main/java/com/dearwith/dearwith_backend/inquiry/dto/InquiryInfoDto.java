@@ -1,10 +1,10 @@
 package com.dearwith.dearwith_backend.inquiry.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record InquiryInfoDto(
         Long id,
         String title,
-        LocalDateTime createdAt,
+        Instant createdAt,
         boolean answered
 ) {}

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
@@ -47,7 +47,7 @@ public class ImageService {
         }
 
         imageAssetService.moveOriginalAndDerivedToTrash(image.getS3Key());
-        image.setDeletedAt(LocalDateTime.now());
+        image.setDeletedAt(Instant.now());
         imageRepository.save(image);
     }
 

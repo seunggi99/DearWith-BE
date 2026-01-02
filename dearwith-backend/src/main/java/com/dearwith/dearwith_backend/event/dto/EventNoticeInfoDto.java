@@ -1,11 +1,11 @@
 package com.dearwith.dearwith_backend.event.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record EventNoticeInfoDto(
         Long id,
         String title,
         String writerNickname,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) { }

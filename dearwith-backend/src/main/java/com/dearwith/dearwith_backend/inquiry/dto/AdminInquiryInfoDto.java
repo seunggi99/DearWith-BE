@@ -5,5 +5,5 @@ public record AdminInquiryInfoDto(
         String title,
         boolean answered,
         String userNickname,
-        java.time.LocalDateTime createdAt
+        java.time.Instant createdAt
 ) {}

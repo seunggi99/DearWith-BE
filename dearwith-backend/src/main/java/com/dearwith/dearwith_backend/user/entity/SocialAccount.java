@@ -1,12 +1,11 @@
 package com.dearwith.dearwith_backend.user.entity;
 
 import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
-import com.dearwith.dearwith_backend.common.jpa.BaseTimeEntity;
 import com.dearwith.dearwith_backend.user.enums.AuthProvider;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * 소셜 로그인 계정 연동 정보
@@ -25,5 +24,5 @@ public class SocialAccount extends BaseDeletableEntity {
     private AuthProvider provider;
 
     private String socialId;          // 제공자에서 발급한 고유 ID
-    private LocalDateTime linkedAt;
+    private Instant linkedAt;
 }

@@ -9,7 +9,7 @@ import com.dearwith.dearwith_backend.user.repository.SocialAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 
 @Service
@@ -70,7 +70,7 @@ public class SocialAccountService {
                 .user(user)
                 .provider(provider)
                 .socialId(socialId)
-                .linkedAt(LocalDateTime.now())
+                .linkedAt(Instant.now())
                 .build();
 
         socialAccountRepository.save(account);

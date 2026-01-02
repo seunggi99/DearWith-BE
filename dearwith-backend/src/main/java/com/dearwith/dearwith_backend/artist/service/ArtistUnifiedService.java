@@ -21,7 +21,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -194,7 +194,7 @@ public class ArtistUnifiedService {
             Image profileImage = artist.getProfileImage();
 
             String imageUrl = assetUrlService.generatePublicUrl(profileImage);
-            LocalDateTime bookmarkedAt = bm.getCreatedAt();
+            Instant bookmarkedAt = bm.getCreatedAt();
 
             merged.add(new ArtistUnifiedResponseDto(
                     artist.getId(),
@@ -215,7 +215,7 @@ public class ArtistUnifiedService {
 
             String imageUrl = assetUrlService.generatePublicUrl(profileImage);
 
-            LocalDateTime bookmarkedAt = bm.getCreatedAt();
+            Instant bookmarkedAt = bm.getCreatedAt();
 
             merged.add(new ArtistUnifiedResponseDto(
                     group.getId(),
@@ -232,7 +232,7 @@ public class ArtistUnifiedService {
         merged.sort(
                 Comparator.comparing(
                                 ArtistUnifiedResponseDto::createdAt,
-                                Comparator.nullsLast(LocalDateTime::compareTo)
+                                Comparator.nullsLast(Instant::compareTo)
                         )
                         .reversed()
         );
@@ -388,7 +388,7 @@ public class ArtistUnifiedService {
         merged.sort(
                 Comparator.comparing(
                                 ArtistUnifiedDto::createdAt,
-                                Comparator.nullsLast(LocalDateTime::compareTo)
+                                Comparator.nullsLast(Instant::compareTo)
                         )
                         .reversed()
         );

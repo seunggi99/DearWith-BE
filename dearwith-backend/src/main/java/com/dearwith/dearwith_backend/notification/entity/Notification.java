@@ -5,7 +5,7 @@ import com.dearwith.dearwith_backend.notification.enums.NotificationType;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 @Entity
 @Getter
@@ -36,5 +36,5 @@ public class Notification extends BaseTimeEntity {
     @Column(name = "is_read")
     private boolean read;
 
-    private LocalDateTime readAt;
+    private Instant readAt;
 }

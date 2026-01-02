@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -44,7 +44,7 @@ public class PushDeviceService {
                     .platform(req.platform())
                     .phoneModel(req.phoneModel())
                     .osVersion(req.osVersion())
-                    .lastActiveAt(LocalDateTime.now())
+                    .lastActiveAt(Instant.now())
                     .build();
 
             repository.save(device);
@@ -57,7 +57,7 @@ public class PushDeviceService {
             device.setPlatform(req.platform());
             device.setPhoneModel(req.phoneModel());
             device.setOsVersion(req.osVersion());
-            device.setLastActiveAt(LocalDateTime.now());
+            device.setLastActiveAt(Instant.now());
         }
 
         businessLogService.info(

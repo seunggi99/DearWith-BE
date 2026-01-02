@@ -2,14 +2,14 @@ package com.dearwith.dearwith_backend.inquiry.dto;
 
 import com.dearwith.dearwith_backend.inquiry.enums.SatisfactionStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record AdminInquiryResponseDto (
         Long id,
         String title,
         String content,
-        LocalDateTime createdAt,
+        Instant createdAt,
         boolean answered,
         SatisfactionStatus satisfactionStatus,
         AnswerDto answer,
@@ -17,7 +17,7 @@ public record AdminInquiryResponseDto (
 ) {
     public record AnswerDto(
             String content,
-            LocalDateTime answeredAt,
+            Instant answeredAt,
             String adminNickname
     ) {}
 

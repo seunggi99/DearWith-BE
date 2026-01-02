@@ -16,9 +16,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -123,14 +125,18 @@ public class PushNotificationService {
      *  - userId 로 PushDevice 조회 + 90일 이내 기기만 발송
      * ============================================================ */
     public void sendToUser(UUID userId, String title, String body, String url) {
-        LocalDateTime expireThreshold = LocalDateTime.now().minusDays(DEVICE_ACTIVE_DAYS);
+        Instant expireThreshold = Instant.now().minus(Duration.ofDays(DEVICE_ACTIVE_DAYS));
 
         List<PushDevice> devices = pushDeviceRepository.findAllByUserId(userId).stream()
-                .filter(d -> d.getLastActiveAt().isAfter(expireThreshold)) // 오래된 기기 제외
+                .filter(d -> {
+                    Instant last = d.getLastActiveAt();
+                    return last != null && last.isAfter(expireThreshold);
+                })
                 .toList();
 
         devices.stream()
                 .map(PushDevice::getFcmToken)
+                .filter(Objects::nonNull)
                 .distinct()
                 .forEach(token -> sendToToken(token, title, body, url));
     }
@@ -142,14 +148,18 @@ public class PushNotificationService {
     public void sendToUsers(List<UUID> userIds, String title, String body, String url) {
         if (userIds == null || userIds.isEmpty()) return;
 
-        LocalDateTime expireThreshold = LocalDateTime.now().minusDays(DEVICE_ACTIVE_DAYS);
+        Instant expireThreshold = Instant.now().minus(Duration.ofDays(DEVICE_ACTIVE_DAYS));
 
         List<PushDevice> devices = pushDeviceRepository.findAllByUserIdIn(userIds).stream()
-                .filter(d -> d.getLastActiveAt().isAfter(expireThreshold))
+                .filter(d -> {
+                    Instant last = d.getLastActiveAt();
+                    return last != null && last.isAfter(expireThreshold);
+                })
                 .toList();
 
         devices.stream()
                 .map(PushDevice::getFcmToken)
+                .filter(Objects::nonNull)
                 .distinct()
                 .forEach(token -> sendToToken(token, title, body, url));
     }

@@ -23,7 +23,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -128,7 +128,7 @@ public class NotificationService {
 
         if (!n.isRead()) {
             n.setRead(true);
-            n.setReadAt(LocalDateTime.now());
+            n.setReadAt(Instant.now());
         }
     }
 
@@ -139,7 +139,7 @@ public class NotificationService {
     public void markAllAsRead(UUID userId) {
         userReader.getLoginAllowedUser(userId);
         List<Notification> list = notificationRepository.findByUserIdAndReadFalse(userId);
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
 
         for (Notification n : list) {
             n.setRead(true);

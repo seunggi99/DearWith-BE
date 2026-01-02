@@ -15,7 +15,6 @@ import com.dearwith.dearwith_backend.event.repository.EventBookmarkRepository;
 import com.dearwith.dearwith_backend.event.repository.EventNoticeRepository;
 import com.dearwith.dearwith_backend.event.repository.EventRepository;
 import com.dearwith.dearwith_backend.notification.service.NotificationService;
-import com.dearwith.dearwith_backend.notification.service.PushNotificationService;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.service.UserReader;
 import org.springframework.transaction.annotation.Transactional;

@@ -4,7 +4,7 @@ import com.dearwith.dearwith_backend.notification.enums.Platform;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Getter
@@ -45,5 +45,5 @@ public class PushDevice {
 
     /** 마지막 활성화 시간 */
     @Column(nullable = false)
-    private LocalDateTime lastActiveAt = LocalDateTime.now();
+    private Instant lastActiveAt = Instant.now();
 }

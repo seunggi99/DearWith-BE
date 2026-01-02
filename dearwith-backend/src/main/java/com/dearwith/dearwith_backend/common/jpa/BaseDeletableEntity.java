@@ -6,7 +6,7 @@ import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -14,10 +14,10 @@ import java.time.LocalDateTime;
 public abstract class BaseDeletableEntity extends BaseTimeEntity {
 
     @Column(name = "deleted_at")
-    protected LocalDateTime deletedAt;
+    protected Instant deletedAt;
 
     public void softDelete() {
-        this.deletedAt = LocalDateTime.now();
+        this.deletedAt = Instant.now();
     }
 
     public boolean isDeleted() {
