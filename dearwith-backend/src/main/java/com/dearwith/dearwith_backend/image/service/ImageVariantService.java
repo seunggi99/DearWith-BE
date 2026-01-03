@@ -4,6 +4,7 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.external.aws.S3ClientAdapter;
 import com.dearwith.dearwith_backend.image.asset.AssetVariantPreset;
+import com.dearwith.dearwith_backend.image.asset.ImageOrientationNormalizer;
 import com.dearwith.dearwith_backend.image.asset.VariantSpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +55,8 @@ public class ImageVariantService {
         try {
             src = ImageIO.read(new ByteArrayInputStream(originalBytes));
             if (src == null) throw new IllegalStateException("ImageIO.read() returned null");
+
+            src = ImageOrientationNormalizer.normalize(originalBytes, src);
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -125,6 +128,8 @@ public class ImageVariantService {
         try {
             src = ImageIO.read(new ByteArrayInputStream(originalBytes));
             if (src == null) throw new IllegalStateException("ImageIO.read() returned null");
+
+            src = ImageOrientationNormalizer.normalize(originalBytes, src);
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {

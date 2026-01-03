@@ -4,10 +4,7 @@ import com.dearwith.dearwith_backend.event.enums.BenefitType;
 import com.dearwith.dearwith_backend.image.dto.ImageAttachmentRequestDto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -22,7 +19,6 @@ public record EventCreateRequestDto(
         )
         @Size(max = 50, message = "이벤트 제목은 최대 50자까지 입력할 수 있습니다.")
         String title,
-
         @NotNull(message = "이벤트 운영 시간을 입력해주세요.")
         @Schema(example = "10:00")
         LocalTime openTime,
@@ -37,8 +33,8 @@ public record EventCreateRequestDto(
         List<Long> artistGroupIds,
         @NotNull(message = "이벤트 장소를 입력해주세요.")
         PlaceDto place,
-        @Size(min = 1, max = 10, message = "이벤트 이미지는 최대 10개까지 등록할 수 있습니다.")
-        @NotNull(message = "이벤트 이미지는 필수입니다.")
+        @NotEmpty(message = "이벤트 이미지는 최소 1개 이상 등록해야 합니다.")
+        @Size(max = 10, message = "이벤트 이미지는 최대 10개까지 등록할 수 있습니다.")
         List<@Valid ImageAttachmentRequestDto> images,
         List<BenefitDto> benefits,
         @NotNull(message = "주최자 정보는 필수입니다.")

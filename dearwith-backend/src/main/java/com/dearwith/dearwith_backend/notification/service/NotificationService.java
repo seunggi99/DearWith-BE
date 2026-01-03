@@ -179,7 +179,7 @@ public class NotificationService {
     /* ================================================================
     7) 알림 생성 - 이벤트 공지 등록 (여러 명)
        targetId = noticeId
-  ================================================================ */
+    ================================================================ */
     @Transactional
     public void sendEventNoticeCreatedToMany(
             List<UUID> targetUserIds,
