@@ -31,12 +31,12 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
-      hibernate.generate_statistics: true
       hibernate:
-        format_sql: true
-    show-sql: true
+        generate_statistics: false
+        format_sql: false
+    show-sql: false
 
 
   data:
@@ -135,18 +135,18 @@ decorator:
   datasource:
     datasource-proxy:
       query:
-        enable-logging: true
+        enable-logging: false
         log-level: DEBUG
         multiline: true
-        include-parameter-values: true
+        include-parameter-values: false
       slow-query:
         enable-logging: true
-        threshold: 5000
+        threshold: 2000
 logging:
   file:
     name: /app/logs/app.log
   level:
     root: INFO
-    com.github.gavlyukovskiy.boot.jdbc.decorator: DEBUG
+    com.github.gavlyukovskiy.boot.jdbc.decorator: WARN
 dearwith:
   base-url: "https://dearwith.kr"
