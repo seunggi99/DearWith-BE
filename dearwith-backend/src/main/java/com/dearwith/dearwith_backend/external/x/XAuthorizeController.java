@@ -31,7 +31,7 @@ public class XAuthorizeController {
 
     private final Map<String, String> verifierStore = new ConcurrentHashMap<>();
 
-    @Value("${app.frontend.base-url:http://localhost:3000}")
+    @Value("${dearwith.base-url}")
     private String FRONT;
 
     @GetMapping("/oauth2/x/authorize")
