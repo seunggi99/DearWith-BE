@@ -5,6 +5,7 @@ import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.artist.entity.ArtistBookmark;
 import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
 import com.dearwith.dearwith_backend.artist.entity.ArtistGroupBookmark;
+import com.dearwith.dearwith_backend.artist.enums.ArtistType;
 import com.dearwith.dearwith_backend.artist.repository.ArtistBookmarkRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupBookmarkRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
@@ -200,7 +201,7 @@ public class ArtistUnifiedService {
                     artist.getId(),
                     artist.getNameKr(),
                     imageUrl,
-                    ArtistUnifiedResponseDto.Type.ARTIST,
+                    ArtistType.ARTIST,
                     bookmarkedAt,
                     artist.getBirthDate(),
                     artist.getDebutDate(),
@@ -221,7 +222,7 @@ public class ArtistUnifiedService {
                     group.getId(),
                     group.getNameKr(),
                     imageUrl,
-                    ArtistUnifiedResponseDto.Type.GROUP,
+                    ArtistType.GROUP,
                     bookmarkedAt,
                     null,
                     group.getDebutDate(),
@@ -275,7 +276,7 @@ public class ArtistUnifiedService {
                     dto.id(),
                     dto.nameKr(),
                     dto.imageUrl(),
-                    ArtistUnifiedDto.Type.ARTIST,
+                    ArtistType.ARTIST,
                     null,
                     dto.birthDate(),
                     dto.debutDate()
@@ -287,7 +288,7 @@ public class ArtistUnifiedService {
                     dto.id(),
                     dto.nameKr(),
                     dto.imageUrl(),
-                    ArtistUnifiedDto.Type.GROUP,
+                    ArtistType.GROUP,
                     null,
                     null,
                     dto.debutDate()
@@ -361,7 +362,7 @@ public class ArtistUnifiedService {
                     artist.getId(),
                     artist.getNameKr(),
                     imageUrl,
-                    ArtistUnifiedDto.Type.ARTIST,
+                    ArtistType.ARTIST,
                     artist.getCreatedAt(),
                     artist.getBirthDate(),
                     artist.getDebutDate()
@@ -378,7 +379,7 @@ public class ArtistUnifiedService {
                     group.getId(),
                     group.getNameKr(),
                     imageUrl,
-                    ArtistUnifiedDto.Type.GROUP,
+                    ArtistType.GROUP,
                     group.getCreatedAt(),
                     null,
                     group.getDebutDate()

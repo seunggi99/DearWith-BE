@@ -4,6 +4,7 @@ import com.dearwith.dearwith_backend.artist.dto.MonthlyAnniversaryCacheDto;
 import com.dearwith.dearwith_backend.artist.dto.MonthlyAnniversaryDto;
 import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
+import com.dearwith.dearwith_backend.artist.enums.ArtistType;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.event.enums.EventStatus;
@@ -116,7 +117,7 @@ public class TodayAnniversaryCacheService {
                             a.getId(),
                             a.getNameKr(),
                             assetUrlService.generatePublicUrl(a.getProfileImage()),
-                            MonthlyAnniversaryDto.Type.ARTIST,
+                            ArtistType.ARTIST,
                             MonthlyAnniversaryDto.DateType.BIRTH,
                             birth,
                             isToday,
@@ -140,7 +141,7 @@ public class TodayAnniversaryCacheService {
                             g.getId(),
                             g.getNameKr(),
                             assetUrlService.generatePublicUrl(g.getProfileImage()),
-                            MonthlyAnniversaryDto.Type.GROUP,
+                            ArtistType.GROUP,
                             MonthlyAnniversaryDto.DateType.DEBUT,
                             debut,
                             isToday,

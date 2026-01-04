@@ -3,6 +3,7 @@ package com.dearwith.dearwith_backend.artist.service;
 import com.dearwith.dearwith_backend.artist.dto.HotArtistDtoResponseDto;
 import com.dearwith.dearwith_backend.artist.entity.Artist;
 import com.dearwith.dearwith_backend.artist.entity.ArtistGroup;
+import com.dearwith.dearwith_backend.artist.enums.ArtistType;
 import com.dearwith.dearwith_backend.artist.repository.ArtistGroupRepository;
 import com.dearwith.dearwith_backend.artist.repository.ArtistRepository;
 import com.dearwith.dearwith_backend.external.aws.AssetUrlService;
@@ -132,7 +133,7 @@ public class HotArtistService {
                     .id(id)
                     .nameKr(artist.getNameKr())
                     .imageUrl(imageUrl)
-                    .type(HotArtistDtoResponseDto.HotArtistType.ARTIST)
+                    .type(ArtistType.ARTIST)
                     .score(score)
                     .birthDate(artist.getBirthDate())
                     .debutDate(null)
@@ -149,7 +150,7 @@ public class HotArtistService {
                     .id(id)
                     .nameKr(group.getNameKr())
                     .imageUrl(imageUrl)
-                    .type(HotArtistDtoResponseDto.HotArtistType.GROUP)
+                    .type(ArtistType.GROUP)
                     .score(score)
                     .birthDate(null)
                     .debutDate(group.getDebutDate())
