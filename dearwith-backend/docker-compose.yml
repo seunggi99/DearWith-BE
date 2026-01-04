@@ -24,16 +24,17 @@ services:
     env_file:
       - .env
     environment:
-      JAVA_TOOL_OPTIONS: >-
-        -Xms256m -Xmx512m
-        -Xlog:gc*,gc+heap=info:file=/app/logs/gc.log:time,uptime,level,tags:filecount=5,filesize=20m
-        -XX:+HeapDumpOnOutOfMemoryError
-        -XX:HeapDumpPath=/app/logs
       SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
       SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
       SPRING_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD}
+    command: >
+      java -Xms256m -Xmx1024m
+      -Xlog:gc*,gc+heap=info:file=/app/logs/gc.log:time,uptime,level,tags:filecount=5,filesize=20m
+      -XX:+HeapDumpOnOutOfMemoryError
+      -XX:HeapDumpPath=/app/logs
+      -jar app.jar
     depends_on:
       - redis
     restart: always
