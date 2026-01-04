@@ -14,9 +14,7 @@ import net.coobird.thumbnailator.geometry.Positions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Locale;
@@ -50,15 +48,29 @@ public class ImageVariantService {
                 specs
         );
 
+        long tReadStart = System.currentTimeMillis();
+
         byte[] originalBytes = s3.read(originalKey);
 
         BufferedImage src;
         try {
-            // 1차 다운스케일 (긴 변 2048)
+            // 1) 디코딩 단계에서부터 2048로 제한(서브샘플링)
             src = ImageDownscaler.readWithMaxLongEdge(originalBytes, 2048);
 
-            // 방향 보정
+            long tNormalizeStart = System.currentTimeMillis();
+
+            // 2) EXIF orientation 반영 (회전)
             src = ImageOrientationNormalizer.normalize(originalBytes, src);
+
+            long tAfterNormalize = System.currentTimeMillis();
+
+            // 3) GC 힌트(큰 배열 참조 해제)
+            originalBytes = null;
+
+            log.info("[variants] timing read+downscale={}ms normalize={}ms",
+                    (tNormalizeStart - tReadStart),
+                    (tAfterNormalize - tNormalizeStart)
+            );
 
         } catch (BusinessException e) {
             throw e;
@@ -75,9 +87,11 @@ public class ImageVariantService {
             );
         }
 
-        String baseDir    = dirPrefix(originalKey);
-        String stem       = stemNoExt(originalKey);
+        String baseDir = dirPrefix(originalKey);
+        String stem = stemNoExt(originalKey);
         String variantDir = baseDir + stem + "/";
+
+        long tUploadStart = System.currentTimeMillis();
 
         for (VariantSpec spec : specs) {
             try {
@@ -90,6 +104,9 @@ public class ImageVariantService {
                 s3.put(key, out, contentType, cacheControl);
 
                 log.info("[variants] uploaded key={}, size={}B", key, out.length);
+
+                out = null;
+
             } catch (BusinessException e) {
                 throw e;
             } catch (Exception ex) {
@@ -108,8 +125,12 @@ public class ImageVariantService {
             }
         }
 
-        log.info("[variants] done originalKey={} ({}ms)",
-                originalKey, System.currentTimeMillis() - t0);
+        long tEnd = System.currentTimeMillis();
+        log.info("[variants] timing upload={}ms total={}ms",
+                (tEnd - tUploadStart),
+                (tEnd - t0)
+        );
+        log.info("[variants] done originalKey={} ({}ms)", originalKey, (tEnd - t0));
     }
 
     public String generateSingleVariant(String originalKey, AssetVariantPreset preset) {
@@ -125,14 +146,27 @@ public class ImageVariantService {
         long t0 = System.currentTimeMillis();
         log.info("[single-variant] start originalKey={}, spec={}", originalKey, spec);
 
+        long tReadStart = System.currentTimeMillis();
+
         byte[] originalBytes = s3.read(originalKey);
 
         BufferedImage src;
+        long tNormalizeStart;
+        long tAfterNormalize;
         try {
-            src = ImageIO.read(new ByteArrayInputStream(originalBytes));
-            if (src == null) throw new IllegalStateException("ImageIO.read() returned null");
+            // 1) 디코딩 단계에서부터 2048로 제한(서브샘플링)
+            src = ImageDownscaler.readWithMaxLongEdge(originalBytes, 2048);
 
+            tNormalizeStart = System.currentTimeMillis();
+
+            // 2) EXIF orientation 반영 (회전)
             src = ImageOrientationNormalizer.normalize(originalBytes, src);
+
+            tAfterNormalize = System.currentTimeMillis();
+
+            // 3) GC 힌트(큰 배열 참조 해제)
+            originalBytes = null;
+
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -148,9 +182,11 @@ public class ImageVariantService {
             );
         }
 
-        String baseDir    = dirPrefix(originalKey);
-        String stem       = stemNoExt(originalKey);
+        String baseDir = dirPrefix(originalKey);
+        String stem = stemNoExt(originalKey);
         String variantDir = baseDir + stem + "/";
+
+        long tUploadStart = System.currentTimeMillis();
 
         try {
             String fmt = normalizeFormat(spec.getFormat());
@@ -161,8 +197,16 @@ public class ImageVariantService {
             String contentType = "image/" + (fmt.equals("jpg") ? "jpeg" : fmt);
             s3.put(key, out, contentType, cacheControl);
 
+            long tEnd = System.currentTimeMillis();
+            log.info("[single-variant] timing read+downscale={}ms normalize={}ms upload={}ms total={}ms",
+                    (tNormalizeStart - tReadStart),
+                    (tAfterNormalize - tNormalizeStart),
+                    (tEnd - tUploadStart),
+                    (tEnd - t0)
+            );
+
             log.info("[single-variant] uploaded key={}, size={}B ({}ms)",
-                    key, out.length, System.currentTimeMillis() - t0);
+                    key, out.length, (tEnd - t0));
 
             return key;
         } catch (BusinessException e) {

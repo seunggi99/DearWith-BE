@@ -19,20 +19,21 @@ services:
   app:
     image: ninny9988/dearwith-be:latest
     container_name: dearwith-backend-app
-
-    mem_limit: 1024m
-
     ports:
       - "8080:8080"
     env_file:
       - .env
     environment:
+      JAVA_TOOL_OPTIONS: >-
+        -Xms256m -Xmx512m
+        -Xlog:gc*,gc+heap=info:file=/app/logs/gc.log:time,uptime,level,tags:filecount=5,filesize=20m
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/app/logs
       SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
       SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
       SPRING_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD}
-    entrypoint: java -Xms256m -Xmx512m -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/logs -jar app.jar
     depends_on:
       - redis
     restart: always
