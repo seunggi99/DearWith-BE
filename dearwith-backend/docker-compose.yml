@@ -24,7 +24,11 @@ services:
     env_file:
       - .env
     environment:
-      JAVA_TOOL_OPTIONS: "-Xms512m -Xmx1024m"
+      JAVA_TOOL_OPTIONS: >-
+        -Xms256m -Xmx512m
+        -Xlog:gc*,gc+heap=info:file=/app/logs/gc.log:time,uptime,level,tags:filecount=5,filesize=20m
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/app/logs
       SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
       SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
       SPRING_REDIS_HOST: redis
