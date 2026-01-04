@@ -4,6 +4,7 @@ import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.external.aws.S3ClientAdapter;
 import com.dearwith.dearwith_backend.image.asset.AssetVariantPreset;
+import com.dearwith.dearwith_backend.image.asset.ImageDownscaler;
 import com.dearwith.dearwith_backend.image.asset.ImageOrientationNormalizer;
 import com.dearwith.dearwith_backend.image.asset.VariantSpec;
 import lombok.RequiredArgsConstructor;
@@ -53,10 +54,12 @@ public class ImageVariantService {
 
         BufferedImage src;
         try {
-            src = ImageIO.read(new ByteArrayInputStream(originalBytes));
-            if (src == null) throw new IllegalStateException("ImageIO.read() returned null");
+            // 1차 다운스케일 (긴 변 2048)
+            src = ImageDownscaler.readWithMaxLongEdge(originalBytes, 2048);
 
+            // 방향 보정
             src = ImageOrientationNormalizer.normalize(originalBytes, src);
+
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {

@@ -1,9 +1,11 @@
 package com.dearwith.dearwith_backend.image.asset;
+
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.Metadata;
 import com.drew.metadata.exif.ExifIFD0Directory;
 
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -13,16 +15,7 @@ public final class ImageOrientationNormalizer {
     private ImageOrientationNormalizer() {}
 
     public static BufferedImage normalize(byte[] originalBytes, BufferedImage src) {
-        int orientation = 1;
-
-        try {
-            Metadata metadata = ImageMetadataReader.readMetadata(new ByteArrayInputStream(originalBytes));
-            ExifIFD0Directory dir = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
-            if (dir != null && dir.containsTag(ExifIFD0Directory.TAG_ORIENTATION)) {
-                orientation = dir.getInt(ExifIFD0Directory.TAG_ORIENTATION);
-            }
-        } catch (Exception ignored) {
-        }
+        int orientation = readOrientationSafely(originalBytes);
 
         return switch (orientation) {
             case 3 -> rotate(src, 180);
@@ -32,16 +25,38 @@ public final class ImageOrientationNormalizer {
         };
     }
 
+    private static int readOrientationSafely(byte[] originalBytes) {
+        try {
+            Metadata metadata = ImageMetadataReader.readMetadata(new ByteArrayInputStream(originalBytes));
+            ExifIFD0Directory dir = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
+            if (dir != null && dir.containsTag(ExifIFD0Directory.TAG_ORIENTATION)) {
+                return dir.getInt(ExifIFD0Directory.TAG_ORIENTATION);
+            }
+        } catch (Exception ignored) {
+        }
+        return 1;
+    }
+
     private static BufferedImage rotate(BufferedImage src, int degrees) {
         int w = src.getWidth();
         int h = src.getHeight();
 
-        int newW = (degrees == 90 || degrees == 270) ? h : w;
-        int newH = (degrees == 90 || degrees == 270) ? w : h;
+        boolean swap = (degrees == 90 || degrees == 270);
+        int newW = swap ? h : w;
+        int newH = swap ? w : h;
 
-        BufferedImage out = new BufferedImage(newW, newH, BufferedImage.TYPE_INT_RGB);
+        int type = src.getType();
+        if (type == BufferedImage.TYPE_CUSTOM) {
+            type = BufferedImage.TYPE_INT_ARGB;
+        }
 
+        BufferedImage out = new BufferedImage(newW, newH, type);
         Graphics2D g2 = out.createGraphics();
+
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
         AffineTransform at = new AffineTransform();
 
         switch (degrees) {
