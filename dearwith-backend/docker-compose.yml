@@ -32,16 +32,12 @@ services:
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
       SPRING_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD}
-
-    command: >
-      java
-      -Xms256m
-      -Xmx768m
-      -Xlog:gc*,gc+heap=info:file=/app/logs/gc.log:time,uptime,level,tags:filecount=5,filesize=20m
-      -XX:+HeapDumpOnOutOfMemoryError
-      -XX:HeapDumpPath=/app/logs
-      -jar app.jar
-
+      JAVA_OPTS: >
+        -Xms256m 
+        -Xmx512m 
+        -Xlog:gc*,gc+heap=info:file=/app/logs/gc.log:time,uptime,level,tags:filecount=5,filesize=20m 
+        -XX:+HeapDumpOnOutOfMemoryError 
+        -XX:HeapDumpPath=/app/logs
     depends_on:
       - redis
     restart: always
