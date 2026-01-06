@@ -77,7 +77,8 @@ public class MainPageService {
                                 .variants(
                                         imageVariantAssembler.toVariants(
                                                 assetUrlService.generatePublicUrl(img),
-                                                ImageVariantProfile.MAIN_REVIEW_THUMB
+                                                ImageVariantProfile.MAIN_REVIEW_THUMB,
+                                                img.getProcessStatus()
                                         )
                                 )
                                 .build();

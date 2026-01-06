@@ -3,6 +3,8 @@ package com.dearwith.dearwith_backend.image.service;
 import com.dearwith.dearwith_backend.image.asset.AssetVariantPreset;
 import com.dearwith.dearwith_backend.image.asset.TmpImageGuard;
 import com.dearwith.dearwith_backend.image.entity.Image;
+import com.dearwith.dearwith_backend.image.enums.ImageProcessStatus;
+import com.dearwith.dearwith_backend.image.enums.ImageStatus;
 import com.dearwith.dearwith_backend.image.repository.ImageRepository;
 import com.dearwith.dearwith_backend.image.service.AbstractImageSupport;
 import com.dearwith.dearwith_backend.image.service.ImageService;
@@ -63,7 +65,12 @@ public abstract class AbstractSingleImageAppService extends AbstractImageSupport
         domainSetter.accept(img);
 
         // after-commit 커밋
-        commitAfterTransaction(logTag,img.getId(), tmpKey, userId, preset);
+        String inlineKey = imageService.promoteAndCommit(img.getId(), tmpKey);
+        img.setS3Key(inlineKey);
+        img.setStatus(ImageStatus.COMMITTED);
+        img.setProcessStatus(ImageProcessStatus.PROCESSING);
+
+        generateVariantsAfterTransaction(logTag, img.getId(), preset);
 
         // 기존 orphan 처리
         if (before != null && orphanHandler != null) {

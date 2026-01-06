@@ -1,6 +1,7 @@
 package com.dearwith.dearwith_backend.image.entity;
 
 import com.dearwith.dearwith_backend.common.jpa.BaseDeletableEntity;
+import com.dearwith.dearwith_backend.image.enums.ImageProcessStatus;
 import com.dearwith.dearwith_backend.image.enums.ImageStatus;
 import com.dearwith.dearwith_backend.user.entity.User;
 import jakarta.persistence.*;
@@ -28,6 +29,10 @@ public class Image extends BaseDeletableEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ImageStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ImageProcessStatus processStatus;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     private User user;

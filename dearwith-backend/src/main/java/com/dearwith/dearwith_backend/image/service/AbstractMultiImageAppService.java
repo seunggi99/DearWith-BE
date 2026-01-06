@@ -6,6 +6,8 @@ import com.dearwith.dearwith_backend.image.asset.AssetOps;
 import com.dearwith.dearwith_backend.image.asset.AssetVariantPreset;
 import com.dearwith.dearwith_backend.image.asset.TmpImageGuard;
 import com.dearwith.dearwith_backend.image.entity.Image;
+import com.dearwith.dearwith_backend.image.enums.ImageProcessStatus;
+import com.dearwith.dearwith_backend.image.enums.ImageStatus;
 import com.dearwith.dearwith_backend.image.repository.ImageRepository;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.external.aws.AfterCommitExecutor;
@@ -152,10 +154,15 @@ public abstract class AbstractMultiImageAppService extends AbstractImageSupport 
         if (createdImages == null || createdImages.isEmpty()) return;
 
         for (Image img : createdImages) {
-            commitAfterTransaction(logTag, img.getId(), img.getS3Key(), userId, preset);
+            String inlineKey = imageService.promoteAndCommit(img.getId(), img.getS3Key());
+
+            img.setS3Key(inlineKey);
+            img.setStatus(ImageStatus.COMMITTED);
+            img.setProcessStatus(ImageProcessStatus.PROCESSING);
+
+            generateVariantsAfterTransaction(logTag, img.getId(), preset);
         }
     }
-
     /**
      * 멀티 이미지 갱신 결과 DTO
      */

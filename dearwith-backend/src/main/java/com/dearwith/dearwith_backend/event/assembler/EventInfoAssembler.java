@@ -105,7 +105,11 @@ public class EventInfoAssembler {
 
         return ImageGroupDto.builder()
                 .id(cover.getId())
-                .variants(imageVariantAssembler.toVariants(baseUrl, ImageVariantProfile.EVENT_LIST))
+                .variants(imageVariantAssembler.toVariants(
+                        baseUrl,
+                        ImageVariantProfile.EVENT_LIST,
+                        cover.getProcessStatus()
+                ))
                 .build();
     }
 }

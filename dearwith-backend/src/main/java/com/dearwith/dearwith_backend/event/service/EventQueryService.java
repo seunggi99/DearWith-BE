@@ -67,7 +67,7 @@ public class EventQueryService {
                     PageRequest.of(0, 10)
             );
 
-            // 🆕 ID들만 뽑아서 연관관계까지 한 번에 로딩
+            // ID들만 뽑아서 연관관계까지 한 번에 로딩
             List<Long> ids = fallback.stream()
                     .map(Event::getId)
                     .toList();
@@ -455,7 +455,8 @@ public class EventQueryService {
                             .variants(
                                     imageVariantAssembler.toVariants(
                                             assetUrlService.generatePublicUrl(img),
-                                            ImageVariantProfile.EVENT_DETAIL
+                                            ImageVariantProfile.EVENT_DETAIL,
+                                            img.getProcessStatus()
                                     )
                             )
                             .build();

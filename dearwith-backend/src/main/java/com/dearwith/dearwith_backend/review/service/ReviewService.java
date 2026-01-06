@@ -111,7 +111,8 @@ public class ReviewService {
                             .variants(
                                     imageVariantAssembler.toVariants(
                                             assetUrlService.generatePublicUrl(img),
-                                            ImageVariantProfile.REVIEW_PHOTO
+                                            ImageVariantProfile.REVIEW_PHOTO,
+                                            img.getProcessStatus()
                                     )
                             )
                             .build();
@@ -197,7 +198,8 @@ public class ReviewService {
                                     .variants(
                                             imageVariantAssembler.toVariants(
                                                     assetUrlService.generatePublicUrl(img),
-                                                    ImageVariantProfile.REVIEW_LIST
+                                                    ImageVariantProfile.REVIEW_LIST,
+                                                    img.getProcessStatus()
                                             )
                                     )
                                     .build();
@@ -409,7 +411,8 @@ public class ReviewService {
                     .variants(
                             imageVariantAssembler.toVariants(
                                     assetUrlService.generatePublicUrl(img),
-                                    ImageVariantProfile.REVIEW_PHOTO
+                                    ImageVariantProfile.REVIEW_PHOTO,
+                                    img.getProcessStatus()
                             )
                     )
                     .build();

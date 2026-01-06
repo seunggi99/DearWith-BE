@@ -6,6 +6,8 @@ import com.dearwith.dearwith_backend.external.aws.S3ClientAdapter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
 import java.time.Duration;
@@ -31,8 +33,9 @@ public class ImageAssetService {
     private static final Set<String> ALLOWED_MIME = Set.of(
             "image/jpeg","image/png","image/webp","image/avif","image/heic","image/heif","image/gif"
     );
-    /* ========= 정책 1: tmp → inline 승격 ========= */
-    public String promoteTmpToInline(String tmpKey) {
+
+    /* ========= 정책 1: tmp → inline (COPY ONLY) ========= */
+    public String copyTmpToInlineOnly(String tmpKey) {
 
         // tmpKey 검증 (FRONT 오류)
         if (tmpKey == null || tmpKey.isBlank() || !tmpKey.startsWith("tmp/")) {
@@ -86,26 +89,54 @@ public class ImageAssetService {
         }
 
         // inline key 생성
-        String finalKey = tmpKey.replaceFirst("^tmp/", "inline/");
+        String inlineKey = tmpKey.replaceFirst("^tmp/", "inline/");
 
         try {
-            s3.copy(tmpKey, finalKey, true, mime, cacheControl);
-            s3.delete(tmpKey);
+            s3.copy(tmpKey, inlineKey, true, mime, cacheControl);
         } catch (Exception e) {
             throw BusinessException.withMessageAndDetail(
                     ErrorCode.S3_OPERATION_FAILED,
                     ErrorCode.S3_OPERATION_FAILED.getMessage(),
-                    "PROMOTE_TMP_FAILED"
+                    "COPY_TMP_TO_INLINE_FAILED"
             );
         }
 
-        return finalKey;
+        return inlineKey;
     }
 
+    /**
+     * 트랜잭션 종료 시 정리
+     * - COMMIT: tmp 삭제
+     * - ROLLBACK: inline 삭제
+     */
+    public void registerFinalizeTmpPromotion(String tmpKey, String inlineKey) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            // 동기화가 꺼져있으면(거의 없음) 안전하게 아무 것도 안 함
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == TransactionSynchronization.STATUS_COMMITTED) {
+                    deleteQuietly(tmpKey);     // 성공했으면 tmp 제거
+                } else if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                    deleteQuietly(inlineKey);  // 롤백이면 inline 제거(고아 방지)
+                }
+            }
+        });
+    }
+
+    public void deleteQuietly(String key) {
+        try {
+            if (key != null && !key.isBlank() && s3.exists(key)) {
+                s3.delete(key);
+            }
+        } catch (Exception ignored) {}
+    }
 
     /* ========= 정책 2: 원본 + 파생 디렉토리 trash 이동 ========= */
     public String moveOriginalAndDerivedToTrash(String originalKey) {
-
         guardFileKey(originalKey); // FRONT 오류
 
         if (originalKey.startsWith(trashPrefix)) {
@@ -114,7 +145,6 @@ public class ImageAssetService {
 
         String dstOriginal = trashPrefix + originalKey;
 
-        // 원본 존재 여부 확인
         if (!s3.exists(originalKey)) {
             throw BusinessException.withMessageAndDetail(
                     ErrorCode.S3_OBJECT_NOT_FOUND,
@@ -134,7 +164,6 @@ public class ImageAssetService {
             );
         }
 
-        // 파생본 처리
         String prefix = computeDerivedPrefix(originalKey);
         List<String> keys = s3.listAllKeys(prefix);
 
@@ -223,19 +252,14 @@ public class ImageAssetService {
         }
 
         String d = domain.toLowerCase();
-        switch (d) {
-            case "event":
-            case "review":
-            case "artist":
-            case "profile":
-                return d;
-            default:
-                throw BusinessException.withMessageAndDetail(
-                        ErrorCode.UNSUPPORTED_DOMAIN,
-                        ErrorCode.UNSUPPORTED_DOMAIN.getMessage(),
-                        "UNSUPPORTED_DOMAIN=" + domain
-                );
-        }
+        return switch (d) {
+            case "event", "review", "artist", "profile" -> d;
+            default -> throw BusinessException.withMessageAndDetail(
+                    ErrorCode.UNSUPPORTED_DOMAIN,
+                    ErrorCode.UNSUPPORTED_DOMAIN.getMessage(),
+                    "UNSUPPORTED_DOMAIN=" + domain
+            );
+        };
     }
 
     private String safeFilename(String filename) {

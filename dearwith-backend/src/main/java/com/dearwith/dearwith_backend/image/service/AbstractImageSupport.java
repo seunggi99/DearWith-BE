@@ -7,6 +7,7 @@ import com.dearwith.dearwith_backend.image.asset.AssetOps;
 import com.dearwith.dearwith_backend.image.asset.AssetVariantPreset;
 import com.dearwith.dearwith_backend.image.asset.TmpImageGuard;
 import com.dearwith.dearwith_backend.image.entity.Image;
+import com.dearwith.dearwith_backend.image.enums.ImageProcessStatus;
 import com.dearwith.dearwith_backend.image.enums.ImageStatus;
 import com.dearwith.dearwith_backend.image.repository.ImageRepository;
 import com.dearwith.dearwith_backend.user.entity.User;
@@ -100,12 +101,12 @@ public abstract class AbstractImageSupport {
         img.setUser(owner);
         img.setS3Key(tmpKey);
         img.setStatus(ImageStatus.TMP);
+        img.setProcessStatus(ImageProcessStatus.READY);
         imageRepository.save(img);
         return img;
     }
 
     /* ========== after-commit 커밋 ========== */
-
     protected void commitAfterTransaction(
             String logTag,
             Long imageId,
@@ -128,18 +129,15 @@ public abstract class AbstractImageSupport {
             );
         }
 
+        // 1) 동기: tmp → inline 승격 + DB PROCESSING
+        imageService.promoteAndCommit(imageId, tmpKey);
+
+        // 2) 비동기: variants 생성 + READY/FAILED 마킹 (트랜잭션 커밋 이후)
         afterCommitExecutor.run(() -> {
             try {
-                assetOps.commitExistingAndGenerateVariants(
-                        AssetOps.CommitCommand.builder()
-                                .imageId(imageId)
-                                .tmpKey(tmpKey)
-                                .userId(userId)
-                                .preset(preset)
-                                .build()
-                );
+                assetOps.generateVariantsAndMarkStatus(imageId, preset);
             } catch (Throwable t) {
-                log.error("[{}] commitExistingAndGenerateVariants failed. imageId={}, tmpKey={}",
+                log.error("[{}] generateVariantsAndMarkStatus failed. imageId={}, tmpKey={}",
                         logTag, imageId, tmpKey, t);
             }
         });
@@ -152,13 +150,14 @@ public abstract class AbstractImageSupport {
             UUID userId,
             AssetVariantPreset preset
     ) {
-        if (!hasTmp(tmpKey)) {
-            throw BusinessException.withMessageAndDetail(
-                    ErrorCode.INVALID_INPUT,
-                    "이미지 등록 중 오류가 발생했습니다.",
-                    "IMAGE_COMMIT_TMPKEY_EMPTY"
-            );
-        }
+        commitAfterTransaction(logTag, imageId, tmpKey, userId, preset);
+    }
+
+    protected void generateVariantsAfterTransaction(
+            String logTag,
+            Long imageId,
+            AssetVariantPreset preset
+    ) {
         if (preset == null) {
             throw BusinessException.withMessageAndDetail(
                     ErrorCode.IMAGE_PROCESSING_FAILED,
@@ -169,17 +168,9 @@ public abstract class AbstractImageSupport {
 
         afterCommitExecutor.run(() -> {
             try {
-                assetOps.commitSingleVariant(
-                        AssetOps.CommitCommand.builder()
-                                .imageId(imageId)
-                                .tmpKey(tmpKey)
-                                .userId(userId)
-                                .preset(preset)
-                                .build()
-                );
+                assetOps.generateVariantsAndMarkStatus(imageId, preset);
             } catch (Throwable t) {
-                log.error("[{}] commitSingleVariant failed. imageId={}, tmpKey={}",
-                        logTag, imageId, tmpKey, t);
+                log.error("[{}] generateVariantsAndMarkStatus failed. imageId={}", logTag, imageId, t);
             }
         });
     }

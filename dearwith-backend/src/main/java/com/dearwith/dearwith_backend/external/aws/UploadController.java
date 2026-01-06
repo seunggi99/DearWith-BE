@@ -21,8 +21,6 @@ import java.util.UUID;
 public class UploadController {
 
     private final ImageAssetService imageAssetService;
-    private final ImageService imageService;
-    private final AssetUrlService assetUrlService;
 
     @PostMapping("/presign")
     @Operation(
@@ -53,25 +51,6 @@ public class UploadController {
         return new PresignRes(out.url(), out.key(), out.ttlSeconds());
     }
 
-    @PostMapping("/commit")
-    @Operation(
-            summary = "tmp → inline 승격(Commit) + DB 저장",
-            description = """
-                    프론트가 presign URL로 S3에 업로드 완료 후 호출합니다.
-                    서버는 tmp 키를 inline으로 승격(copy)하고, DB에 Image 레코드를 저장합니다.
-                    응답의 url은 프론트에서 바로 <img src>로 사용 가능합니다.
-                    예시 요청: {"tmpKey":"tmp/event/.../example.png"}
-                    """)
-    public CommitRes commit(@Valid @RequestBody CommitReq req,
-                            @CurrentUser UUID userId
-    ) {
-        String inlineKey = imageAssetService.promoteTmpToInline(req.tmpKey());
-        Image saved = imageService.registerCommittedImage(inlineKey, userId);
-        return new CommitRes(saved.getId(), assetUrlService.generatePublicUrl(saved));
-    }
-
     public record PresignReq(String filename, String contentType, String domain) {}
     public record PresignRes(String url, String key, long ttl) {}
-    public record CommitReq(String tmpKey) {}
-    public record CommitRes(Long imageId, String url) {}
 }

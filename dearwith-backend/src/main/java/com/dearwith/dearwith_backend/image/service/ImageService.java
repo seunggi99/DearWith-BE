@@ -3,13 +3,15 @@ package com.dearwith.dearwith_backend.image.service;
 import com.dearwith.dearwith_backend.common.exception.BusinessException;
 import com.dearwith.dearwith_backend.common.exception.ErrorCode;
 import com.dearwith.dearwith_backend.image.entity.Image;
+import com.dearwith.dearwith_backend.image.enums.ImageProcessStatus;
 import com.dearwith.dearwith_backend.image.repository.ImageRepository;
 import com.dearwith.dearwith_backend.image.enums.ImageStatus;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -30,6 +32,7 @@ public class ImageService {
         Image image = Image.builder()
                 .s3Key(finalKey)
                 .status(ImageStatus.COMMITTED)
+                .processStatus(ImageProcessStatus.READY)
                 .user(user)
                 .build();
 
@@ -51,10 +54,17 @@ public class ImageService {
         imageRepository.save(image);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public String promoteAndCommit(Long imageId, String tmpKey) {
-        String inlineKey = imageAssetService.promoteTmpToInline(tmpKey);
 
+
+    @Transactional
+    public String promoteAndCommit(Long imageId, String tmpKey) {
+        // 1) tmp -> inline "copy only"
+        String inlineKey = imageAssetService.copyTmpToInlineOnly(tmpKey);
+
+        // 2) 트랜잭션 결과에 따라 정리
+        imageAssetService.registerFinalizeTmpPromotion(tmpKey, inlineKey);
+
+        // 3) DB 업데이트
         Image img = imageRepository.findById(imageId)
                 .orElseThrow(() -> BusinessException.withMessageAndDetail(
                         ErrorCode.NOT_FOUND,
@@ -64,6 +74,7 @@ public class ImageService {
 
         img.setS3Key(inlineKey);
         img.setStatus(ImageStatus.COMMITTED);
+        img.setProcessStatus(ImageProcessStatus.PROCESSING);
 
         imageRepository.flush();
         return inlineKey;
