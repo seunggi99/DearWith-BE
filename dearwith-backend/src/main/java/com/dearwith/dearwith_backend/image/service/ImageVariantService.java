@@ -100,7 +100,7 @@ public class ImageVariantService {
                 byte[] out = renderVariant(src, spec, fmt);
                 String key = variantDir + spec.getFilename();
 
-                String contentType = "image/" + (fmt.equals("jpg") ? "jpeg" : fmt);
+                String contentType = fmt.equals("jpeg") ? "image/jpeg" : "image/" + fmt;
                 s3.put(key, out, contentType, cacheControl);
 
                 log.info("[variants] uploaded key={}, size={}B", key, out.length);
@@ -194,7 +194,7 @@ public class ImageVariantService {
             byte[] out = renderVariant(src, spec, fmt);
             String key = variantDir + spec.getFilename();
 
-            String contentType = "image/" + (fmt.equals("jpg") ? "jpeg" : fmt);
+            String contentType = fmt.equals("jpeg") ? "image/jpeg" : "image/" + fmt;
             s3.put(key, out, contentType, cacheControl);
 
             long tEnd = System.currentTimeMillis();

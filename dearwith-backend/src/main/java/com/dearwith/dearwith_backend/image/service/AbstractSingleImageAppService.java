@@ -37,6 +37,7 @@ public abstract class AbstractSingleImageAppService extends AbstractImageSupport
      * @param orphanHandler 이전 이미지 orphan 처리 람다 (before != null 인 경우에만 호출)
      */
     protected void updateSingleImage(
+            String logTag,
             Image before,
             String tmpKey,
             User owner,
@@ -62,7 +63,7 @@ public abstract class AbstractSingleImageAppService extends AbstractImageSupport
         domainSetter.accept(img);
 
         // after-commit 커밋
-        commitAfterTransaction(img.getId(), tmpKey, userId, preset);
+        commitAfterTransaction(logTag,img.getId(), tmpKey, userId, preset);
 
         // 기존 orphan 처리
         if (before != null && orphanHandler != null) {

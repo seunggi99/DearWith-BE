@@ -17,6 +17,16 @@ public class TmpImageGuard {
             return;
         }
 
+        if (!tmpKey.startsWith("tmp/")) {
+            throw BusinessException.withAll(
+                    ErrorCode.INVALID_TMP_KEY,
+                    "이미지 등록 중 오류가 발생했습니다.",
+                    "TMP_KEY_PREFIX_INVALID:" + tmpKey,
+                    "tmpKey는 반드시 tmp/ 로 시작해야 합니다.",
+                    null
+            );
+        }
+
         if (!s3Adapter.exists(tmpKey)) {
             throw BusinessException.withAll(
                     ErrorCode.IMAGE_PROCESSING_FAILED,

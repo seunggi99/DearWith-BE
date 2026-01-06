@@ -144,6 +144,7 @@ public abstract class AbstractMultiImageAppService extends AbstractImageSupport 
      * after-commit 에서 새로 생성된 이미지들만 커밋
      */
     protected void commitNewImages(
+            String logTag,
             List<Image> createdImages,
             UUID userId,
             AssetVariantPreset preset
@@ -151,7 +152,7 @@ public abstract class AbstractMultiImageAppService extends AbstractImageSupport 
         if (createdImages == null || createdImages.isEmpty()) return;
 
         for (Image img : createdImages) {
-            commitAfterTransaction(img.getId(), img.getS3Key(), userId, preset);
+            commitAfterTransaction(logTag, img.getId(), img.getS3Key(), userId, preset);
         }
     }
 
