@@ -1,5 +1,9 @@
 # Dearwith
 
+<img width="300" height="177" alt="logo" src="https://github.com/user-attachments/assets/07a771e5-91da-46aa-a9bb-f09da3d9f5c4" />
+
+<img width="75" height="75" alt="256_256" src="https://github.com/user-attachments/assets/d7cda379-4c62-474e-8677-32583c506153" />
+
 **Event & Community Platform for Idol Fans**
 
 DearWith는 실제 서비스 운영을 목표로  
@@ -19,12 +23,16 @@ API Docs : [바로가기](https://api.dearwith.kr/swagger-ui/index.html#/)
 ## System Architecture
 동적 API 트래픽과 이미지 CDN 트래픽을 분리해
 백엔드 부하와 외부 I/O를 최소화한 서비스 아키텍처
+<img width="713" height="650" alt="ㅇㅇㅇ" src="https://github.com/user-attachments/assets/49431761-a8d0-450b-83c8-ecec36a40555" />
 
 ## ERD Diagram
 운영과 확장을 고려해 상태와 관계를 명확히 분리한 도메인 모델
+<img width="2566" height="2417" alt="Dearwith ERD" src="https://github.com/user-attachments/assets/48fb4dda-f978-45a7-bef2-043d21ad2332" />
+
 
 ## CI / CD 
 빌드·배포 과정을 자동화해 일관성과 재현성을 확보한 배포 파이프라인
+<img width="672" height="173" alt="image" src="https://github.com/user-attachments/assets/9fe1871c-8591-4a62-b1a4-deba62e82abc" />
 
 ## Key Engineering Decisions
 
