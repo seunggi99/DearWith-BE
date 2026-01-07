@@ -18,6 +18,9 @@ public class UserGuard {
      | 공통 삭제(탈퇴) 체크
      *────────────────────────────*/
     private void checkDeleted(User user) {
+        if (user == null)
+            throw BusinessException.withMessage(ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다.");
+
         if (user.getDeletedAt() != null) {
             throw BusinessException.of(ErrorCode.USER_DELETED);
         }
@@ -61,18 +64,16 @@ public class UserGuard {
         LocalDate until = user.getSuspendedUntil();
 
         String message = "정지된 계정입니다.";
-
-        if (reason != null) {
+        if (reason != null && !reason.isBlank()) {
             message += " 사유: " + reason + ".";
         }
         if (until != null) {
             message += " 정지 해제 예정일: " + until + ".";
         }
 
-        Map<String, Object> detail = Map.of(
-                "reason", reason,
-                "until", until
-        );
+        Map<String, Object> detail = new java.util.LinkedHashMap<>();
+        if (reason != null && !reason.isBlank()) detail.put("reason", reason);
+        if (until != null) detail.put("until", until);
 
         return BusinessException.withDetailMap(
                 ErrorCode.USER_SUSPENDED,
@@ -88,17 +89,16 @@ public class UserGuard {
         LocalDate until = user.getSuspendedUntil();
 
         String message = "작성 제한 상태입니다.";
-        if (reason != null) {
+        if (reason != null && !reason.isBlank()) {
             message += " 사유: " + reason + ".";
         }
         if (until != null) {
             message += " 제한 해제 예정일: " + until + ".";
         }
 
-        Map<String, Object> detail = Map.of(
-                "reason", reason,
-                "until", until
-        );
+        Map<String, Object> detail = new java.util.LinkedHashMap<>();
+        if (reason != null && !reason.isBlank()) detail.put("reason", reason);
+        if (until != null) detail.put("until", until);
 
         return BusinessException.withDetailMap((
                 ErrorCode.USER_WRITE_RESTRICTED),
