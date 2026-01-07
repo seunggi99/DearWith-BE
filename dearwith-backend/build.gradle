@@ -63,7 +63,7 @@ dependencies {
 	implementation 'com.google.auth:google-auth-library-oauth2-http:1.18.0'
 	implementation 'com.google.http-client:google-http-client:1.43.3'
 	implementation 'com.google.http-client:google-http-client-jackson2:1.43.3'
-	implementation 'com.google.firebase:firebase-admin:9.2.0'
+	implementation 'com.google.firebase:firebase-admin:9.3.0'
 
 	implementation "com.drewnoakes:metadata-extractor:2.19.0"
 	implementation 'org.apache.commons:commons-csv:1.10.0'

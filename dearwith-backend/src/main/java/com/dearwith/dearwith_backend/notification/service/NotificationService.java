@@ -14,10 +14,12 @@ import com.dearwith.dearwith_backend.notification.dto.NotificationResponseDto;
 import com.dearwith.dearwith_backend.notification.dto.UnreadExistsResponseDto;
 import com.dearwith.dearwith_backend.notification.entity.Notification;
 import com.dearwith.dearwith_backend.notification.enums.NotificationType;
+import com.dearwith.dearwith_backend.notification.event.PushNotificationEvent;
 import com.dearwith.dearwith_backend.notification.repository.NotificationRepository;
 import com.dearwith.dearwith_backend.user.entity.User;
 import com.dearwith.dearwith_backend.user.service.UserReader;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,7 @@ public class NotificationService {
     private final UserReader userReader;
     private final PushNotificationService pushNotificationService;
     private final DearwithProperties dearwithProperties;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final String SYSTEM_ICON_URL =
             "https://d2xzrz4ksgmdkm.cloudfront.net/inline/common/icon.png";
@@ -216,14 +219,15 @@ public class NotificationService {
             String pushBody = noticeTitle;
             String url = buildFullUrl(NotificationType.EVENT_NOTICE_CREATED, noticeId);
 
-            //  로그인 가능 + 이벤트 알림 허용한 유저만
             List<UUID> pushTargets = userReader.getLoginAllowedUsers(targetUserIds).stream()
                     .filter(User::isEventNotificationEnabled)
                     .map(User::getId)
                     .toList();
 
             if (!pushTargets.isEmpty()) {
-                pushNotificationService.sendToUsers(pushTargets, pushTitle, pushBody, url);
+                eventPublisher.publishEvent(new PushNotificationEvent(
+                        pushTargets, pushTitle, pushBody, url
+                ));
             }
         }
     }
@@ -285,14 +289,15 @@ public class NotificationService {
             String pushBody = content;
             String url = buildFullUrl(NotificationType.SYSTEM, systemNoticeId);
 
-            // 로그인 가능 + 서비스 알림 허용한 유저만
             List<UUID> pushTargets = userReader.getLoginAllowedUsers(targetUserIds).stream()
                     .filter(User::isServiceNotificationEnabled)
                     .map(User::getId)
                     .toList();
 
             if (!pushTargets.isEmpty()) {
-                pushNotificationService.sendToUsers(pushTargets, pushTitle, pushBody, url);
+                eventPublisher.publishEvent(new PushNotificationEvent(
+                        pushTargets, pushTitle, pushBody, url
+                ));
             }
         }
     }

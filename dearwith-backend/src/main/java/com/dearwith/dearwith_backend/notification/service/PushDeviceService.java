@@ -27,6 +27,7 @@ public class PushDeviceService {
 
     public void registerOrUpdate(DeviceRegisterRequestDto req, UUID userId) {
 
+
         PushDevice device = null;
 
         if (userId != null) {
@@ -45,11 +46,20 @@ public class PushDeviceService {
                     .phoneModel(req.phoneModel())
                     .osVersion(req.osVersion())
                     .lastActiveAt(Instant.now())
+                    .enabled(true)
+                    .disabledAt(null)
+                    .disabledReason(null)
                     .build();
 
             repository.save(device);
+
         } else {
-            // 기존 기기 업데이트
+            if (!device.isEnabled()) {
+                device.setEnabled(true);
+                device.setDisabledAt(null);
+                device.setDisabledReason(null);
+            }
+
             if (device.getFcmToken() == null || !device.getFcmToken().equals(req.fcmToken())) {
                 device.setFcmToken(req.fcmToken());
             }
@@ -63,9 +73,9 @@ public class PushDeviceService {
         businessLogService.info(
                 BusinessLogCategory.PUSH,
                 BusinessAction.Push.PUSH_DEVICE_REGISTER,
-                userId,                                        // actor: 이 디바이스를 등록한 유저
+                userId,
                 TargetType.USER,
-                userId != null ? userId.toString() : null,    // target: 해당 유저
+                userId != null ? userId.toString() : null,
                 isNew ? "푸시 디바이스 최초 등록" : "푸시 디바이스 정보 업데이트",
                 Map.of(
                         "deviceId", req.deviceId(),
@@ -80,15 +90,19 @@ public class PushDeviceService {
 
     @Transactional
     public void unregister(UUID userId, String deviceId, String fcmToken) {
+        if (userId == null) return;
 
-        int deleted = 0;
+        int disabled = 0;
+        Instant now = Instant.now();
+        String reason = "USER_UNREGISTER";
 
-        // deviceId 기준 삭제
+        // deviceId 기준 disable
         if (deviceId != null && !deviceId.isBlank()) {
-            int cnt = repository.deleteByUserIdAndDeviceId(userId, deviceId);
-            deleted += cnt;
+            int cnt = repository.disableByUserIdAndDeviceId(userId, deviceId, now, reason);
+            disabled += cnt;
+
             if (cnt > 0) {
-                log.info("[PushDevice] delete by deviceId: userId={}, deviceId={}, deleted={}",
+                log.info("[PushDevice] disable by deviceId: userId={}, deviceId={}, disabled={}",
                         userId, deviceId, cnt);
 
                 businessLogService.info(
@@ -96,51 +110,53 @@ public class PushDeviceService {
                         BusinessAction.Push.PUSH_DEVICE_UNREGISTER,
                         userId,
                         TargetType.USER,
-                        userId != null ? userId.toString() : null,
-                        "푸시 디바이스 해제 (deviceId 기준)",
+                        userId.toString(),
+                        "푸시 디바이스 비활성화 (deviceId 기준)",
                         Map.of(
                                 "deviceId", deviceId,
-                                "deleted", String.valueOf(cnt)
+                                "disabled", String.valueOf(cnt),
+                                "reason", reason
                         )
                 );
             }
         }
 
-        // fcmToken 기준 삭제
+        // fcmToken 기준 disable
         if (fcmToken != null && !fcmToken.isBlank()) {
-            int cnt = repository.deleteByUserIdAndFcmToken(userId, fcmToken);
-            deleted += cnt;
+            int cnt = repository.disableByUserIdAndFcmToken(userId, fcmToken, now, reason);
+            disabled += cnt;
+
             if (cnt > 0) {
-                log.info("[PushDevice] delete by fcmToken: userId={}, fcmToken={}, deleted={}",
-                        userId, fcmToken, cnt);
+                log.info("[PushDevice] disable by fcmToken: userId={}, disabled={}",
+                        userId, cnt);
 
                 businessLogService.info(
                         BusinessLogCategory.PUSH,
                         BusinessAction.Push.PUSH_DEVICE_UNREGISTER,
                         userId,
                         TargetType.USER,
-                        userId != null ? userId.toString() : null,
-                        "푸시 디바이스 해제 (fcmToken 기준)",
+                        userId.toString(),
+                        "푸시 디바이스 비활성화 (fcmToken 기준)",
                         Map.of(
                                 "hasFcmToken", "true",
-                                "deleted", String.valueOf(cnt)
+                                "disabled", String.valueOf(cnt),
+                                "reason", reason
                         )
                 );
             }
         }
 
-        // ⃣ 두 방식 모두로 삭제된 게 없으면 → 단순 경고 + 비즈니스 경고
-        if (deleted == 0) {
-            log.warn("[PushDevice] unregister: no match. (userId={}, deviceId={}, fcmToken={})",
-                    userId, deviceId, fcmToken);
+        if (disabled == 0) {
+            log.warn("[PushDevice] unregister: no match. (userId={}, deviceId={}, hasToken={})",
+                    userId, deviceId, (fcmToken != null && !fcmToken.isBlank()));
 
             businessLogService.warn(
                     BusinessLogCategory.PUSH,
                     BusinessAction.Push.PUSH_DEVICE_UNREGISTER,
                     userId,
                     TargetType.USER,
-                    userId != null ? userId.toString() : null,
-                    "푸시 디바이스 해제 대상 없음",
+                    userId.toString(),
+                    "푸시 디바이스 비활성화 대상 없음",
                     Map.of(
                             "deviceId", deviceId != null ? deviceId : "",
                             "hasFcmToken", String.valueOf(fcmToken != null && !fcmToken.isBlank())
@@ -153,10 +169,13 @@ public class PushDeviceService {
     public void unregisterAll(UUID userId) {
         if (userId == null) return;
 
-        int cnt = repository.deleteByUserId(userId);
+        Instant now = Instant.now();
+        String reason = "USER_UNREGISTER_ALL";
+
+        int cnt = repository.disableAllByUserId(userId, now, reason);
 
         if (cnt > 0) {
-            log.info("[PushDevice] delete all: userId={}, deleted={}", userId, cnt);
+            log.info("[PushDevice] disable all: userId={}, disabled={}", userId, cnt);
 
             businessLogService.info(
                     BusinessLogCategory.PUSH,
@@ -164,9 +183,10 @@ public class PushDeviceService {
                     userId,
                     TargetType.USER,
                     userId.toString(),
-                    "푸시 디바이스 전체 해제 (userId 기준)",
+                    "푸시 디바이스 전체 비활성화 (userId 기준)",
                     Map.of(
-                            "deleted", String.valueOf(cnt)
+                            "disabled", String.valueOf(cnt),
+                            "reason", reason
                     )
             );
         } else {
@@ -176,9 +196,14 @@ public class PushDeviceService {
                     userId,
                     TargetType.USER,
                     userId.toString(),
-                    "푸시 디바이스 전체 해제 대상 없음",
+                    "푸시 디바이스 전체 비활성화 대상 없음",
                     Map.of()
             );
         }
+    }
+
+    private String tokenPrefix(String token) {
+        if (token == null) return "";
+        return token.length() > 10 ? token.substring(0, 10) : token;
     }
 }
