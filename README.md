@@ -1,9 +1,5 @@
 # Dearwith
 
-<img width="300" height="177" alt="logo" src="https://github.com/user-attachments/assets/07a771e5-91da-46aa-a9bb-f09da3d9f5c4" />
-
-<img width="75" height="75" alt="256_256" src="https://github.com/user-attachments/assets/d7cda379-4c62-474e-8677-32583c506153" />
-
 **Event & Community Platform for Idol Fans**
 
 DearWith는 실제 서비스 운영을 목표로  
@@ -23,16 +19,12 @@ API Docs : [바로가기](https://api.dearwith.kr/swagger-ui/index.html#/)
 ## System Architecture
 동적 API 트래픽과 이미지 CDN 트래픽을 분리해
 백엔드 부하와 외부 I/O를 최소화한 서비스 아키텍처
-<img width="713" height="650" alt="ㅇㅇㅇ" src="https://github.com/user-attachments/assets/49431761-a8d0-450b-83c8-ecec36a40555" />
 
 ## ERD Diagram
 운영과 확장을 고려해 상태와 관계를 명확히 분리한 도메인 모델
-<img width="2566" height="2417" alt="Dearwith ERD" src="https://github.com/user-attachments/assets/48fb4dda-f978-45a7-bef2-043d21ad2332" />
-
 
 ## CI / CD 
 빌드·배포 과정을 자동화해 일관성과 재현성을 확보한 배포 파이프라인
-<img width="672" height="173" alt="image" src="https://github.com/user-attachments/assets/9fe1871c-8591-4a62-b1a4-deba62e82abc" />
 
 ## Key Engineering Decisions
 
@@ -40,39 +32,40 @@ Dearwith에서 발생한 실제 문제를 기반으로
 설계와 구조를 개선한 주요 기술 기록입니다.
 
 ### 🔥 Hot Event & Recommendation System
-Redis ZSET 기반 랭킹 집계와 ID 기반 2단계 조회로  
-메인 페이지 성능과 추천 신뢰도를 동시에 확보했습니다.  
-→ [문서 보기](./docs/architecture/hot-ranking-system.md)
+Redis ZSET 기반 랭킹 집계로
+실시간 인기 이벤트·아티스트를 DB 부하 없이 산정하고
+추천 신뢰도를 유지할 수 있는 랭킹 계층을 설계했습니다. 
+→ [문서 보기](./docs/hot-ranking-system.md)
 
 ### 🖼 Image Upload Pipeline
 Presigned URL과 S3 상태 전이(tmp → inline → trash)를 도입해  
 대용량 이미지 업로드의 정합성과 운영 안정성을 설계했습니다.  
-→ [문서 보기](./docs/architecture/image-upload-pipeline.md)
+→ [문서 보기](./docs/image-upload-pipeline.md)
 
 ### 🔔 Push Notification Architecture
 FCM 멀티캐스트 전송과 토큰 라이프사이클 관리로  
 대규모 푸시 전송을 운영 가능한 시스템으로 구성했습니다.  
-→ [문서 보기](./docs/architecture/push-notification-architecture.md)
+→ [문서 보기](./docs/push-notification-architecture.md)
 
 ### 🔐 WebView / Safari Authentication Issue
 iOS WebView 환경에서 발생한 쿠키 기반 인증 불일치를 분석하고  
 플랫폼별 인증 전달 방식 분리로 문제를 해결했습니다.  
-→ [문서 보기](./docs/troubleshooting/auth-webview-cookie-issue.md)
+→ [문서 보기](./docs/auth-webview-cookie-issue.md)
 
 ### 💥 High-Resolution Image OOM Troubleshooting
 고해상도 이미지 처리 중 발생한 JVM OOM의 원인을 디코딩 단계에서 찾아  
 서브샘플링 기반 이미지 파이프라인으로 안정성을 확보했습니다.  
-→ [문서 보기](./docs/troubleshooting/image-decoding-oom-troubleshooting.md)
+→ [문서 보기](./docs/image-decoding-oom-troubleshooting.md)
 
 ### ⚙️ Asynchronous Image Processing
 이미지 variant 생성을 비동기로 분리해  
 응답 시간을 단축하고 트랜잭션 경계를 명확히 했습니다.  
-→ [문서 보기](./docs/troubleshooting/image-processing-async-troubleshooting.md)
+→ [문서 보기](./docs/image-processing-async-troubleshooting.md)
 
 ### 🚀 Main Page API Performance Optimization
-N+1 제거를 넘어 조회 구조를 재설계하고  
-k6 부하 테스트로 성능 개선을 정량 검증했습니다.  
-→ [문서 보기](./docs/troubleshooting/main-api-performance.md)
+ID 기반 2단계 조회로 메인 페이지 조회 구조를 재설계해
+N+1 문제를 제거하고, k6 부하 테스트로 성능 개선을 정량 검증했습니다.
+→ [문서 보기](./docs/main-api-performance.md)
 
 ## Tech Stack
 
