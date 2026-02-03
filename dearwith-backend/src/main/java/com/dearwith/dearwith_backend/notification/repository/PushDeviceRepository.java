@@ -17,10 +17,6 @@ public interface PushDeviceRepository extends JpaRepository<PushDevice, Long> {
 
     Optional<PushDevice> findByDeviceIdAndUserId(String deviceId, UUID userId);
 
-    List<PushDevice> findAllByUserIdAndEnabledTrue(UUID userId);
-
-    List<PushDevice> findAllByUserIdInAndEnabledTrue(List<UUID> userIds);
-
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update PushDevice d
@@ -97,5 +93,35 @@ public interface PushDeviceRepository extends JpaRepository<PushDevice, Long> {
     """)
     int hardDeleteDeletedBefore(
             @Param("deletedBefore") Instant deletedBefore
+    );
+
+    @Query("""
+        SELECT DISTINCT d.fcmToken
+        FROM PushDevice d
+        WHERE d.userId = :userId
+          AND d.enabled = true
+          AND d.fcmToken IS NOT NULL
+          AND d.fcmToken <> ''
+          AND d.lastActiveAt IS NOT NULL
+          AND d.lastActiveAt > :expireThreshold
+    """)
+    List<String> findActiveTokensByUserId(
+            @Param("userId") UUID userId,
+            @Param("expireThreshold") Instant expireThreshold
+    );
+
+    @Query("""
+        SELECT DISTINCT d.fcmToken
+        FROM PushDevice d
+        WHERE d.userId IN :userIds
+          AND d.enabled = true
+          AND d.fcmToken IS NOT NULL
+          AND d.fcmToken <> ''
+          AND d.lastActiveAt IS NOT NULL
+          AND d.lastActiveAt > :expireThreshold
+    """)
+    List<String> findActiveTokensByUserIds(
+            @Param("userIds") List<UUID> userIds,
+            @Param("expireThreshold") Instant expireThreshold
     );
 }
