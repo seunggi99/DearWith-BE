@@ -50,7 +50,7 @@ public class MainPageService {
     private List<MainPageReviewDto> getLatestReviewsForMainPage() {
 
         List<Review> reviews =
-                reviewRepository.findTop6ByStatusOrderByIdDesc(ReviewStatus.VISIBLE);
+                reviewRepository.findTop6VisibleReviewsWithActiveEvent(ReviewStatus.VISIBLE);
 
         return reviews.stream()
                 .map(this::toMainPageReviewDtoSafely)
