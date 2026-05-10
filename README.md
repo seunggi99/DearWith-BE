@@ -7,8 +7,8 @@ DearWith는 실제 서비스 운영을 목표로
 **운영 관점에서 설계·구현한 프로젝트**입니다.
 
 ### Links
-배포 URL : [바로가기](https://www.dearwith.kr/)  
-API Docs : [바로가기](https://api.dearwith.kr/swagger-ui/index.html#/)  
+배포 URL(운영중단) : [바로가기](https://www.dearwith.kr/)  
+API Docs : [바로가기](https://app.swaggerhub.com/apis/NINNY9988/dearwith-api/v1)  
 
 ## Overview
 
