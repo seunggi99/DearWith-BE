@@ -64,7 +64,7 @@ iOS WebView 환경에서 발생한 쿠키 기반 인증 불일치를 분석하�
 
 ### 🚀 Main Page API Performance Optimization
 ID 기반 2단계 조회로 메인 페이지 조회 구조를 재설계해
-N+1 문제를 제거하고, k6 부하 테스트로 성능 개선을 정량 검증했습니다.
+N+1 문제를 제거하고, k6 부하 테스트로 성능 개선을 정량 검증했습니다.  
 → [문서 보기](./docs/troubleshooting/main-api-performance.md)
 
 ## Tech Stack
