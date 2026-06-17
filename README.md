@@ -6,6 +6,32 @@ DearWith는 실제 서비스 운영을 목표로
 백엔드 아키텍처, 인증·보안, 이미지 처리, 성능 최적화까지  
 **운영 관점에서 설계·구현한 프로젝트**입니다.
 
+## Tech Stack
+
+- Backend
+![Java 17](https://img.shields.io/badge/Java_17-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![JPA](https://img.shields.io/badge/JPA-59666C?style=flat-square&logo=hibernate&logoColor=white)
+![QueryDSL](https://img.shields.io/badge/QueryDSL-0769AD?style=flat-square&logo=java&logoColor=white)
+
+- Database
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![Amazon RDS](https://img.shields.io/badge/Amazon_RDS-527FFF?style=flat-square&logo=amazonrds&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-FF4438?style=flat-square&logo=redis&logoColor=white)
+
+- Infra
+![AWS EC2](https://img.shields.io/badge/AWS_EC2-FF9900?style=flat-square&logo=amazonec2&logoColor=white)
+![Amazon S3](https://img.shields.io/badge/Amazon_S3-569A31?style=flat-square&logo=amazons3&logoColor=white)
+![CloudFront](https://img.shields.io/badge/CloudFront-8C4FFF?style=flat-square&logo=amazonaws&logoColor=white)
+![Nginx](https://img.shields.io/badge/Nginx-009639?style=flat-square&logo=nginx&logoColor=white)
+
+- Container
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker_Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
+
+- CI/CD
+![Jenkins](https://img.shields.io/badge/Jenkins-D24939?style=flat-square&logo=jenkins&logoColor=white)
+
 ### Links
 배포 URL(운영중단) : [바로가기](https://www.dearwith.kr/)  
 API Docs : [바로가기](https://app.swaggerhub.com/apis/NINNY9988/dearwith-api/v1)  
@@ -69,11 +95,3 @@ iOS WebView 환경에서 발생한 쿠키 기반 인증 불일치를 분석하�
 ID 기반 2단계 조회로 메인 페이지 조회 구조를 재설계해
 N+1 문제를 제거하고, k6 부하 테스트로 성능 개선을 정량 검증했습니다.  
 → [문서 보기](./docs/troubleshooting/main-api-performance.md)
-
-## Tech Stack
-
-- Backend: Java 17, Spring Boot, JPA, QueryDSL
-- Database: MySQL (RDS), Redis
-- Infra: AWS EC2, S3, CloudFront, Nginx (HTTPS, Reverse Proxy)
-- Container: Docker, Docker Compose
-- CI/CD: Jenkins
